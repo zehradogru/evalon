@@ -1,0 +1,19 @@
+{
+    "name": "@graph/chart-utils",
+    "version": "0.1.0",
+    "private": true,
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist",
+        "dev": "tsc --watch"
+    },
+    "dependencies": {
+        "@graph/shared-types": "workspace:*",
+        "lightweight-charts": "^4.2.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.7.0"
+    }
+}

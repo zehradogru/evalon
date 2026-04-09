@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Splash ekranı için koyu arka plan rengi -->
+    <color name="splash_background">#101018</color>
+</resources>

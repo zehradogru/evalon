@@ -1,0 +1,38 @@
+# General Python
+__pycache__/
+*.pyc
+venv/
+.pytest_cache/
+
+# Environment Variables & Secrets
+.env
+.env.*
+*.json
+!package.json
+!tsconfig.json
+!turbo.json
+!tsconfig.base.json
+!package-lock.json
+
+# Oracle Wallets
+oracle_wallet/
+oracle_wallet.zip
+wallet/
+
+# Node/Monorepo
+node_modules/
+.next/
+.vercel/
+.wrangler/
+dist/
+build/
+
+# Local Data and Caches
+.bist_cache*/
+api/data/
+denemelerrr/
+*.csv
+*data.csv
+
+# macOS
+.DS_Store

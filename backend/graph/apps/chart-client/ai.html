@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Graph AI Copilot for strategy design, rule discovery, indicator drafting, and backtest orchestration" />
+  <title>Graph AI Copilot</title>
+  <link rel="stylesheet" href="/src/styles/ai.css" />
+</head>
+<body>
+  <div id="ai-app">
+    <header class="ai-topbar">
+      <div class="ai-brand">
+        <a class="ai-home-link" href="/">Graph</a>
+        <div>
+          <p class="ai-eyebrow">AI Copilot</p>
+          <h1>Sohbet ederek strateji kur, analiz al, backtest kostur.</h1>
+        </div>
+      </div>
+      <div class="ai-topbar-actions">
+        <a class="ai-secondary-link" id="ai-open-analysis" href="/chart.html">Analiz</a>
+        <a class="ai-secondary-link" id="ai-open-backtest" href="/backtest.html">Backtest</a>
+        <button id="ai-open-context" type="button" class="ai-secondary-button">Context</button>
+        <button id="ai-open-assets" type="button" class="ai-secondary-button">Taslaklar</button>
+        <button id="ai-open-activity" type="button" class="ai-secondary-button">Activity</button>
+        <button id="ai-new-session" type="button" class="ai-primary-button">Yeni oturum</button>
+      </div>
+    </header>
+
+    <main class="ai-shell">
+      <section class="ai-panel ai-chat-panel">
+        <header class="ai-chat-head">
+          <div>
+            <p class="ai-eyebrow">Conversation</p>
+            <h2>AI strateji masasi</h2>
+            <p class="ai-chat-subtitle">Ne yapmak istedigini yaz. Gerekli sembol, timeframe, rule ya da backtest adimlarini copilot sohbet icinde netlestirsin.</p>
+          </div>
+          <div class="ai-chat-meta">
+            <div id="ai-status" class="ai-status">Session hazirlaniyor...</div>
+            <div id="ai-session-pill" class="ai-session-pill">Hazirlaniyor</div>
+          </div>
+        </header>
+
+        <div id="ai-messages" class="ai-messages"></div>
+
+        <section class="ai-suggestion-panel">
+          <div class="ai-suggestion-head">
+            <p class="ai-eyebrow">Quick Next Step</p>
+            <span id="ai-suggestion-label" class="ai-suggestion-label">Hizli baslangic</span>
+          </div>
+          <div id="ai-suggestions" class="ai-suggestions"></div>
+        </section>
+
+        <form id="ai-composer" class="ai-composer">
+          <label class="ai-composer-field">
+            <span class="sr-only">Mesaj</span>
+            <textarea id="ai-input" rows="4" placeholder="Ornek: Bankacilik hisseleri icin dusuk DD odakli bir strateji kur ve backteste uygun blueprint olustur."></textarea>
+          </label>
+          <div class="ai-composer-foot">
+            <div class="ai-composer-meta">
+              <div id="ai-context-preview" class="ai-context-preview"></div>
+              <p class="ai-composer-note">Bir oneriyi tek tikla gonderebilir ya da kendi sorunu yazabilirsin.</p>
+            </div>
+            <button id="ai-send" type="submit" class="ai-primary-button">Gonder</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <div id="ai-drawer-backdrop" class="ai-drawer-backdrop"></div>
+    <aside id="ai-drawer" class="ai-drawer" aria-hidden="true">
+      <header class="ai-drawer-head">
+        <div>
+          <p id="ai-drawer-kicker" class="ai-eyebrow">Drawer</p>
+          <h2 id="ai-drawer-title">Detay</h2>
+        </div>
+        <button id="ai-close-drawer" type="button" class="ai-drawer-close" aria-label="Kapat">Kapat</button>
+      </header>
+
+      <div class="ai-drawer-body">
+        <section id="ai-drawer-view-context" class="ai-drawer-view">
+          <p class="ai-drawer-copy">Bunlari bos birakabilirsin. Doldurursan copilot bu bilgileri ilk mesajdan itibaren kullanir.</p>
+          <div class="ai-context-grid">
+            <label class="ai-field">
+              <span>Hisse</span>
+              <input id="ai-ticker" list="ai-ticker-list" type="text" autocomplete="off" placeholder="Bos birakirsan AI sorar" />
+              <datalist id="ai-ticker-list"></datalist>
+            </label>
+
+            <label class="ai-field">
+              <span>Timeframe</span>
+              <select id="ai-timeframe">
+                <option value="" selected>AI belirlesin / sonra sorulsun</option>
+                <option value="1m">1m</option>
+                <option value="5m">5m</option>
+                <option value="15m">15m</option>
+                <option value="1h">1h</option>
+                <option value="4h">4h</option>
+                <option value="1d">1d</option>
+                <option value="1w">1w</option>
+                <option value="1M">1M</option>
+              </select>
+            </label>
+
+            <label class="ai-field ai-field-wide">
+              <span>Ek semboller</span>
+              <input id="ai-symbols" type="text" autocomplete="off" placeholder="AKBNK.IS, GARAN.IS gibi virgulle ayir" />
+            </label>
+          </div>
+
+          <div class="ai-toggle-row">
+            <label class="ai-toggle">
+              <input id="ai-auto-save" type="checkbox" checked />
+              <span>Taslaklari otomatik kaydet</span>
+            </label>
+          </div>
+        </section>
+
+        <section id="ai-drawer-view-assets" class="ai-drawer-view">
+          <div id="ai-assets-summary" class="ai-assets-summary"></div>
+          <div id="ai-assets-list" class="ai-assets-list"></div>
+        </section>
+
+        <section id="ai-drawer-view-activity" class="ai-drawer-view">
+          <div id="ai-tool-results" class="ai-tool-results"></div>
+        </section>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module" src="/src/ai.ts"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Uygulamanın ana teması -->
+    <style name="Theme.Evalon" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Buraya ileride genel tema özelleştirmeleri eklenebilir -->
+    </style>
+
+    <!-- Splash ekranı teması -->
+    <style name="Theme.Evalon.Splash" parent="Theme.SplashScreen">
+        <!-- Android 12+ SplashScreen API öznitelikleri -->
+        <!-- Arka plan: Auth ekranındaki linear gradient (Indigo -> Purple) -->
+        <item name="windowSplashScreenBackground">@drawable/splash_background</item>
+        <!-- Logo: Evalon PNG -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/evalon_logo</item>
+        <!-- Branding image'i kaldır -->
+        <item name="android:windowSplashScreenBrandingImage">@null</item>
+        <!-- Splash sonrası otomatik geçilecek tema -->
+        <item name="postSplashScreenTheme">@style/Theme.Evalon</item>
+    </style>
+
+</resources>

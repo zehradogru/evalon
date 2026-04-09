@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Borsa-1 Ara Rapor</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+        
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --text-main: #1f2937;
+            --text-light: #4b5563;
+            --bg-main: #ffffff;
+            --bg-alt: #f8fafc;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: var(--text-main);
+            background-color: #f1f5f9;
+            margin: 0;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--bg-main);
+            padding: 3rem 4rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 3px solid var(--primary);
+        }
+
+        .header h1 {
+            border: none;
+            margin-bottom: 0.5rem;
+            font-size: 2.5rem;
+            color: #0f172a;
+        }
+
+        .meta-box {
+            background: var(--bg-alt);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-bottom: 2rem;
+            font-size: 1.05rem;
+        }
+
+        .meta-box p {
+            margin: 0.5rem 0;
+            color: #334155;
+        }
+
+        .meta-box strong {
+            color: #0f172a;
+        }
+
+        h2 {
+            font-size: 1.75rem;
+            color: var(--primary);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 0.5rem;
+            margin-top: 3rem;
+            page-break-after: avoid;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            color: #334155;
+            margin-top: 2rem;
+            page-break-after: avoid;
+        }
+
+        p, li {
+            font-size: 1.05rem;
+            color: #475569;
+            margin-bottom: 1rem;
+        }
+
+        ul, ol {
+            padding-left: 1.5rem;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            font-size: 0.95rem;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            page-break-inside: avoid;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background-color: #f8fafc;
+            color: #334155;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        
+        tr:hover {
+            background-color: #f1f5f9;
+        }
+
+        td.status-success { color: var(--success); font-weight: 600; }
+
+        /* Alerts */
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            border-left: 4px solid;
+            page-break-inside: avoid;
+        }
+        .alert.info { background: #eff6ff; border-left-color: var(--info); color: #1e3a8a; }
+        .alert.important { background: #fef2f2; border-left-color: var(--danger); color: #991b1b; }
+
+        /* Code & Pre */
+        pre {
+            background: #1e293b;
+            color: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            margin: 1.5rem 0;
+            page-break-inside: avoid;
+        }
+        code {
+            font-family: 'Fira Code', monospace;
+            background: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            color: #ef4444;
+            font-size: 0.9em;
+        }
+        pre code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+        }
+
+        /* SVG Diagrams (Replacing Mermaid) */
+        .diagram-container {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            text-align: center;
+            page-break-inside: avoid;
+        }
+        .diagram-title {
+            font-size: 0.9rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+
+        /* UML Box Styles */
+        .uml-box {
+            border: 2px solid #cbd5e1;
+            border-radius: 8px;
+            background: #f8fafc;
+            padding: 1rem;
+            display: inline-block;
+            text-align: center;
+            min-width: 150px;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .uml-box.actor { border-radius: 50%; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; }
+        .uml-box.system { background: #ebf8ff; border-color: #90cdf4; }
+        .uml-box.db { border-radius: 8px; border-bottom-left-radius: 50% 20px; border-bottom-right-radius: 50% 20px; background: #f0fff4; border-color: #9ae6b4;}
+        
+        .uml-arrow {
+            display: inline-block;
+            margin: 0 1rem;
+            color: #94a3b8;
+            font-size: 1.5rem;
+            vertical-align: middle;
+        }
+
+        /* Print Settings */
+        @media print {
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; padding: 0; border: none; max-width: 100%; }
+            #downloadBtn { display: none; }
+        }
+        
+        .download-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+            transition: all 0.2s;
+            z-index: 1000;
+            font-family: 'Inter', sans-serif;
+        }
+        .download-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+
+    <button id="downloadBtn" class="download-btn" onclick="window.print()">🖨️ PDF Olarak Kaydet</button>
+
+    <div class="container">
+        
+        <div class="header">
+            <h1>Borsa-1: BIST Hisse Analiz ve Backtest Platformu</h1>
+            <h2>Ara Rapor</h2>
+        </div>
+
+        <div class="meta-box">
+            <p><strong>Proje:</strong> Borsa-1 — Akıllı Borsa Analiz Platformu</p>
+            <p><strong>Ekip Rolü:</strong> Backend & Veritabanı (Backtest Engine, API, Oracle Cloud DB)</p>
+            <p><strong>Tarih:</strong> 09 Nisan 2026</p>
+        </div>
+
+        <!-- 1. Introduction -->
+        <h2>1. Introduction</h2>
+        <h3>1.1 Problem Definition</h3>
+        <p>Türkiye'deki bireysel yatırımcılar, Borsa İstanbul (BIST) hisse senetlerini analiz ederken karşılaştıkları temel sorunlar şunlardır:</p>
+        <ul>
+            <li><strong>Geriye dönük test (backtest) altyapısı eksikliği:</strong> Yatırımcılar, bir stratejiyi gerçek parayla denemeden önce geçmiş veriler üzerinde test edememektedir.</li>
+            <li><strong>Gerçek zamanlı ve tarihsel veri erişim zorluğu:</strong> BIST verilerine 1 dakikalık ve 1 saatlik çözünürlükte erişim sınırlıdır.</li>
+            <li><strong>Teknik analiz otomasyonu yetersizliği:</strong> 30'dan fazla teknik indikatör ve 35+ kural tabanlı stratejiyi birden fazla zaman diliminde aynı anda değerlendirecek bir sistem bulunmamaktadır.</li>
+            <li><strong>Portföy bazlı strateji doğrulama eksikliği:</strong> Birden fazla hisseyi kapsayan stratejilerin portföy düzeyinde simülasyonu yapılamamaktadır.</li>
+        </ul>
+
+        <h3>1.2 Project Objectives</h3>
+        <ol>
+            <li><strong>Kapsamlı bir Backtest Engine</strong> geliştirmek: Komisyon, slippage, stop-loss, take-profit ve lot bazlı işlem simülasyonu.</li>
+            <li><strong>Oracle Autonomous Cloud Database</strong> üzerinde BIST piyasa verisini toplamak ve depolamak (500+ hisse, 127+ BIST-100 hissesi).</li>
+            <li><strong>RESTful API</strong> (FastAPI) ile veriye, indikatörlere ve backtest sonuçlarına programatik erişim sağlamak.</li>
+            <li><strong>Multi-timeframe strateji motoru</strong> ile 35+ teknik kural ve 10 hazır preset'i backtest'e açmak.</li>
+            <li><strong>AI destekli analiz modülü</strong> ile Gemini LLM ve LangGraph tabanlı zeki yatırım asistanı sunmak.</li>
+            <li>Mobil uygulama ekibinin tüketebileceği, Vercel'e deploy edilebilir bir backend altyapısı oluşturmak.</li>
+        </ol>
+
+        <h3>1.3 Scope of the System</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Kapsam</th>
+                    <th>Açıklama</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Backtest Engine</strong></td>
+                    <td>Tek hisse & portföy bazlı, çok zaman dilimli geriye dönük test motoru.</td>
+                </tr>
+                <tr>
+                    <td><strong>Data Collection</strong></td>
+                    <td>Yahoo Finance → Oracle Cloud DB veri toplama pipeline'ı.</td>
+                </tr>
+                <tr>
+                    <td><strong>REST API</strong></td>
+                    <td>FastAPI tabanlı fiyat, indikatör, backtest ve AI endpoint'leri.</td>
+                </tr>
+                <tr>
+                    <td><strong>Oracle Database</strong></td>
+                    <td>BIST_PRICES (1dk) ve BIST_PRICES_1H (1sa) tabloları.</td>
+                </tr>
+                <tr>
+                    <td><strong>AI Module</strong></td>
+                    <td>Gemini LLM + LangGraph ajanı ile strateji analizi.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="alert info">
+            <p><strong>Not:</strong> Frontend (mobil uygulama) bölümü ekip arkadaşlarımız tarafından ayrı raporlanmaktadır.</p>
+        </div>
+
+        <!-- 2. Requirements -->
+        <h2>2. Requirements</h2>
+        <h3>2.1 Functional Requirements</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Gereksinim</th>
+                    <th>Modül</th>
+                    <th>Durum</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>FR-01</td>
+                    <td>Sistem, 500+ BIST hissesinin 1dk ve 1sa OHLCV verisini Oracle DB'ye toplamalı.</td>
+                    <td>Data Collection</td>
+                    <td class="status-success">✓ Tamamlandı</td>
+                </tr>
+                <tr>
+                    <td>FR-02</td>
+                    <td>Sistem, tek hisse üzerinde long-only all-in backtest çalıştırabilmeli.</td>
+                    <td>Backtest Engine</td>
+                    <td class="status-success">✓ Tamamlandı</td>
+                </tr>
+                <tr>
+                    <td>FR-03</td>
+                    <td>Backtest motoru stop-loss, take-profit, slippage ve komisyon hesaplayabilmeli.</td>
+                    <td>Backtest Engine</td>
+                    <td class="status-success">✓ Tamamlandı</td>
+                </tr>
+                 <tr>
+                    <td>FR-04</td>
+                    <td>Sistem, çoklu zaman diliminde (1dk–1ay) OHLCV verisi sunabilmeli.</td>
+                    <td>API</td>
+                    <td class="status-success">✓ Tamamlandı</td>
+                </tr>
+                <tr>
+                    <td>FR-05</td>
+                    <td>Sistem, 30+ teknik indikatör hesaplayıp API üzerinden sunabilmeli.</td>
+                    <td>API (TA-Lib)</td>
+                    <td class="status-success">✓ Tamamlandı</td>
+                </tr>
+                <tr>
+                    <td>FR-06</td>
+                    <td>Sistem, kural tabanlı strateji blueprint'leri ile multi-timeframe backtest yapabilmeli.</td>
+                    <td>Strategy Engine</td>
+                    <td class="status-success">✓ Tamamlandı</td>
+                </tr>
+                <tr>
+                    <td>FR-07</td>
+                    <td>Portföy bazlı backtest: Birden fazla hisseyi sabit pozisyon büyüklüğü ile simüle edebilmeli.</td>
+                    <td>Portfolio Backtest</td>
+                    <td class="status-success">✓ Tamamlandı</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>2.2 Non-Functional Requirements</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Gereksinim</th>
+                    <th>Hedef</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>NFR-01</td><td>API yanıt süresi (fiyat sorgusu)</td><td>< 2 saniye</td></tr>
+                <tr><td>NFR-02</td><td>Backtest motoru performansı</td><td>5000+ bar üzerinde saniyelik hesaplama</td></tr>
+                <tr><td>NFR-03</td><td>Veritabanı bağlantı havuzu (connection pool)</td><td>1–8 bağlantı</td></tr>
+                <tr><td>NFR-04</td><td>Oracle Wallet ile mTLS güvenli bağlantı</td><td>Aktif</td></tr>
+                <tr><td>NFR-05</td><td>Veri tutarlılığı: duplicate kayıt önleme</td><td>UNIQUE constraint</td></tr>
+            </tbody>
+        </table>
+
+        <h3>2.3 User Roles & Use Cases</h3>
+        <ul>
+            <li><strong>Yatırımcı:</strong> Strateji oluşturur, backtest çalıştırır, AI asistana danışır.</li>
+            <li><strong>Mobil Uygulama:</strong> REST API üzerinden veri ve indikatörleri çeker.</li>
+            <li><strong>Sistem Yöneticisi:</strong> Veri toplama cron job'larını izler, Oracle DB bakımını yapar.</li>
+        </ul>
+
+        <!-- 3. Architecture -->
+        <h2>3. System / Technical Architecture</h2>
+        <h3>3.1 Technology Stack</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Katman</th>
+                    <th>Teknoloji</th>
+                    <th>Açıklama</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Web Framework</strong></td><td>FastAPI + Uvicorn</td><td>Asenkron REST API altyapısı</td></tr>
+                <tr><td><strong>Database</strong></td><td>Oracle Cloud DB</td><td>Always Free Autonomous DB</td></tr>
+                <tr><td><strong>Data Processing</strong></td><td>Pandas, NumPy</td><td>OHLCV manipülasyonu</td></tr>
+                <tr><td><strong>Technical Analysis</strong></td><td>TA-Lib</td><td>30+ İndikatör kütüphanesi</td></tr>
+                <tr><td><strong>AI Orchestration</strong></td><td>LangGraph + Gemini</td><td>Reasoning tabanlı analiz ajanı</td></tr>
+                <tr><td><strong>Data Source</strong></td><td>yfinance</td><td>Hisse senedi veri akışı</td></tr>
+            </tbody>
+        </table>
+
+        <!-- 4. UML Diagrams (CSS Based) -->
+        <h2>4. System Architecture & Flow</h2>
+        
+        <div class="diagram-container">
+            <div class="diagram-title">System Architecture Flow</div>
+            <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div class="uml-box actor" style="background: #f1f5f9; border-radius: 8px; width: 120px;">
+                    📱 Frontend<br><small>(Mobile App)</small>
+                </div>
+                <div class="uml-arrow">↔</div>
+                <div class="uml-box system">
+                    <strong>⚡ FastAPI Backend</strong><br>
+                    <small>Routes: /prices, /indicators, /backtests</small>
+                </div>
+                <div class="uml-arrow">↔</div>
+                <div class="uml-box system" style="background: #e0e7ff; border-color: #818cf8;">
+                    <strong>⚙️ Engine Layer</strong><br>
+                    <small>Backtest & Strategies</small>
+                </div>
+                <div class="uml-arrow">↔</div>
+                <div class="uml-box db">
+                    <strong>🗄️ Oracle Cloud DB</strong><br>
+                    <small>BIST_PRICES (1m & 1h)</small>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px; border-top: 1px dashed #cbd5e1; padding-top: 20px;">
+                <div style="display: flex; justify-content: center; align-items: center;">
+                    <div class="uml-box" style="background: #fef3c7; border-color: #fbbf24;">
+                        <strong>🌐 Yahoo Finance</strong><br><small>(Data Source)</small>
+                    </div>
+                    <div class="uml-arrow">→</div>
+                    <div class="uml-box system" style="background: #fce7f3; border-color: #f472b6;">
+                        <strong>⏱️ Data Collector</strong><br><small>(Python Cron Job)</small>
+                    </div>
+                    <div class="uml-arrow">→</div>
+                    <div class="uml-box db">
+                        Oracle Cloud DB
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="diagram-container">
+            <div class="diagram-title">Class Architecture Outline</div>
+            <pre style="text-align: left; margin: 0; background: #fff; color: #1e293b; border: 1px solid #e2e8f0;">
+BaseStrategy
+ ├── RSIStrategy (config, compute_rsi)
+ └── MACDStrategy (config, compute_macd)
+
+BacktestEngine
+ ├── Config (cash, fee, slippage, stop/tp)
+ ├── Result (trades, equity, metrics)
+ └── MultiTimeframeBacktest
+
+DataLayer
+ ├── BistPricesClient (1m data)
+ ├── BistPrices1HClient (1h data)
+ └── HybridBistPricesClient (Routing)
+            </pre>
+        </div>
+
+        <!-- 5. UI/UX -->
+        <h2>5. API & Data Formatting</h2>
+        <h3>5.1 API Response Structure</h3>
+        <p>Mobil uygulamanın rahatça tüketebileceği standart JSON yapıları kullanılmıştır:</p>
+<pre>
+{
+  "summary": {
+    "totalTrades": 42,
+    "winRate": 0.571,
+    "totalPnlPct": 18.45,
+    "maxDrawdownPct": -6.32
+  },
+  "trades": [...],
+  "stageStats": {...}
+}
+</pre>
+
+        <!-- 6. Implementation -->
+        <h2>6. Implementation Details</h2>
+        <h3>6.1 Backtest Engine Algoritması</h3>
+        <p>Sistem <strong>event-driven</strong> bar-by-bar simülasyon yaklaşımı kullanır:</p>
+<pre>
+HER BAR İÇİN:
+1. ENTRY: Önceki bar sinyali 1 ise -> mevcut bar OPEN'dan al.
+   (Slippage ve Komisyon kesilir)
+
+2. STOP/TP KONTROL:
+   - GAP Kontrolü: OPEN <= stop veya OPEN >= tp (Gap çıkışı)
+   - INTRABAR: LOW <= stop veya HIGH >= tp
+
+3. EQUITY UPDATE: Her bar sonu nakit + pozisyon değeri kaydedilir.
+</pre>
+        
+        <!-- 7. Testing -->
+        <h2>7. Testing & Validation</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Senaryo</th>
+                    <th>Beklenen Sonuç</th>
+                    <th>Durum</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Oracle DB Bağlantı Testi</td><td>Başarılı bağlantı ve sorgu</td><td><span class="status-success">Geçti</span></td></tr>
+                <tr><td>Tablo Veri Ekleme (Duplicate)</td><td>ORA-00001 hatası yakalanır (UNIQUE)</td><td><span class="status-success">Geçti</span></td></tr>
+                <tr><td>TA-Lib İndikatör Hesaplama</td><td>NaN temizlenmiş doğru RSI/MACD</td><td><span class="status-success">Geçti</span></td></tr>
+                <tr><td>Stop-Loss & Take-Profit Tetiklenmesi</td><td>Fiyat hedefe değdiğinde pozisyon kapanır</td><td><span class="status-success">Geçti</span></td></tr>
+                <tr><td>Timeframe Aggregation (1h, 4h, 1d)</td><td>Açılış/Kapanış saatlerine göre OHLCV özeti</td><td><span class="status-success">Geçti</span></td></tr>
+            </tbody>
+        </table>
+
+        <!-- 8. Results -->
+        <h2>8. Results & Conclusion</h2>
+        <h3>8.1 Achieved Functionality</h3>
+        <p>
+            Geliştirilen backend altyapısı, <strong>127+ hissenin 1 dakikalık, 500+ hissenin 1 saatlik</strong> verilerini Oracle Cloud üzerinde başarıyla barındırmakta ve FastAPI üzerinden sunmaktadır. Geriye dönük test motoru (Backtest Engine), slippage, komisyon ve stop-loss maliyetlerini gerçeğe yakın simüle etmektedir.
+        </p>
+
+        <h3>8.2 Limitations</h3>
+        <ul>
+            <li><strong>Sadece Long Yönlü:</strong> Sistem şu anda short pozisyonları (açığa satış) simüle etmemektedir.</li>
+            <li><strong>YFinance Limitleri:</strong> Ücretsiz API kullanıldığından veri çekme hızı rate-limit'e tabidir.</li>
+        </ul>
+
+        <div class="alert important">
+            <p><strong>Değerlendirme:</strong> Bu rapor backend mimarisini anlatmaktadır. Tam proje teslimi için mobil (frontend) raporuyla birleştirilecektir.</p>
+        </div>
+
+        <!-- 9. Github -->
+        <h2>9. GitHub & Deployment</h2>
+        <pre>
+# 1. Repoyu Klonla
+git clone https://github.com/[REPO]/backtest.git
+
+# 2. Gereksinimleri Kur (TA-Lib C kütüphanesi gerektirir)
+pip install -r requirements.txt
+
+# 3. Ortam Değişkenleri (.env)
+ORACLE_DB_USER=ADMIN
+ORACLE_DB_PASSWORD=*****
+ORACLE_DB_DSN=evalondb_high
+
+# 4. Sunucuyu Başlat
+uvicorn api.main:app --reload
+        </pre>
+
+    </div>
+</body>
+</html>

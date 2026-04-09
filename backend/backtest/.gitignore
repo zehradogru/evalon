@@ -1,0 +1,26 @@
+.env
+.env.*
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local artifacts / outputs
+THYAO_prices.json
+rsi_trades.html
+rsi_trades.png
+
+# Oracle wallet (do not commit secrets)
+wallet/
+
+# JS/Next/CF tooling
+node_modules/
+.next/
+.vercel/
+.wrangler/
+
+# Ignore data and tests
+api/data/
+denemelerrr/
+*.json
+.bist_cache*/

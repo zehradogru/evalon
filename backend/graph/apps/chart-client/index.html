@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Launch analysis, backtest, or AI copilot workspace for a selected ticker" />
+  <title>Graph Launchpad</title>
+  <link rel="stylesheet" href="/src/styles/ticker-lab.css" />
+</head>
+<body>
+  <main id="launchpad">
+    <section class="hero-panel">
+      <div class="hero-copy">
+        <p class="eyebrow">Graph Workspace</p>
+        <h1>Tek hisse sec. Sonra analiz mi backtest mi istedigini sec.</h1>
+        <p class="hero-text">
+          Indikator odakli chart analizi ile ayrintili strateji/backtest workspace artik iki farkli akis.
+          Ilk ekranda hisseyi secip dogru modla devam et.
+        </p>
+      </div>
+      <div class="hero-modes">
+        <button id="mode-analysis" class="mode-card active" type="button" data-mode="analysis">
+          <span class="mode-badge">01</span>
+          <strong>Indikator Analizi</strong>
+          <span>Tek chart, sade toolbar, hizli karar.</span>
+        </button>
+        <button id="mode-backtest" class="mode-card" type="button" data-mode="backtest">
+          <span class="mode-badge">02</span>
+          <strong>Backtest Workspace</strong>
+          <span>3 periyotlu strateji kurulumu, zorunlu kurallar ve minimum teyit mantigi.</span>
+        </button>
+        <button id="mode-ai" class="mode-card" type="button" data-mode="ai">
+          <span class="mode-badge">03</span>
+          <strong>AI Copilot</strong>
+          <span>Rule, indicator, preset ve backtest araclarina dogrudan erisen sohbet tabanli komuta merkezi.</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="workspace-grid">
+      <section class="control-panel">
+        <header class="panel-header">
+          <div>
+            <p class="section-kicker">Launch Setup</p>
+            <h2>Hisse ve cikis noktasi</h2>
+          </div>
+          <div id="selected-mode-pill" class="selected-mode-pill">Analiz modu secili</div>
+        </header>
+
+        <div class="field-grid">
+          <label class="field field-wide">
+            <span>Hisse</span>
+            <input id="ticker-input" type="text" placeholder="THYAO" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span>Analiz TF</span>
+            <select id="tf-input">
+              <option value="1m">1m</option>
+              <option value="5m">5m</option>
+              <option value="15m">15m</option>
+              <option value="1h" selected>1h</option>
+              <option value="4h">4h</option>
+              <option value="1d">1d</option>
+              <option value="1w">1w</option>
+              <option value="1M">1M</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="primary-actions">
+          <button id="test-btn" type="button">Veriyi Dogrula</button>
+          <button id="open-analysis-btn" type="button">Analiz Ekranini Ac</button>
+          <button id="open-backtest-btn" type="button">Backtest Workspace Ac</button>
+          <button id="open-ai-btn" type="button">AI Copilot Ac</button>
+        </div>
+
+        <div class="shortcut-text">
+          Backtest ekraninda strateji blueprint'i kurabilir, AI Copilot ekraninda ayni hisse uzerinde rule, indicator ve backtest komutlariyla ilerleyebilirsin.
+        </div>
+
+        <section class="flow-panel">
+          <header class="flow-header">
+            <p class="section-kicker">Pratik Akis</p>
+            <h3>3 periyotlu karar zinciri</h3>
+          </header>
+          <div class="flow-steps">
+            <article class="flow-step">
+              <span>Ust Periyot</span>
+              <strong>Ana trendi sec</strong>
+              <p>Yapinin yukselen dip-tepe mi yoksa alcalan tepe-dip mi oldugunu belirle.</p>
+            </article>
+            <article class="flow-step">
+              <span>Orta Periyot</span>
+              <strong>Islem fikrini kur</strong>
+              <p>Destek/direnc, kirilim, pullback, sikisma ve formasyonlari burada kur.</p>
+            </article>
+            <article class="flow-step">
+              <span>Alt Periyot</span>
+              <strong>Tetik bekle</strong>
+              <p>Mum yapisi, retest, hacim teyidi ve stop mesafesi ile girisi hassaslastir.</p>
+            </article>
+          </div>
+        </section>
+      </section>
+
+      <aside class="market-panel">
+        <div class="lab-status">
+          <div id="status-text">Bir hisse sec, veriyi kontrol et ve hedef ekrani ac.</div>
+        </div>
+
+        <section class="list-panel">
+          <div class="list-header">
+            <div>
+              <p class="section-kicker">BIST Watchlist</p>
+              <h2>Hizli secim</h2>
+            </div>
+            <input id="filter-input" type="text" placeholder="Filtrele..." autocomplete="off" />
+          </div>
+          <div id="ticker-list" class="ticker-list"></div>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <script type="module" src="/src/ticker-lab.ts"></script>
+</body>
+</html>

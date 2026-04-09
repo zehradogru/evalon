@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Detailed multi-timeframe backtest workspace for Graph" />
+  <title>Graph Backtest Workspace</title>
+  <link rel="stylesheet" href="/src/styles/backtest.css" />
+</head>
+<body>
+  <div id="backtest-app">
+    <header class="bt-topbar">
+      <div class="bt-brand">
+        <a class="bt-home-link" href="/">Graph</a>
+        <div>
+          <p class="bt-eyebrow">Strategy Backtest Workspace</p>
+          <h1>3 periyotlu strateji blueprint'i</h1>
+        </div>
+      </div>
+
+      <div class="bt-topbar-actions">
+        <div class="bt-symbol-field">
+          <span>Hisseler</span>
+          <div class="bt-symbol-entry">
+            <input id="bt-symbol" list="bt-symbol-list" type="text" autocomplete="off" placeholder="THYAO ekle" />
+            <button id="bt-symbol-add" type="button" class="bt-symbol-action">Ekle</button>
+          </div>
+          <datalist id="bt-symbol-list"></datalist>
+          <div class="bt-symbol-actions">
+            <button id="bt-symbol-select-all" type="button" class="bt-chip-button">Butun hisseleri sec</button>
+            <button id="bt-symbol-clear" type="button" class="bt-chip-button">Temizle</button>
+          </div>
+          <div id="bt-selected-symbols" class="bt-selected-symbols"></div>
+        </div>
+        <button id="bt-open-analysis" type="button">Analiz chart'ina git</button>
+      </div>
+    </header>
+
+    <main class="bt-layout">
+      <section class="bt-main">
+        <section class="bt-hero">
+          <div class="bt-hero-copy">
+            <p class="bt-eyebrow">Decision Framework</p>
+            <h2>Trend sec, setup kur, tetigi hassaslastir.</h2>
+            <p id="bt-hero-text" class="bt-hero-text"></p>
+          </div>
+          <div id="bt-hero-stats" class="bt-hero-stats"></div>
+        </section>
+
+        <section id="stage-deck" class="stage-deck"></section>
+
+        <section class="execution-grid">
+          <article class="execution-card">
+            <header>
+              <p class="bt-eyebrow">Execution Policy</p>
+              <h3>Kombinasyon mantigi</h3>
+            </header>
+
+            <div class="execution-form">
+              <label class="mini-field">
+                <span>Test penceresi</span>
+                <select id="bt-window">
+                  <option value="90">Son 3 ay</option>
+                  <option value="180">Son 6 ay</option>
+                  <option value="365" selected>Son 12 ay</option>
+                  <option value="730">Son 24 ay</option>
+                  <option value="1095">Son 36 ay</option>
+                </select>
+              </label>
+
+              <label class="mini-field">
+                <span>Minimum gecen asama</span>
+                <select id="bt-stage-threshold">
+                  <option value="1">1 stage</option>
+                  <option value="2">2 stage</option>
+                  <option value="3" selected>3 stage</option>
+                </select>
+              </label>
+
+              <label class="mini-field">
+                <span>Yon</span>
+                <select id="bt-direction">
+                  <option value="long" selected>Long only</option>
+                  <option value="short">Short only</option>
+                  <option value="both">Both</option>
+                </select>
+              </label>
+
+              <label class="mini-field">
+                <span>Stop %</span>
+                <input id="bt-stop" type="number" min="0.1" max="25" step="0.1" />
+              </label>
+
+              <label class="mini-field">
+                <span>Target %</span>
+                <input id="bt-target" type="number" min="0.1" max="50" step="0.1" />
+              </label>
+
+              <label class="mini-field">
+                <span>Maks bar tut</span>
+                <input id="bt-max-bars" type="number" min="1" max="500" step="1" />
+              </label>
+
+              <label class="mini-field">
+                <span>Cuzdan bakiyesi (TL)</span>
+                <input id="bt-wallet" type="number" min="1000" max="1000000000" step="100" />
+              </label>
+
+              <label class="mini-field">
+                <span>Islem basi tutar (TL)</span>
+                <input id="bt-position-size" type="number" min="100" max="100000000" step="100" />
+              </label>
+
+              <label class="mini-field">
+                <span>Banka komisyonu %</span>
+                <input id="bt-commission" type="number" min="0" max="10" step="0.001" />
+              </label>
+            </div>
+
+            <div class="execution-actions">
+              <div class="execution-button-group">
+                <button id="bt-run" type="button" class="bt-run-button">Backtesti baslat</button>
+                <button id="bt-open-signal-chart" type="button" class="bt-secondary-button">Sinyal chart'ini ac</button>
+              </div>
+              <p class="execution-hint">Trigger stage yeni aktif oldugunda giris arar; stop, target ve timeout kurallarini bu workspace'ten uygular.</p>
+            </div>
+          </article>
+
+          <article class="execution-card">
+            <header>
+              <p class="bt-eyebrow">Blueprint Summary</p>
+              <h3>Calisma mantigi</h3>
+            </header>
+            <div id="logic-summary" class="logic-summary"></div>
+          </article>
+        </section>
+
+        <section class="results-shell">
+          <header class="results-head">
+            <div>
+              <p class="bt-eyebrow">Run Output</p>
+              <h3>Backtest sonucu</h3>
+            </div>
+          </header>
+          <div id="bt-results" class="results-body">
+            <div class="results-empty">Kurallari sectikten sonra burada backtesti calistirip sonuc ozetini ve islemleri goreceksin.</div>
+          </div>
+        </section>
+      </section>
+
+      <aside class="bt-side">
+        <section class="side-card">
+          <header>
+            <p class="bt-eyebrow">Presets</p>
+            <h3>Hazir kombinasyonlar</h3>
+          </header>
+          <div id="preset-list" class="preset-list"></div>
+        </section>
+
+        <section class="side-card">
+          <header>
+            <p class="bt-eyebrow">Runbook</p>
+            <h3>Asama notlari</h3>
+          </header>
+          <div id="runbook-list" class="runbook-list"></div>
+        </section>
+
+        <section class="side-card">
+          <header>
+            <p class="bt-eyebrow">Blueprint State</p>
+            <h3>Kayit ve paylasim</h3>
+          </header>
+          <div class="action-stack">
+            <button id="bt-save" type="button">Blueprint'i kaydet</button>
+            <button id="bt-copy" type="button">JSON kopyala</button>
+            <button id="bt-reset" type="button">Preset'e sifirla</button>
+          </div>
+          <div id="bt-status" class="bt-status">Workspace hazir.</div>
+        </section>
+      </aside>
+    </main>
+  </div>
+  <div id="bt-rule-modal-root"></div>
+
+  <script type="module" src="/src/backtest.ts"></script>
+</body>
+</html>

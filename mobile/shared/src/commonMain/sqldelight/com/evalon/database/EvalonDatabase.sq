@@ -1,0 +1,158 @@
+-- Strategies table
+CREATE TABLE strategies (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    user_id TEXT NOT NULL
+);
+
+-- Rules table (for strategies)
+CREATE TABLE rules (
+    id TEXT PRIMARY KEY,
+    strategy_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    condition TEXT NOT NULL,
+    action TEXT NOT NULL,
+    parameters TEXT, -- JSON string
+    FOREIGN KEY (strategy_id) REFERENCES strategies(id) ON DELETE CASCADE
+);
+
+-- Backtest results table
+CREATE TABLE backtest_results (
+    id TEXT PRIMARY KEY,
+    strategy_id TEXT NOT NULL,
+    start_date INTEGER NOT NULL,
+    end_date INTEGER NOT NULL,
+    initial_capital REAL NOT NULL,
+    final_capital REAL NOT NULL,
+    total_return REAL NOT NULL,
+    total_return_percent REAL NOT NULL,
+    max_drawdown REAL NOT NULL,
+    max_drawdown_percent REAL NOT NULL,
+    sharpe_ratio REAL,
+    win_rate REAL NOT NULL,
+    total_trades INTEGER NOT NULL,
+    winning_trades INTEGER NOT NULL,
+    losing_trades INTEGER NOT NULL,
+    average_win REAL NOT NULL,
+    average_loss REAL NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (strategy_id) REFERENCES strategies(id) ON DELETE CASCADE
+);
+
+-- Portfolio cache table
+CREATE TABLE portfolio_cache (
+    user_id TEXT PRIMARY KEY,
+    total_value REAL NOT NULL,
+    cash REAL NOT NULL,
+    last_updated INTEGER NOT NULL
+);
+
+-- Positions cache table
+CREATE TABLE positions_cache (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    quantity REAL NOT NULL,
+    average_price REAL NOT NULL,
+    current_price REAL NOT NULL,
+    unrealized_pnl REAL NOT NULL,
+    realized_pnl REAL NOT NULL DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES portfolio_cache(user_id) ON DELETE CASCADE
+);
+
+-- Market data cache (for offline access)
+CREATE TABLE market_data_cache (
+    symbol TEXT NOT NULL,
+    timestamp INTEGER NOT NULL,
+    open REAL NOT NULL,
+    high REAL NOT NULL,
+    low REAL NOT NULL,
+    close REAL NOT NULL,
+    volume INTEGER NOT NULL,
+    PRIMARY KEY (symbol, timestamp)
+);
+
+-- Watchlist table (local only)
+CREATE TABLE watchlist (
+    symbol TEXT PRIMARY KEY,
+    added_at INTEGER NOT NULL
+);
+
+-- Indexes for better query performance
+CREATE INDEX idx_strategies_user_id ON strategies(user_id);
+CREATE INDEX idx_rules_strategy_id ON rules(strategy_id);
+CREATE INDEX idx_backtest_results_strategy_id ON backtest_results(strategy_id);
+CREATE INDEX idx_positions_user_id ON positions_cache(user_id);
+CREATE INDEX idx_market_data_symbol_timestamp ON market_data_cache(symbol, timestamp);
+
+-- ─── Strategy queries ──────────────────────────────────────────────────────
+
+selectAllStrategies:
+SELECT * FROM strategies WHERE user_id = ?;
+
+selectStrategyById:
+SELECT * FROM strategies WHERE id = ?;
+
+insertOrReplaceStrategy:
+INSERT OR REPLACE INTO strategies(id, name, description, status, created_at, updated_at, user_id)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+deleteStrategy:
+DELETE FROM strategies WHERE id = ?;
+
+deleteAllStrategiesForUser:
+DELETE FROM strategies WHERE user_id = ?;
+
+-- ─── Market data cache queries ────────────────────────────────────────────
+
+insertOrReplaceMarketData:
+INSERT OR REPLACE INTO market_data_cache(symbol, timestamp, open, high, low, close, volume)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+selectCachedCandles:
+SELECT * FROM market_data_cache WHERE symbol = ? ORDER BY timestamp DESC LIMIT ?;
+
+deleteOldMarketData:
+DELETE FROM market_data_cache WHERE symbol = ? AND timestamp < ?;
+
+-- ─── Portfolio cache queries ──────────────────────────────────────────────
+
+upsertPortfolioCache:
+INSERT OR REPLACE INTO portfolio_cache(user_id, total_value, cash, last_updated)
+VALUES (?, ?, ?, ?);
+
+selectPortfolioCache:
+SELECT * FROM portfolio_cache WHERE user_id = ?;
+
+deletePortfolioCache:
+DELETE FROM portfolio_cache WHERE user_id = ?;
+
+-- ─── Positions cache queries ──────────────────────────────────────────────
+
+insertOrReplacePosition:
+INSERT OR REPLACE INTO positions_cache(id, user_id, symbol, quantity, average_price, current_price, unrealized_pnl, realized_pnl)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+selectPositionsForUser:
+SELECT * FROM positions_cache WHERE user_id = ?;
+
+deletePositionsForUser:
+DELETE FROM positions_cache WHERE user_id = ?;
+
+-- ─── Watchlist queries ────────────────────────────────────────────────────
+
+selectWatchlist:
+SELECT symbol FROM watchlist ORDER BY added_at DESC;
+
+addToWatchlist:
+INSERT OR IGNORE INTO watchlist(symbol, added_at) VALUES (?, ?);
+
+removeFromWatchlist:
+DELETE FROM watchlist WHERE symbol = ?;
+
+isInWatchlist:
+SELECT COUNT(*) FROM watchlist WHERE symbol = ?;

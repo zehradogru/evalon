@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../graph"
+		},
+		{
+			"path": "../borsa-1/oracle_scripts"
+		}
+	],
+	"settings": {}
+}

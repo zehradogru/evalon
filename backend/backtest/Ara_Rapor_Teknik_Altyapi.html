@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ara Rapor - Veri Toplama ve Backtest Altyapisi</title>
+  <link rel="stylesheet" href="./Ara_Rapor_Teknik_Altyapi.css">
+</head>
+<body>
+  <main class="page">
+    <div class="sheet">
+      <section class="cover">
+        <div class="eyebrow">Ara Rapor</div>
+        <div class="cover-grid">
+          <div>
+            <h1>Veri Toplama ve Backtest Altyapisi</h1>
+            <p class="lead">
+              Bu belge, finansal veri toplama, Oracle veritabani entegrasyonu, teknik gostergelerin servislenmesi ve strateji tabanli backtest akislarinin ara raporunu sunar.
+              Dokuman kapsami bilincli olarak veri ve analiz altyapisina odaklanir; mobil ve arayuz ekran goruntuleri ekip birlestirme asamasinda bu ciktiya eklenecektir.
+            </p>
+            <div class="status-strip">
+              <div class="tag"><span>Kapsam</span><strong>Veri + API + Backtest</strong></div>
+              <div class="tag"><span>Tarih</span><strong>9 Nisan 2026</strong></div>
+              <div class="tag"><span>Tur</span><strong>Ara Teslim</strong></div>
+            </div>
+          </div>
+          <aside class="meta-panel">
+            <div class="meta-item">
+              <strong>Odak</strong>
+              <span>Veri toplama, veritabanina yazma, gostergeler, portfoy ve coklu zaman dilimli testler</span>
+            </div>
+            <div class="meta-item">
+              <strong>Dogrulanmis Sonuclar</strong>
+              <span>18.900.797 adet 1 dakikalik kayit, 2.486.504 adet saatlik mum, 602 farkli sembol</span>
+            </div>
+            <div class="meta-item">
+              <strong>Kullanilan Depolar</strong>
+              <span>Analiz servisi deposu ve veri toplama deposu</span>
+            </div>
+            <div class="meta-item">
+              <strong>Not</strong>
+              <span>Metin boyunca yerel klasor adlari kullanilmamis, moduller islevlerine gore tanimlanmistir.</span>
+            </div>
+          </aside>
+        </div>
+
+        <div class="toc">
+          <h2>Icindekiler</h2>
+          <ol>
+            <li>Introduction</li>
+            <li>Requirements</li>
+            <li>System / Technical Architecture</li>
+            <li>UML Diagrams</li>
+            <li>UI/UX Design</li>
+            <li>Implementation</li>
+            <li>Testing</li>
+            <li>Results / Conclusion</li>
+            <li>GitHub Repository</li>
+          </ol>
+        </div>
+      </section>
+
+      <div class="content">
+        <section class="chapter" id="introduction">
+          <div class="chapter-number">1. Introduction</div>
+          <h2>Problem definition, objectives and scope</h2>
+
+          <div class="two-grid">
+            <article class="card">
+              <h3>Problem definition</h3>
+              <p>
+                Finansal strateji gelistirme surecinde en kritik sorunlardan biri, guvenilir tarihsel verinin daginik kaynaklardan gelmesi ve bu verinin test edilebilir bir yapida saklanmamasidir.
+                Ham piyasa verisi toplansa bile, bu verinin indicator servisleri, API uzerinden erisim ve portfoy seviyesinde simulasyon ile ayni cati altinda birlestirilmemesi, strateji kalitesini olcmeyi zorlastirir.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Project objectives</h3>
+              <ul class="clean">
+                <li>BIST verisini periyodik olarak cekip Oracle veritabaninda kalici hale getirmek.</li>
+                <li>Bu veriyi API uzerinden farkli zaman dilimlerinde servislemek.</li>
+                <li>Teknik gostergeleri ve kural tabanli stratejileri ayni veri uzerinde calistirmak.</li>
+                <li>Tek sembol ve portfoy seviyesinde backtest metrikleri uretmek.</li>
+                <li>Mobil/web arayuzlerin tuketebilecegi standart bir veri omurgasi kurmak.</li>
+              </ul>
+            </article>
+          </div>
+
+          <div class="callout">
+            <h3>Scope of the system</h3>
+            <p>
+              Sistem kapsaminda 1 dakikalik ve 1 saatlik veri toplama, Oracle uzerinde saklama, zaman dilimi donusumu, indicator uretimi, blueprint tabanli coklu zaman dilimli backtest,
+              ortak nakit havuzlu portfoy simulasyonu, durum takibi ve kurulum scriptleri yer alir.
+              Canli emir iletimi, broker entegrasyonu ve son kullanici arayuzlerinin tamamlanmis gorsel teslimleri bu belge kapsaminin disindadir.
+            </p>
+          </div>
+        </section>
+
+        <section class="chapter page-break" id="requirements">
+          <div class="chapter-number">2. Requirements</div>
+          <h2>Functional and non-functional requirements</h2>
+
+          <h3 class="subhead">Functional requirements</h3>
+          <div class="module-grid">
+            <article class="module-card">
+              <h3>Veri toplama gereksinimleri</h3>
+              <ul class="clean">
+                <li>BIST hisseleri icin dakikalik veriyi kaynak servisten otomatik cekebilmelidir.</li>
+                <li>Saatlik tarihsel veriyi genis sembol listesi icin topluca yukleyebilmelidir.</li>
+                <li>Ayni mum kaydinin tekrar yazilmasini benzersiz anahtarlarla onlemelidir.</li>
+                <li>Toplama islemini log tablosunda durum bilgisiyle kaydetmelidir.</li>
+              </ul>
+            </article>
+            <article class="module-card">
+              <h3>Analiz ve servis gereksinimleri</h3>
+              <ul class="clean">
+                <li>OHLCV verisini API uzerinden farkli timeframe taleplerine gore sunmalidir.</li>
+                <li>TA-Lib tabanli indicator serilerini istemciye uygun formatta dondurmelidir.</li>
+                <li>Coklu zaman dilimli kural secimiyle backtest cagirisi alabilmelidir.</li>
+                <li>Portfoy egri verisi, event listesi ve run status bilgisi uretmelidir.</li>
+              </ul>
+            </article>
+          </div>
+
+          <h3 class="subhead">Non-functional requirements</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Baslik</th>
+                <th>Gereksinim</th>
+                <th>Mevcut karsilik</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Performans</td>
+                <td>Buyuk veri setlerinde asiri network yukunu azaltmak</td>
+                <td>Oracle tarafinda aggregate sorgular ve saatlik bundle yapisi kullaniliyor</td>
+              </tr>
+              <tr>
+                <td>Veri butunlugu</td>
+                <td>Duplicate kayitlari engellemek ve tarih araligini korumak</td>
+                <td>Benzersiz kisitlar, duplicate skip mantigi ve datetime filtreleri mevcut</td>
+              </tr>
+              <tr>
+                <td>Olceklenebilirlik</td>
+                <td>Birden fazla sembolu paralel isleyebilmek</td>
+                <td>ThreadPoolExecutor ile paralel mum yukleme ve batch sorgu destegi var</td>
+              </tr>
+              <tr>
+                <td>Izlenebilirlik</td>
+                <td>Surecler izlenebilir olmali</td>
+                <td>Collection log, progress payload ve backtest event listesi uretiliyor</td>
+              </tr>
+              <tr>
+                <td>Guvenlik</td>
+                <td>Kimlik bilgileri kaynak koddan ayristirilmali</td>
+                <td>Ortam degiskeni destegi var; ancak bazi tanilama scriptlerinde sabit bilgiler bulunuyor</td>
+              </tr>
+              <tr>
+                <td>Bakim kolayligi</td>
+                <td>Moduler gelistirme yapisi</td>
+                <td>Veri erisim, uygulama mantigi, sunum katmani ve strateji katmani ayrilmis durumda</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3 class="subhead">User roles / use cases</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Rol</th>
+                <th>Temel ihtiyac</th>
+                <th>Use case</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Arastirmaci / Analist</td>
+                <td>Strateji performansi gormek</td>
+                <td>Kural seti secer, testi baslatir, islem listesi ve metrikleri inceler</td>
+              </tr>
+              <tr>
+                <td>Sistem yoneticisi</td>
+                <td>Veri akisini surdurmek</td>
+                <td>Collector scriptlerini zamanlar, loglari izler, DB baglantisini dogrular</td>
+              </tr>
+              <tr>
+                <td>Mobil / istemci gelistirici</td>
+                <td>Standart veri servisine baglanmak</td>
+                <td>Fiyat, indicator ve backtest endpointlerini arayuzden tuketir</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="chapter page-break" id="architecture">
+          <div class="chapter-number">3. System / Technical Architecture</div>
+          <h2>Components, stack and data flow</h2>
+
+          <h3 class="subhead">System components</h3>
+          <div class="arch-line">
+            <div class="arch-node">
+              <strong>Collector katmani</strong>
+              <p>Yahoo Finance kaynagindan dakikalik ve saatlik OHLCV verisi ceker.</p>
+            </div>
+            <div class="arch-arrow">&rarr;</div>
+            <div class="arch-node">
+              <strong>Oracle veritabani</strong>
+              <p>Ham ve saatlik tablolar ile toplama loglarini saklar.</p>
+            </div>
+            <div class="arch-arrow">&rarr;</div>
+            <div class="arch-node">
+              <strong>API ve veri erisim katmani</strong>
+              <p>Timeframe donusumu, indicator serileri ve backtest endpointlerini sunar.</p>
+            </div>
+            <div class="arch-arrow">&rarr;</div>
+            <div class="arch-node">
+              <strong>Strateji ve simulasyon katmani</strong>
+              <p>Kural secimi, sinyal uretimi, portfoy simulasyonu ve metrikleri hesaplar.</p>
+            </div>
+          </div>
+
+          <h3 class="subhead">Technology stack</h3>
+          <div class="stack-grid">
+            <article class="stack-card">
+              <h3>Backend</h3>
+              <p>Python, FastAPI, Uvicorn, Pydantic</p>
+            </article>
+            <article class="stack-card">
+              <h3>Data / Analytics</h3>
+              <p>Pandas, NumPy, TA-Lib, ThreadPoolExecutor</p>
+            </article>
+            <article class="stack-card">
+              <h3>Storage / Infra</h3>
+              <p>Oracle Autonomous Database, Oracle Wallet, shell scriptleri, cron, VM</p>
+            </article>
+          </div>
+
+          <h3 class="subhead">Data flow / API structure</h3>
+          <div class="flow-list">
+            <div class="flow-item">
+              Collector scripti sembol listesi uzerinden veri kaynagina baglanir, son tarihi kontrol eder ve yalnizca yeni kayitlari alir.
+            </div>
+            <div class="flow-item">
+              Oracle tarafinda dakikalik ve saatlik mumlar ayri tablolarda tutulur; benzersiz anahtar tekrar eklemeyi engeller.
+            </div>
+            <div class="flow-item">
+              API katmani, istemciden gelen timeframe veya indicator taleplerini ilgili veri erisim istemcisine yonlendirir.
+            </div>
+            <div class="flow-item">
+              Backtest cagrisi geldiginde MarketDataGateway aktif semboller ve zaman dilimleri icin mumlari yukler.
+            </div>
+            <div class="flow-item">
+              Strateji kurallari trend, setup ve trigger asamalarinda degerlendirilir; trade adaylari ortak nakit havuzunda simule edilir.
+            </div>
+            <div class="flow-item">
+              Sonuc olarak ozet metrikler, event akisi, portfoy egri verisi ve durum bilgisi API yaniti olarak doner.
+            </div>
+          </div>
+
+          <div class="two-grid">
+            <article class="card">
+              <h3>Baslica endpointler</h3>
+              <ul class="clean">
+                <li><code>GET /health</code></li>
+                <li><code>GET /v1/prices</code></li>
+                <li><code>GET /v1/indicators/catalog</code></li>
+                <li><code>GET /v1/indicators</code></li>
+                <li><code>GET /v1/backtests/catalog/rules</code></li>
+                <li><code>POST /v1/backtests/run</code></li>
+                <li><code>POST /v1/backtests/start</code></li>
+                <li><code>GET /v1/backtests/{run_id}/status</code></li>
+              </ul>
+            </article>
+            <article class="callout warn">
+              <h3>Mimari notu</h3>
+              <p>
+                Saatlik ve uzeri timeframe talepleri icin ayri bir veri istemcisi kullanilmakta, dakikalik veriyle yeniden resample edilmesi gereken durumlar icin hibrit bir yol izlenmektedir.
+                Bu secim, veri buyuklugunu azaltirken istemci tarafi gecikmesini de dusurmektedir.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="chapter page-break" id="uml">
+          <div class="chapter-number">4. UML Diagrams</div>
+          <h2>Use case, class and sequence diagrams</h2>
+
+          <div class="uml-grid">
+            <article class="uml-card">
+              <h3>Use Case Diagram</h3>
+              <svg viewBox="0 0 960 520" xmlns="http://www.w3.org/2000/svg" aria-label="Use case diagram">
+                <rect x="250" y="60" width="500" height="380" rx="26" fill="#ffffff" stroke="#cdd7e5" stroke-width="2"/>
+                <text x="500" y="95" font-size="22" text-anchor="middle" fill="#102036" font-weight="700">Sistem Siniri</text>
+
+                <line x1="90" y1="130" x2="90" y2="215" stroke="#415774" stroke-width="3"/>
+                <circle cx="90" cy="110" r="20" fill="none" stroke="#415774" stroke-width="3"/>
+                <line x1="90" y1="150" x2="55" y2="185" stroke="#415774" stroke-width="3"/>
+                <line x1="90" y1="150" x2="125" y2="185" stroke="#415774" stroke-width="3"/>
+                <line x1="90" y1="215" x2="60" y2="260" stroke="#415774" stroke-width="3"/>
+                <line x1="90" y1="215" x2="120" y2="260" stroke="#415774" stroke-width="3"/>
+                <text x="90" y="292" font-size="18" text-anchor="middle" fill="#102036">Analist</text>
+
+                <line x1="860" y1="330" x2="860" y2="415" stroke="#415774" stroke-width="3"/>
+                <circle cx="860" cy="310" r="20" fill="none" stroke="#415774" stroke-width="3"/>
+                <line x1="860" y1="350" x2="825" y2="385" stroke="#415774" stroke-width="3"/>
+                <line x1="860" y1="350" x2="895" y2="385" stroke="#415774" stroke-width="3"/>
+                <line x1="860" y1="415" x2="830" y2="460" stroke="#415774" stroke-width="3"/>
+                <line x1="860" y1="415" x2="890" y2="460" stroke="#415774" stroke-width="3"/>
+                <text x="860" y="492" font-size="18" text-anchor="middle" fill="#102036">Yonetici</text>
+
+                <ellipse cx="420" cy="145" rx="120" ry="34" fill="#eef7ff" stroke="#93b4e6" stroke-width="2"/>
+                <text x="420" y="151" text-anchor="middle" font-size="16" fill="#102036">Backtest baslat</text>
+                <ellipse cx="590" cy="145" rx="130" ry="34" fill="#eefcf9" stroke="#8fd1c9" stroke-width="2"/>
+                <text x="590" y="151" text-anchor="middle" font-size="16" fill="#102036">Mum verisi cagir</text>
+                <ellipse cx="420" cy="245" rx="142" ry="34" fill="#fff6ee" stroke="#e9b38f" stroke-width="2"/>
+                <text x="420" y="251" text-anchor="middle" font-size="16" fill="#102036">Indicator ve sinyal incele</text>
+                <ellipse cx="590" cy="245" rx="150" ry="34" fill="#eef7ff" stroke="#93b4e6" stroke-width="2"/>
+                <text x="590" y="251" text-anchor="middle" font-size="16" fill="#102036">Portfoy metriklerini gor</text>
+                <ellipse cx="500" cy="345" rx="160" ry="34" fill="#eefcf9" stroke="#8fd1c9" stroke-width="2"/>
+                <text x="500" y="351" text-anchor="middle" font-size="16" fill="#102036">Collector ve DB durumunu kontrol et</text>
+
+                <line x1="110" y1="170" x2="300" y2="145" stroke="#62748f" stroke-width="2"/>
+                <line x1="110" y1="185" x2="280" y2="245" stroke="#62748f" stroke-width="2"/>
+                <line x1="110" y1="205" x2="440" y2="345" stroke="#62748f" stroke-width="2"/>
+                <line x1="820" y1="345" x2="660" y2="345" stroke="#62748f" stroke-width="2"/>
+                <line x1="800" y1="325" x2="665" y2="245" stroke="#62748f" stroke-width="2"/>
+              </svg>
+              <div class="diagram-caption">Analist backtest ve sonuc inceleme akislarini, yonetici ise veri toplama sureclerinin sagligini takip eder.</div>
+            </article>
+
+            <article class="uml-card">
+              <h3>Class Diagram</h3>
+              <svg viewBox="0 0 1120 560" xmlns="http://www.w3.org/2000/svg" aria-label="Class diagram">
+                <defs>
+                  <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                    <path d="M0,0 L10,5 L0,10 z" fill="#62748f"/>
+                  </marker>
+                </defs>
+                <rect x="40" y="50" width="250" height="150" rx="18" fill="#fff" stroke="#cdd7e5" stroke-width="2"/>
+                <text x="165" y="82" text-anchor="middle" font-size="19" font-weight="700" fill="#102036">BistPricesClient</text>
+                <line x1="40" y1="96" x2="290" y2="96" stroke="#d9deea"/>
+                <text x="58" y="124" font-size="14" fill="#415774">+ fetch_prices()</text>
+                <text x="58" y="148" font-size="14" fill="#415774">+ fetch_prices_timeframe()</text>
+                <text x="58" y="172" font-size="14" fill="#415774">+ init_pool()</text>
+
+                <rect x="350" y="50" width="260" height="170" rx="18" fill="#fff" stroke="#8fd1c9" stroke-width="2"/>
+                <text x="480" y="82" text-anchor="middle" font-size="19" font-weight="700" fill="#102036">BistPrices1HClient</text>
+                <line x1="350" y1="96" x2="610" y2="96" stroke="#d9deea"/>
+                <text x="368" y="124" font-size="14" fill="#415774">+ supports_timeframe()</text>
+                <text x="368" y="148" font-size="14" fill="#415774">+ fetch_hourly_base_many()</text>
+                <text x="368" y="172" font-size="14" fill="#415774">+ build_from_hourly_base()</text>
+                <text x="368" y="196" font-size="14" fill="#415774">+ normalize_ticker()</text>
+
+                <rect x="670" y="50" width="260" height="170" rx="18" fill="#fff" stroke="#93b4e6" stroke-width="2"/>
+                <text x="800" y="82" text-anchor="middle" font-size="19" font-weight="700" fill="#102036">HybridBistPricesClient</text>
+                <line x1="670" y1="96" x2="930" y2="96" stroke="#d9deea"/>
+                <text x="688" y="124" font-size="14" fill="#415774">+ fetch_prices_timeframe()</text>
+                <text x="688" y="148" font-size="14" fill="#415774">+ supports_hourly_bundle()</text>
+                <text x="688" y="172" font-size="14" fill="#415774">+ fetch_hourly_base_many()</text>
+                <text x="688" y="196" font-size="14" fill="#415774">+ expand_hourly_query_window()</text>
+
+                <rect x="140" y="310" width="250" height="160" rx="18" fill="#fff" stroke="#e9b38f" stroke-width="2"/>
+                <text x="265" y="342" text-anchor="middle" font-size="19" font-weight="700" fill="#102036">MarketDataGateway</text>
+                <line x1="140" y1="356" x2="390" y2="356" stroke="#d9deea"/>
+                <text x="158" y="384" font-size="14" fill="#415774">+ load_candles_by_timeframe()</text>
+                <text x="158" y="408" font-size="14" fill="#415774">+ load_candles_for_symbols()</text>
+                <text x="158" y="432" font-size="14" fill="#415774">+ dataframe_to_candles()</text>
+
+                <rect x="450" y="300" width="250" height="180" rx="18" fill="#fff" stroke="#cdd7e5" stroke-width="2"/>
+                <text x="575" y="332" text-anchor="middle" font-size="19" font-weight="700" fill="#102036">BaseStrategy</text>
+                <line x1="450" y1="346" x2="700" y2="346" stroke="#d9deea"/>
+                <text x="468" y="374" font-size="14" fill="#415774">+ generate_signals()</text>
+                <text x="468" y="398" font-size="14" fill="#415774">+ get_indicators()</text>
+                <text x="468" y="422" font-size="14" fill="#415774">+ run_backtest()</text>
+                <text x="468" y="446" font-size="14" fill="#415774"># StrategyContext</text>
+
+                <rect x="760" y="300" width="290" height="180" rx="18" fill="#fff" stroke="#8fd1c9" stroke-width="2"/>
+                <text x="905" y="332" text-anchor="middle" font-size="19" font-weight="700" fill="#102036">Backtest Engine / Run Store</text>
+                <line x1="760" y1="346" x2="1050" y2="346" stroke="#d9deea"/>
+                <text x="778" y="374" font-size="14" fill="#415774">+ BacktestConfig</text>
+                <text x="778" y="398" font-size="14" fill="#415774">+ backtest_single_ticker()</text>
+                <text x="778" y="422" font-size="14" fill="#415774">+ run_portfolio_blueprint_backtest()</text>
+                <text x="778" y="446" font-size="14" fill="#415774">+ InMemoryRunStore</text>
+
+                <line x1="290" y1="125" x2="350" y2="125" stroke="#62748f" stroke-width="2" marker-end="url(#arrow)"/>
+                <line x1="610" y1="135" x2="670" y2="135" stroke="#62748f" stroke-width="2" marker-end="url(#arrow)"/>
+                <line x1="800" y1="220" x2="290" y2="310" stroke="#62748f" stroke-width="2" marker-end="url(#arrow)"/>
+                <line x1="390" y1="390" x2="450" y2="390" stroke="#62748f" stroke-width="2" marker-end="url(#arrow)"/>
+                <line x1="700" y1="390" x2="760" y2="390" stroke="#62748f" stroke-width="2" marker-end="url(#arrow)"/>
+              </svg>
+              <div class="diagram-caption">Veri istemcileri, gateway, strateji tabani ve simulasyon katmani ayrik sinif sorumluluklari ile calisiyor.</div>
+            </article>
+
+            <article class="uml-card">
+              <h3>Sequence Diagram</h3>
+              <svg viewBox="0 0 1100 600" xmlns="http://www.w3.org/2000/svg" aria-label="Sequence diagram">
+                <defs>
+                  <marker id="seqArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                    <path d="M0,0 L10,5 L0,10 z" fill="#415774"/>
+                  </marker>
+                </defs>
+                <g font-size="16" fill="#102036" font-weight="700">
+                  <text x="80" y="50">Istemci</text>
+                  <text x="260" y="50">API Router</text>
+                  <text x="455" y="50">MarketDataGateway</text>
+                  <text x="675" y="50">Hybrid Client</text>
+                  <text x="870" y="50">Oracle DB</text>
+                </g>
+                <g stroke="#b8c4d7" stroke-width="2" stroke-dasharray="8 8">
+                  <line x1="110" y1="70" x2="110" y2="555"/>
+                  <line x1="300" y1="70" x2="300" y2="555"/>
+                  <line x1="500" y1="70" x2="500" y2="555"/>
+                  <line x1="720" y1="70" x2="720" y2="555"/>
+                  <line x1="920" y1="70" x2="920" y2="555"/>
+                </g>
+                <g stroke="#415774" stroke-width="2" marker-end="url(#seqArrow)">
+                  <line x1="110" y1="120" x2="300" y2="120"/>
+                  <line x1="300" y1="180" x2="500" y2="180"/>
+                  <line x1="500" y1="250" x2="720" y2="250"/>
+                  <line x1="720" y1="320" x2="920" y2="320"/>
+                  <line x1="920" y1="380" x2="720" y2="380"/>
+                  <line x1="720" y1="440" x2="500" y2="440"/>
+                  <line x1="500" y1="500" x2="300" y2="500"/>
+                  <line x1="300" y1="540" x2="110" y2="540"/>
+                </g>
+                <g font-size="14" fill="#314765">
+                  <text x="146" y="112">POST /v1/backtests/run</text>
+                  <text x="330" y="172">blueprint dogrulama ve veri istegi</text>
+                  <text x="540" y="242">aktif timeframe ve semboller icin load</text>
+                  <text x="760" y="312">mum sorgulari / hourly bundle</text>
+                  <text x="770" y="372">OHLCV satirlari</text>
+                  <text x="548" y="432">candles_by_symbol</text>
+                  <text x="336" y="492">strateji + portfoy simulasyonu</text>
+                  <text x="150" y="532">metrikler + event listesi + sonuc</text>
+                </g>
+                <rect x="283" y="140" width="34" height="380" rx="10" fill="rgba(29,78,216,0.10)" stroke="#93b4e6"/>
+                <rect x="483" y="210" width="34" height="260" rx="10" fill="rgba(15,118,110,0.10)" stroke="#8fd1c9"/>
+                <rect x="703" y="280" width="34" height="140" rx="10" fill="rgba(194,65,12,0.10)" stroke="#e9b38f"/>
+              </svg>
+              <div class="diagram-caption">Backtest akisi, istemciden gelen blueprint isteginin veri yukleme ve simulasyon adimlariyla sonuclandigini gosterir.</div>
+            </article>
+          </div>
+        </section>
+
+        <section class="chapter page-break" id="ux">
+          <div class="chapter-number">5. UI/UX Design</div>
+          <h2>Wireframes, integration note and usability flow</h2>
+
+          <div class="callout">
+            <h3>Scope note</h3>
+            <p>
+              Arayuzun mobil ve istemci tarafina ait gercek ekran goruntuleri baska ekip akisi tarafindan hazirlanmistir.
+              Bu nedenle bu ara raporda backend gereksinimlerinden turetilmis kavramsal wireframe'ler sunulmakta, final birlestirmede gercek ekran goruntuleri bu bolume eklenecektir.
+            </p>
+          </div>
+
+          <div class="wireframe-grid">
+            <article class="wireframe desktop">
+              <div class="mini-title">Wireframe / Backtest konfigurasyon paneli</div>
+              <div class="wf-topbar">
+                <div class="wf-dots"><span></span><span></span><span></span></div>
+                <strong>Strateji Calistir</strong>
+              </div>
+              <div class="wf-layout">
+                <div class="wf-panel">
+                  <div class="wf-block"></div>
+                  <div class="wf-block"></div>
+                  <div class="wf-block tall"></div>
+                  <div class="wf-row">
+                    <div class="wf-chip"></div>
+                    <div class="wf-chip"></div>
+                    <div class="wf-chip"></div>
+                  </div>
+                </div>
+                <div class="wf-panel">
+                  <div class="wf-chart"></div>
+                  <div class="wf-row">
+                    <div class="wf-chip"></div>
+                    <div class="wf-chip"></div>
+                    <div class="wf-chip"></div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="wireframe mobile">
+              <div class="mini-title">Wireframe / Sonuc ozeti ekrani</div>
+              <div class="wf-topbar">
+                <div class="wf-dots"><span></span><span></span><span></span></div>
+                <strong>Run Summary</strong>
+              </div>
+              <div class="wf-layout">
+                <div class="wf-panel">
+                  <div class="wf-block"></div>
+                  <div class="wf-block"></div>
+                  <div class="wf-chart"></div>
+                  <div class="wf-block"></div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <h3 class="subhead">User flow and usability considerations</h3>
+          <div class="two-grid">
+            <article class="card">
+              <h3>Kullanici akisi</h3>
+              <ol class="clean">
+                <li>Sembol veya sembol listesi secilir.</li>
+                <li>Trend, setup ve trigger kurallari tanimlanir.</li>
+                <li>Risk parametreleri ve portfoy buyuklugu girilir.</li>
+                <li>Backtest tetiklenir ve durum bilgisi izlenir.</li>
+                <li>Metrikler, trade listesi ve portfoy egri verisi incelenir.</li>
+              </ol>
+            </article>
+            <article class="card">
+              <h3>Kullanilabilirlik notlari</h3>
+              <ul class="clean">
+                <li>Progress payload yapisi uzun kosular icin kullaniciya bekleme nedeni sunar.</li>
+                <li>Kural katalogu ve preset katalogu, konfigurasyon karmasini azaltir.</li>
+                <li>Event ve portfolio-curve endpointleri, istemci tarafinda asamali yukleme icin uygundur.</li>
+                <li>UI tarafinda final surecte validasyon, hata mesajlari ve load-state bilesenleri eklenmelidir.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="chapter page-break" id="implementation">
+          <div class="chapter-number">6. Implementation</div>
+          <h2>Modules, core logic and libraries</h2>
+
+          <h3 class="subhead">Project structure and modules</h3>
+          <div class="module-grid">
+            <article class="module-card">
+              <h3>Collector scriptleri</h3>
+              <p>
+                Dakikalik ve saatlik veri toplama icin ayri scriptler kullanilir. Dakikalik akista son kayit tarihi sorgulanir ve sadece yeni satirlar eklenir.
+                Saatlik akista genis sembol listesi icin toplu tarihsel veri cekilir.
+              </p>
+            </article>
+            <article class="module-card">
+              <h3>Oracle veri erisim istemcileri</h3>
+              <p>
+                Standart istemci dakikalik tabloyu, saatlik istemci ise saatlik tabloyu hedefler. Hibrit istemci ise istenen timeframe'e gore dogru yolu secerek tek arayuz sunar.
+              </p>
+            </article>
+            <article class="module-card">
+              <h3>API ve uygulama katmani</h3>
+              <p>
+                Router, use case ve infrastructure ayrimi ile katalog listeleri, test cagrilari, status ve event servisleri duzenli bir katmanlasma ile sunulmustur.
+              </p>
+            </article>
+            <article class="module-card">
+              <h3>Strateji kutuphanesi</h3>
+              <p>
+                Soyut strateji tabani, RSI ve MACD gibi ornek stratejiler, kural katalogu ve blueprint degerlendirme mantigi ayni cati altinda yer alir.
+              </p>
+            </article>
+          </div>
+
+          <h3 class="subhead">Key algorithms / core logic</h3>
+          <div class="two-grid">
+            <article class="callout">
+              <h3>1. Lookahead-safe backtest</h3>
+              <p>
+                Gecmis bar sinyali bir sonraki barin acilisinda isleme donusturulur. Boylece ileriye bakma hatasi engellenir.
+                Stop-loss ve take-profit mantigi hem gap acilisi hem de bar ici yuksek/dusuk seviye ile kontrol edilir.
+              </p>
+            </article>
+            <article class="callout">
+              <h3>2. Stage-based kural degerlendirme</h3>
+              <p>
+                Kurallar trend, setup ve trigger asamalarina ayrilir. Zorunlu ve opsiyonel eslesmeler sayilir; minimum opsiyonel eslesme kosulu ile daha secici trade adayi uretilir.
+              </p>
+            </article>
+            <article class="callout warn">
+              <h3>3. Portfoy simulasyonu</h3>
+              <p>
+                Tek tek semboller icin uretilebilecek aday islemler, ortak nakit havuzu, pozisyon buyuklugu ve komisyon mantigi ile tekrar simule edilir.
+                Boylece sembol bazli fazla iyimser sonuclar portfoy gercegine yaklastirilir.
+              </p>
+            </article>
+            <article class="callout warn">
+              <h3>4. Artimsal veri ekleme</h3>
+              <p>
+                Dakikalik veri akisi son tarih sorgusu ve benzersiz anahtar yardimiyla yalnizca yeni kayitlari ekler.
+                Saatlik akista ise tekrarlayan satirlar Oracle tarafinda duplicate hata kontrolu ile atlanir.
+              </p>
+            </article>
+          </div>
+
+          <h3 class="subhead">Frameworks and libraries used</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Katman</th>
+                <th>Kutuphane / arac</th>
+                <th>Kullanim amaci</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Veri baglantisi</td>
+                <td>oracledb, Oracle Wallet</td>
+                <td>Autonomous Database baglantisi ve guvenli istemci kurulumu</td>
+              </tr>
+              <tr>
+                <td>Veri isleme</td>
+                <td>pandas, numpy</td>
+                <td>OHLCV donusumu, resample, metrik hesaplama</td>
+              </tr>
+              <tr>
+                <td>API</td>
+                <td>FastAPI, Uvicorn, Pydantic</td>
+                <td>REST servisleri ve request/response dogrulama</td>
+              </tr>
+              <tr>
+                <td>Teknik analiz</td>
+                <td>TA-Lib</td>
+                <td>RSI, MACD, Bollinger, Aroon ve diger indicator serileri</td>
+              </tr>
+              <tr>
+                <td>Veri kaynagi</td>
+                <td>yfinance</td>
+                <td>Yahoo Finance uzerinden BIST tarihsel veri cekimi</td>
+              </tr>
+              <tr>
+                <td>Operasyon</td>
+                <td>shell scriptleri, cron, VM</td>
+                <td>Zamanlanmis calisma, log takibi ve background process yonetimi</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="chapter page-break" id="testing">
+          <div class="chapter-number">7. Testing</div>
+          <h2>Validation scenarios and observed outputs</h2>
+
+          <div class="stats-grid">
+            <div class="metric">
+              <div class="stat-label">Dakikalik kayit</div>
+              <strong>18.900.797</strong>
+              <span>Oracle uzerindeki toplam satir</span>
+            </div>
+            <div class="metric">
+              <div class="stat-label">Saatlik kayit</div>
+              <strong>2.486.504</strong>
+              <span>Saatlik mum sayisi</span>
+            </div>
+            <div class="metric">
+              <div class="stat-label">Sembol kapsamasi</div>
+              <strong>602 / 602</strong>
+              <span>Hedeflenen saatlik sembol kapsandi</span>
+            </div>
+            <div class="metric">
+              <div class="stat-label">En guncel dakika verisi</div>
+              <strong>7 Nisan 2026</strong>
+              <span>17:59 zaman damgasina kadar dogrulandi</span>
+            </div>
+          </div>
+
+          <h3 class="subhead">Test scenarios</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Senaryo</th>
+                <th>Amac</th>
+                <th>Sonuc</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Toplam satir sayisi sorgusu</td>
+                <td>Saatlik tablonun veri birikimini dogrulamak</td>
+                <td>2.486.504 satir ve tum sembollerin mevcut oldugu goruldu</td>
+              </tr>
+              <tr>
+                <td>Sembol kapsamasi sorgusu</td>
+                <td>Hedef sembol listesi ile DB kapsamasini karsilastirmak</td>
+                <td>602 hedef sembolun 602'si de veritabaninda bulundu</td>
+              </tr>
+              <tr>
+                <td>Gun ve tarih araligi istatistikleri</td>
+                <td>Dakikalik veri tablosunun surekliligini incelemek</td>
+                <td>1 Ocak 2021 03:00 ile 7 Nisan 2026 17:59 arasi 18.900.797 kayit goruldu</td>
+              </tr>
+              <tr>
+                <td>Ornek entegre backtest kosusu</td>
+                <td>Veri istemcisi ve backtest motorunun birlikte calistigini dogrulamak</td>
+                <td>1000 saatlik mum uzerinde 11 islem uretilmis, metrikler hesaplanmistir</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3 class="subhead">Unit or integration tests</h3>
+          <div class="two-grid">
+            <article class="card">
+              <h3>Mevcut durum</h3>
+              <p>
+                Bu fazda agirlikli olarak script tabanli entegrasyon testleri kullanilmistir.
+                Veritabanina baglanma, tablo sayisi, sembol kapsami ve tarih araligi gibi dogrulamalar calistirilmis scriptlerle teyit edilmistir.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Eksik kisim</h3>
+              <p>
+                Otomatik unit test kapsami sinirlidir. Ozellikle strateji kurallari, edge-case timeframe donusumleri ve API contract testleri icin CI uyumlu test seti genisletilmelidir.
+              </p>
+            </article>
+          </div>
+
+          <h3 class="subhead">Validation of system functionality</h3>
+          <div class="callout">
+            <h3>Ornek dogrulama sonucu</h3>
+            <p>
+              THYAO sembolu icin 1000 adet saatlik mum kullanilarak yapilan deneme kosusunda veri araligi
+              <strong>30 Ekim 2025 15:30</strong> ile <strong>8 Nisan 2026 17:30</strong> arasinda gelmistir.
+              RSI tabanli ornek strateji, 100.000 baslangic sermayesi, %3 zarar kes ve %5 kar al parametreleriyle
+              <strong>11 islem</strong> uretmis; toplam getiri <strong>%-10,59</strong>, maksimum dusus <strong>%-21,69</strong> ve kazanma orani <strong>%27,27</strong> olarak hesaplanmistir.
+              Bu sonuc optimizasyon hedefi degil, uc uca boru hattinin calistiginin kanitidir.
+            </p>
+          </div>
+        </section>
+
+        <section class="chapter page-break" id="results">
+          <div class="chapter-number">8. Results / Conclusion</div>
+          <h2>Achieved functionality, limitations and future work</h2>
+
+          <h3 class="subhead">Achieved system functionality</h3>
+          <ul class="clean">
+            <li>BIST verisini Oracle tabanli saklama ve tekrarli toplama altyapisi kurulmustur.</li>
+            <li>Dakikalik ve saatlik veri ayrimi ile API tarafinda daha verimli timeframe servisi saglanmistir.</li>
+            <li>Indicator katalogu ve hesaplama servisi istemci tarafina standardize veri uretmektedir.</li>
+            <li>Coklu zaman dilimli blueprint modeli ile kural bazli backtest kosulari desteklenmektedir.</li>
+            <li>Portfoy seviyesinde nakit, komisyon ve trade atlama mantigi iceren simulasyon mevcuttur.</li>
+            <li>Run status, event listesi ve portfolio-curve yapisi sayesinde uzun kosular izlenebilir hale gelmistir.</li>
+          </ul>
+
+          <h3 class="subhead">Limitations of the project</h3>
+          <div class="two-grid">
+            <article class="callout warn">
+              <h3>Teknik limitler</h3>
+              <ul class="clean">
+                <li>Backtest run durumu su an bellek ici store ile tutuluyor; kalici ve dagitik degil.</li>
+                <li>Bazi tanilama scriptlerinde sabit kimlik bilgileri bulunuyor; guvenlik iyilestirmesi gerekiyor.</li>
+                <li>Otomatik unit test kapsami sinirli oldugu icin regresyon riski manuel kontrollerle yonetiliyor.</li>
+              </ul>
+            </article>
+            <article class="callout warn">
+              <h3>Urun limitleri</h3>
+              <ul class="clean">
+                <li>Bu belge canli alim-satim ve broker entegrasyonunu kapsamiyor.</li>
+                <li>Nihai mobil/web ekranlari bu ara teslimde birlestirilmis halde degil.</li>
+                <li>Kimlik dogrulama ve domain bazli CORS kisitlari uretim sertligi seviyesine getirilmemis.</li>
+              </ul>
+            </article>
+          </div>
+
+          <h3 class="subhead">Possible future improvements</h3>
+          <ul class="clean">
+            <li>Run store katmanini veritabani veya kuyruk tabanli kalici bir yapiya tasimak.</li>
+            <li>Secret management ve environment standardizasyonunu zorunlu hale getirmek.</li>
+            <li>API contract testleri, strateji unit testleri ve CI pipeline eklemek.</li>
+            <li>Portfoy simulasyonuna risk parity, correlation filtresi ve slippage model varyantlari eklemek.</li>
+            <li>Materialized view veya onceden aggregate tablolarla sorgu performansini artirmak.</li>
+          </ul>
+        </section>
+
+        <section class="chapter page-break" id="github">
+          <div class="chapter-number">9. GitHub Repository</div>
+          <h2>Repository links, documentation and execution instructions</h2>
+
+          <div class="repo-grid">
+            <article class="repo-card">
+              <h3>Analiz servisi deposu</h3>
+              <p>
+                API, veri istemcileri, indicator servisleri ve backtest motoru bu depoda yer almaktadir.
+                README dosyasi kurulum ve endpoint akisini tanimlamaktadir.
+              </p>
+              <a class="repo-link" href="https://github.com/al1berk/evalon">https://github.com/al1berk/evalon</a>
+            </article>
+            <article class="repo-card">
+              <h3>Veri toplama deposu</h3>
+              <p>
+                Oracle baglantili collector scriptleri, VM kurulum rehberi ve yardimci dogrulama scriptleri bu depoda bulunmaktadir.
+                Ayrica ayri bir kurulum rehberi ile operasyon adimlari belgelenmistir.
+              </p>
+              <a class="repo-link" href="https://github.com/zehradogru/borsa">https://github.com/zehradogru/borsa</a>
+            </article>
+          </div>
+
+          <h3 class="subhead">Project documentation</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Belge</th>
+                <th>Icerik</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>README</td>
+                <td>API endpointleri, baglanti degiskenleri ve lokal calistirma adimlari</td>
+              </tr>
+              <tr>
+                <td>VM setup guide</td>
+                <td>Collector scriptlerinin sanal makinede kurulumu, cron ve log takibi</td>
+              </tr>
+              <tr>
+                <td>Yardimci scriptler</td>
+                <td>Toplam satir, sembol kapsami ve tarih araligi dogrulamalari</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3 class="subhead">Installation and execution instructions</h3>
+          <div class="two-grid">
+            <article class="card">
+              <h3>API ve backtest servisi</h3>
+              <pre>python3 -m venv venv
+./venv/bin/pip install -r requirements.txt
+
+export ORACLE_DB_USER=ADMIN
+export ORACLE_DB_PASSWORD=*****
+export ORACLE_DB_DSN=evalondb_high
+export ORACLE_WALLET_DIR=/path/to/wallet
+
+./venv/bin/uvicorn api.main:app --reload --host 0.0.0.0 --port 8000</pre>
+            </article>
+            <article class="card">
+              <h3>Collector sureci</h3>
+              <pre>source ~/.bist_env
+python3 bist_oracle_collector.py
+
+# Saatlik toplama
+python3 bist_oracle_1h_collector.py
+
+# Arka planda baslatma
+./start_1h.sh</pre>
+            </article>
+          </div>
+
+          <div class="footer-note">
+            Bu ara rapor, 9 Nisan 2026 tarihinde yerel kod tabani incelemesi, Oracle istatistik sorgulari ve ornek entegre backtest kosusu uzerinden uretildi.
+            Mobil ve frontend ekran teslimleri ekip birlestirme asamasinda bu belgeye eklenebilir.
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

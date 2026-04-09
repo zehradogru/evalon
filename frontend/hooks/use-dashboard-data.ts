@@ -1,0 +1,260 @@
+'use client'
+
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { BIST_AVAILABLE, TICKER_NAMES } from '@/config/markets'
+import { useUserWatchlist } from '@/hooks/use-user-watchlist'
+import type { MarketListItem, PaginatedListResponse } from '@/types'
+
+export interface DashboardTicker {
+    ticker: string
+    name: string
+    price: number
+    previousPrice: number
+    change: number
+    changePercent: number
+    high: number | null
+    low: number | null
+    vol: number | null
+}
+
+interface BatchResponse {
+    count: number
+    cached: boolean
+    data: Array<{
+        ticker: string
+        current: { t: string; o: number; h: number; l: number; c: number; v: number } | null
+        previous: { t: string; o: number; h: number; l: number; c: number; v: number } | null
+        error?: string
+    }>
+}
+
+interface MarketSnapshotResponse extends PaginatedListResponse<MarketListItem> {
+    snapshotAgeMs?: number | null
+    stale?: boolean
+    warming?: boolean
+}
+
+/**
+ * Pure function to check if BIST market is currently open.
+ * BIST hours: Monday-Friday, 10:00-18:00 (Turkey Time, UTC+3)
+ * Used by hooks and refetchInterval callbacks.
+ */
+export function isMarketCurrentlyOpen(): boolean {
+    const now = new Date()
+    const turkeyTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Istanbul' }))
+    const day = turkeyTime.getDay()
+    const currentMinutes = turkeyTime.getHours() * 60 + turkeyTime.getMinutes()
+    const isWeekday = day >= 1 && day <= 5
+    const isDuringHours = currentMinutes >= 600 && currentMinutes < 1080 // 10:00-18:00
+    return isWeekday && isDuringHours
+}
+
+async function fetchDashboardData(tickers: string[]): Promise<DashboardTicker[]> {
+    if (tickers.length === 0) return []
+
+    const tickersParam = tickers.join(',')
+    const url = `/api/prices/batch?tickers=${tickersParam}&timeframe=1d&limit=2` // Optimized: only last 2 bars needed
+
+    const response = await fetch(url)
+    if (!response.ok) {
+        throw new Error('Failed to fetch dashboard data')
+    }
+
+    const result: BatchResponse = await response.json()
+
+    const byTicker = new Map(
+        result.data.map((item) => [item.ticker, item] as const)
+    )
+
+    return tickers.map((ticker) => {
+        const item = byTicker.get(ticker)
+        const currentPrice = item?.current?.c ?? 0
+        const previousPrice = item?.previous?.c ?? currentPrice
+        const change = currentPrice - previousPrice
+        const changePercent = previousPrice > 0 ? (change / previousPrice) * 100 : 0
+
+        return {
+            ticker,
+            name: TICKER_NAMES[ticker] || ticker,
+            price: currentPrice,
+            previousPrice,
+            change,
+            changePercent,
+            high: item?.current?.h ?? null,
+            low: item?.current?.l ?? null,
+            vol: item?.current?.v ?? null,
+        }
+    })
+}
+
+async function fetchMarketSnapshotData(): Promise<DashboardTicker[]> {
+    const params = new URLSearchParams({
+        view: 'markets',
+        limit: String(BIST_AVAILABLE.length),
+        sortBy: 'changePct',
+        sortDir: 'desc',
+    })
+    const response = await fetch(`/api/markets/list?${params.toString()}`)
+    if (!response.ok) {
+        throw new Error('Failed to fetch market snapshot')
+    }
+
+    const payload: MarketSnapshotResponse = await response.json()
+    const rows = payload.items || []
+
+    return rows
+        .map((item) => {
+            const price = item.price ?? 0
+            const change = item.changeVal ?? 0
+            const previousPrice = price - change
+            const changePercent =
+                item.changePct ??
+                (previousPrice > 0 ? (change / previousPrice) * 100 : 0)
+
+            return {
+                ticker: item.ticker,
+                name: item.name || TICKER_NAMES[item.ticker] || item.ticker,
+                price,
+                previousPrice,
+                change,
+                changePercent,
+                high: item.high ?? null,
+                low: item.low ?? null,
+                vol: item.vol ?? null,
+            }
+        })
+        .filter((item) => item.price > 0)
+}
+
+/**
+ * Hook for watchlist data (user's watched tickers)
+ * Uses batch endpoint to prevent rate limiting
+ */
+export function useDashboardWatchlist() {
+    const { data: userWatchlist, isLoading: isWatchlistLoading } = useUserWatchlist()
+    const watchlistTickers = userWatchlist?.tickers ?? []
+
+    const query = useQuery({
+        queryKey: ['dashboard-watchlist', watchlistTickers.join(',')],
+        queryFn: () => fetchDashboardData(watchlistTickers),
+        enabled: watchlistTickers.length > 0,
+        staleTime: 1000 * 30, // 30 seconds
+        refetchInterval: () => isMarketCurrentlyOpen() ? 1000 * 60 : false, // 1 min when open, stop when closed
+    })
+
+    return {
+        ...query,
+        data: query.data ?? [],
+        isLoading: isWatchlistLoading || query.isLoading,
+    }
+}
+
+/**
+ * Hook for market movers (top gainers & losers)
+ * Fetches all available tickers and sorts by change
+ */
+export function useMarketMovers() {
+    return useQuery({
+        queryKey: ['market-snapshot'],
+        queryFn: async () => {
+            const data = await fetchMarketSnapshotData()
+
+            // Sort by changePercent
+            const sorted = [...data].sort((a, b) => b.changePercent - a.changePercent)
+
+            return {
+                topGainers: sorted.slice(0, 5),
+                topLosers: sorted.slice(-5).reverse(),
+                all: sorted,
+            }
+        },
+        staleTime: 1000 * 60, // 1 minute
+        refetchInterval: () => isMarketCurrentlyOpen() ? 1000 * 60 * 2 : false, // 2 min when open, stop when closed
+    })
+}
+
+/**
+ * Hook to manually refresh all dashboard data
+ */
+export function useDashboardRefresh() {
+    const queryClient = useQueryClient()
+
+    const refresh = async () => {
+        await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['dashboard-watchlist'] }),
+            queryClient.invalidateQueries({ queryKey: ['market-snapshot'] }),
+            queryClient.invalidateQueries({ queryKey: ['prices'] }),
+        ])
+    }
+
+    return { refresh }
+}
+
+/**
+ * Check if BIST market is open
+ * BIST hours: Monday-Friday, 10:00-18:00 (Turkey Time, UTC+3)
+ */
+export function useMarketStatus() {
+    return useQuery({
+        queryKey: ['market-status'],
+        queryFn: () => {
+            const now = new Date()
+            const turkeyTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Istanbul' }))
+
+            const day = turkeyTime.getDay()
+            const hours = turkeyTime.getHours()
+            const minutes = turkeyTime.getMinutes()
+            const currentMinutes = hours * 60 + minutes
+
+            const marketOpen = 10 * 60 // 10:00
+            const marketClose = 18 * 60 // 18:00
+
+            const isWeekday = day >= 1 && day <= 5
+            const isDuringHours = currentMinutes >= marketOpen && currentMinutes < marketClose
+
+            const isOpen = isWeekday && isDuringHours
+
+            // Calculate time until next state change
+            let nextChangeMinutes: number
+            let nextChangeLabel: string
+
+            if (!isWeekday) {
+                // Weekend - calculate until Monday 10:00
+                const daysUntilMonday = day === 0 ? 1 : 8 - day
+                nextChangeMinutes = daysUntilMonday * 24 * 60 - currentMinutes + marketOpen
+                nextChangeLabel = 'Opens Monday'
+            } else if (currentMinutes < marketOpen) {
+                // Before market open
+                nextChangeMinutes = marketOpen - currentMinutes
+                nextChangeLabel = 'Opens in'
+            } else if (currentMinutes < marketClose) {
+                // Market is open
+                nextChangeMinutes = marketClose - currentMinutes
+                nextChangeLabel = 'Closes in'
+            } else {
+                // After market close
+                if (day === 5) {
+                    // Friday after close
+                    nextChangeMinutes = (3 * 24 * 60) - currentMinutes + marketOpen
+                    nextChangeLabel = 'Opens Monday'
+                } else {
+                    // Other weekday after close
+                    nextChangeMinutes = (24 * 60) - currentMinutes + marketOpen
+                    nextChangeLabel = 'Opens tomorrow'
+                }
+            }
+
+            const hours_remaining = Math.floor(nextChangeMinutes / 60)
+            const mins_remaining = nextChangeMinutes % 60
+
+            return {
+                isOpen,
+                nextChangeLabel,
+                timeRemaining: `${hours_remaining}h ${mins_remaining}m`,
+                currentTime: turkeyTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+            }
+        },
+        staleTime: 1000 * 30, // 30 seconds
+        refetchInterval: 1000 * 60, // Update every minute
+    })
+}
