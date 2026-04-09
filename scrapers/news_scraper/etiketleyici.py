@@ -5,7 +5,7 @@ import os
 
 # 1. API Ayarları
 # API key'i ortam değişkeninden almayı deneyelim, yoksa varsayılanı bırakalım
-API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyA5hlkKWt9sw-CF9IvUeyHaNh24NiRRPBs")
+API_KEY = os.environ.get("GEMINI_API_KEY", "api-key")
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash')
 
