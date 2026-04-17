@@ -55,7 +55,7 @@ const buildIndicatorComment = (indicatorId: string, latest: Array<{ label: strin
     const signal = latest.find((item) => item.label.includes('signal'))
     if (macd && signal) return macd.value >= signal.value ? 'MACD signal ustunde. Kisa vadeli momentum olumlu tarafta.' : 'MACD signal altinda. Momentum zayif ve yeni teyit gerekebilir.'
   }
-  return 'Indikator serisini fiyat trendiyle birlikte degerlendirin. Tek bir olcum karari tasimaya yetmeyebilir.'
+  return 'İndikatör serisini fiyat trendiyle birlikte değerlendirin. Tek bir ölçüm kararı taşımaya yetmeyebilir.'
 }
 
 export function TickerView({ ticker }: TickerViewProps) {
@@ -146,7 +146,7 @@ export function TickerView({ ticker }: TickerViewProps) {
     const lastRow = indicatorChart.rows[indicatorChart.rows.length - 1] || {}
     return indicatorChart.keys.map((key) => ({ label: key, value: Number(lastRow[key] ?? NaN) })).filter((item) => Number.isFinite(item.value))
   }, [indicatorChart])
-  const indicatorErrorMessage = indicatorSeriesQuery.error instanceof Error ? indicatorSeriesQuery.error.message : 'Indikator verisi yuklenemedi.'
+  const indicatorErrorMessage = indicatorSeriesQuery.error instanceof Error ? indicatorSeriesQuery.error.message : 'İndikatör verisi yüklenemedi.'
 
   return <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
     <div className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/70 px-6 py-4 backdrop-blur-sm">

@@ -88,7 +88,7 @@ export function BacktestView() {
       if (BACKTEST_STAGE_KEYS.includes(stage as BacktestStageKey)) map.get(stage as BacktestStageKey)?.push(rule)
     }))
     return map
-  }, [rulesQuery.data?.rules])
+  }, [rulesQuery.data?.rules, rulesQuery.data])
 
   const updateBlueprint = (updater: (current: BacktestBlueprint) => BacktestBlueprint) => setBlueprint((current) => updater(current))
   const isBusy = runSyncMutation.isPending || startAsyncMutation.isPending
