@@ -237,6 +237,17 @@ export interface MarketDataMeta {
     emptyReason?: MarketDataEmptyReason
 }
 
+export interface MarketOverviewCard {
+    id: 'bist100' | 'bist30' | 'xauusd' | 'usdtry'
+    label: string
+    value: number | null
+    changePct: number | null
+    currency: 'TRY' | 'USD'
+    source: string
+    asOf: string
+    stale: boolean
+}
+
 export interface PaginatedListResponse<T> {
     items: T[]
     total: number
