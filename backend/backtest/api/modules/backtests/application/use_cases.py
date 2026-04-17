@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from math import ceil
 from threading import Thread
 from time import time
-from typing import Any, Callable
+from typing import Dict, List,  Union, Optional, Any, Callable
 from uuid import uuid4
 
 from stratejiler.multi_timeframe_backtest import derive_warmup_bars
@@ -24,19 +24,19 @@ from api.modules.backtests.infrastructure.run_store import InMemoryRunStore
 
 class BacktestCatalogUseCases:
     @staticmethod
-    def list_rules() -> dict[str, Any]:
+    def list_rules() -> Dict[str, Any]:
         return build_rule_catalog()
 
     @staticmethod
-    def list_presets() -> dict[str, Any]:
+    def list_presets() -> Dict[str, Any]:
         return build_preset_catalog()
 
 
 @dataclass
 class BacktestExecutionArtifacts:
     run_id: str
-    result: dict[str, Any]
-    events: list[dict[str, Any]]
+    result: Dict[str, Any]
+    events: List[Dict[str, Any]]
 
 
 class RunBlueprintBacktestUseCase:
@@ -48,7 +48,7 @@ class RunBlueprintBacktestUseCase:
         self._market_data_gateway = market_data_gateway
         self._run_store = run_store
 
-    def execute(self, blueprint: dict[str, Any]) -> dict[str, Any]:
+    def execute(self, blueprint: Dict[str, Any]) -> Dict[str, Any]:
         started_at = int(time())
         run_id = f"btrun_{uuid4()}"
         execution = self._execute_blueprint(run_id=run_id, blueprint=blueprint)
@@ -76,8 +76,8 @@ class RunBlueprintBacktestUseCase:
     def _execute_blueprint(
         self,
         run_id: str,
-        blueprint: dict[str, Any],
-        progress_callback: Callable[[dict[str, Any]], None] | None = None,
+        blueprint: Dict[str, Any],
+        progress_callback: Callable[[Dict[str, Any]], None] | None = None,
     ) -> BacktestExecutionArtifacts:
         validate_blueprint_payload(blueprint)
 
@@ -89,8 +89,8 @@ class RunBlueprintBacktestUseCase:
         symbols = get_requested_symbols(blueprint)
         total_symbols = len(symbols)
 
-        candles_by_symbol: dict[str, dict[str, list[dict[str, float | int]]]] = {}
-        symbol_errors: list[dict[str, str]] = []
+        candles_by_symbol: Dict[str, Dict[str, List[Dict[str, Union[float, int]]]]] = {}
+        symbol_errors: List[Dict[str, str]] = []
         worker_count = get_symbol_worker_count(total_symbols)
 
         if progress_callback:
@@ -104,7 +104,7 @@ class RunBlueprintBacktestUseCase:
                 )
             )
 
-        def load_symbol(symbol: str) -> dict[str, list[dict[str, float | int]]]:
+        def load_symbol(symbol: str) -> Dict[str, List[Dict[str, Union[float, int]]]]:
             return self._market_data_gateway.load_candles_by_timeframe(
                 symbol=symbol,
                 timeframes=active_timeframes,
@@ -239,7 +239,7 @@ class StartBlueprintBacktestUseCase:
         self._run_store = run_store
         self._runner = RunBlueprintBacktestUseCase(market_data_gateway, run_store)
 
-    def execute(self, blueprint: dict[str, Any]) -> dict[str, Any]:
+    def execute(self, blueprint: Dict[str, Any]) -> Dict[str, Any]:
         validate_blueprint_payload(blueprint)
         symbols = get_requested_symbols(blueprint)
         run_id = f"btrun_{uuid4()}"
@@ -274,7 +274,7 @@ class StartBlueprintBacktestUseCase:
             "progress": queued_progress,
         }
 
-    def _run_in_background(self, run_id: str, blueprint: dict[str, Any], total_symbols: int) -> None:
+    def _run_in_background(self, run_id: str, blueprint: Dict[str, Any], total_symbols: int) -> None:
         started_at = int(time())
         self._run_store.update(
             run_id,
@@ -341,12 +341,12 @@ class GetRunStatusUseCase:
     def __init__(self, run_store: InMemoryRunStore) -> None:
         self._run_store = run_store
 
-    def execute(self, run_id: str) -> dict[str, Any] | None:
+    def execute(self, run_id: str) -> Dict[str, Any] | None:
         record = self._run_store.get(run_id)
         if record is None:
             return None
 
-        payload: dict[str, Any] = {
+        payload: Dict[str, Any] = {
             "runId": run_id,
             "status": record.status,
             "createdAt": record.created_at,
@@ -367,7 +367,7 @@ class GetRunEventsUseCase:
     def __init__(self, run_store: InMemoryRunStore) -> None:
         self._run_store = run_store
 
-    def execute(self, run_id: str, page: int, limit: int) -> dict[str, Any] | None:
+    def execute(self, run_id: str, page: int, limit: int) -> Dict[str, Any] | None:
         record = self._run_store.get(run_id)
         if record is None:
             return None
@@ -391,12 +391,12 @@ class GetRunPortfolioCurveUseCase:
     def __init__(self, run_store: InMemoryRunStore) -> None:
         self._run_store = run_store
 
-    def execute(self, run_id: str) -> dict[str, Any] | None:
+    def execute(self, run_id: str) -> Dict[str, Any] | None:
         record = self._run_store.get(run_id)
         if record is None:
             return None
 
-        payload: dict[str, Any] = {
+        payload: Dict[str, Any] = {
             "runId": run_id,
             "status": record.status,
             "createdAt": record.created_at,
@@ -412,7 +412,7 @@ class GetRunPortfolioCurveUseCase:
         return payload
 
 
-def build_run_response(run_id: str, result: dict[str, Any], events: list[dict[str, Any]]) -> dict[str, Any]:
+def build_run_response(run_id: str, result: Dict[str, Any], events: List[Dict[str, Any]]) -> Dict[str, Any]:
     return {
         "runId": run_id,
         "result": result,
@@ -421,7 +421,7 @@ def build_run_response(run_id: str, result: dict[str, Any], events: list[dict[st
     }
 
 
-def build_result_summary(result: dict[str, Any]) -> dict[str, Any]:
+def build_result_summary(result: Dict[str, Any]) -> Dict[str, Any]:
     summary = result["summary"]
     return {
         "totalTrades": summary["totalTrades"],
@@ -438,8 +438,8 @@ def build_progress_payload(
     total_symbols: int,
     processed_symbols: int,
     message: str,
-    current_symbol: str | None = None,
-) -> dict[str, Any]:
+    current_symbol: Optional[str] = None,
+) -> Dict[str, Any]:
     return {
         "phase": phase,
         "progressPct": max(0, min(100, int(progress_pct))),
@@ -450,8 +450,8 @@ def build_progress_payload(
     }
 
 
-def flatten_trade_events(run_id: str, result: dict[str, Any]) -> list[dict[str, Any]]:
-    events: list[dict[str, Any]] = []
+def flatten_trade_events(run_id: str, result: Dict[str, Any]) -> List[Dict[str, Any]]:
+    events: List[Dict[str, Any]] = []
     default_symbol = (result.get("context") or {}).get("symbol")
     for trade in result.get("trades", []):
         trade_id = str(trade["id"])
@@ -509,10 +509,10 @@ def map_exit_reason(exit_reason: str) -> str:
     return "exit"
 
 
-def get_active_timeframes(blueprint: dict[str, Any]) -> list[str]:
+def get_active_timeframes(blueprint: Dict[str, Any]) -> List[str]:
     stages = blueprint.get("stages") or {}
     seen: set[str] = set()
-    ordered: list[str] = []
+    ordered: List[str] = []
     for stage_key in ("trend", "setup", "trigger"):
         stage = stages.get(stage_key) or {}
         if not stage.get("rules"):
@@ -524,12 +524,12 @@ def get_active_timeframes(blueprint: dict[str, Any]) -> list[str]:
     return ordered
 
 
-def get_requested_symbols(blueprint: dict[str, Any]) -> list[str]:
+def get_requested_symbols(blueprint: Dict[str, Any]) -> List[str]:
     raw_symbols = [
         *(str(symbol).strip().upper() for symbol in (blueprint.get("symbols") or [])),
         str(blueprint.get("symbol") or "").strip().upper(),
     ]
-    ordered: list[str] = []
+    ordered: List[str] = []
     seen: set[str] = set()
     for symbol in raw_symbols:
         if not symbol or symbol in seen:
@@ -568,15 +568,15 @@ def get_symbol_batch_size(total_symbols: int) -> int:
     return min(4, max(4, total_symbols))
 
 
-def chunk_symbols(symbols: list[str], batch_size: int) -> list[list[str]]:
+def chunk_symbols(symbols: List[str], batch_size: int) -> List[List[str]]:
     size = max(1, batch_size)
     return [symbols[index:index + size] for index in range(0, len(symbols), size)]
 
 
 def can_use_symbol_batch_loading(
     market_data_gateway: MarketDataGateway,
-    active_timeframes: list[str],
-    symbols: list[str],
+    active_timeframes: List[str],
+    symbols: List[str],
 ) -> bool:
     if len(symbols) < 8:
         return False

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict
-from typing import Optional, Literal, Dict, Any, Tuple
+from typing import Dict, List,  Union, Optional, Optional, Literal, Dict, Any, Tuple
 
 import numpy as np
 import pandas as pd
@@ -222,8 +222,8 @@ def backtest_single_ticker(
         entry_fee = float(fee)
 
         _log(
-            f"ALIŞ | Zaman: {idx[i]} | Adet: {int(qty)} lot | Açılış: {raw_open:.2f} TL | "
-            f"Gerçekleşen: {fill:.2f} TL | Komisyon: {fee:.2f} TL | Kalan Nakit: {cash:.2f} TL"
+            f"ALIŞ | Zaman: {idx[i]} | Adet: {int(qty)} Union[lot, A]çılış: {raw_open:.2f} TL | "
+            f"Gerçekleşen: {fill:.2f} Union[TL, Komisyon]: {fee:.2f} Union[TL, Kalan] Nakit: {cash:.2f} TL"
         )
 
     def _sell(i: int, raw_price: float, reason: str) -> None:
@@ -269,9 +269,9 @@ def backtest_single_ticker(
         }.get(reason, reason)
 
         _log(
-            f"SATIŞ | Zaman: {idx[i]} | Adet: {int(qty)} lot | Fiyat: {raw_price:.2f} TL | "
-            f"Gerçekleşen: {fill:.2f} TL | Sebep: {reason_tr} | Kâr/Zarar: {pnl:.2f} TL | "
-            f"Toplam Komisyon: {(entry_fee + fee):.2f} TL | Nakit: {(cash + (trade_value - fee)):.2f} TL"
+            f"SATIŞ | Zaman: {idx[i]} | Adet: {int(qty)} Union[lot, Fiyat]: {raw_price:.2f} TL | "
+            f"Gerçekleşen: {fill:.2f} Union[TL, Sebep]: {reason_tr} | Kâr/Zarar: {pnl:.2f} TL | "
+            f"Toplam Komisyon: {(entry_fee + fee):.2f} Union[TL, Nakit]: {(cash + (trade_value - fee)):.2f} TL"
         )
 
         cash += (trade_value - fee)

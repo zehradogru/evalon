@@ -3,23 +3,23 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from math import sqrt
-from typing import Any
+from typing import Dict, List,  Union, Optional, Any
 
 
-Candle = dict[str, float | int]
+Candle = Dict[str, Union[float, int]]
 
 
 @dataclass
 class RuleMask:
-    long: list[bool]
-    short: list[bool]
+    long: List[bool]
+    short: List[bool]
 
 
 def create_empty_mask(length: int) -> RuleMask:
     return RuleMask(long=[False] * length, short=[False] * length)
 
 
-def evaluate_rising_structure(bars: list[Candle], lookback: int) -> RuleMask:
+def evaluate_rising_structure(bars: List[Candle], lookback: int) -> RuleMask:
     out = create_empty_mask(len(bars))
     for i in range(lookback, len(bars)):
         start = i - lookback
@@ -32,7 +32,7 @@ def evaluate_rising_structure(bars: list[Candle], lookback: int) -> RuleMask:
     return out
 
 
-def evaluate_falling_structure(bars: list[Candle], lookback: int) -> RuleMask:
+def evaluate_falling_structure(bars: List[Candle], lookback: int) -> RuleMask:
     out = create_empty_mask(len(bars))
     for i in range(lookback, len(bars)):
         start = i - lookback
@@ -45,7 +45,7 @@ def evaluate_falling_structure(bars: list[Candle], lookback: int) -> RuleMask:
     return out
 
 
-def evaluate_ema_stack(bars: list[Candle], fast_period: int, slow_period: int) -> RuleMask:
+def evaluate_ema_stack(bars: List[Candle], fast_period: int, slow_period: int) -> RuleMask:
     closes = [float(bar["c"]) for bar in bars]
     safe_fast = min(fast_period, max(2, slow_period - 1))
     safe_slow = max(slow_period, safe_fast + 1)
@@ -59,7 +59,7 @@ def evaluate_ema_stack(bars: list[Candle], fast_period: int, slow_period: int) -
     return out
 
 
-def evaluate_ema_cross(bars: list[Candle], fast_period: int, slow_period: int) -> RuleMask:
+def evaluate_ema_cross(bars: List[Candle], fast_period: int, slow_period: int) -> RuleMask:
     closes = [float(bar["c"]) for bar in bars]
     safe_fast = min(fast_period, max(2, slow_period - 1))
     safe_slow = max(slow_period, safe_fast + 1)
@@ -72,7 +72,7 @@ def evaluate_ema_cross(bars: list[Candle], fast_period: int, slow_period: int) -
     return out
 
 
-def evaluate_ma_ribbon(bars: list[Candle], fast_period: int, mid_period: int, slow_period: int) -> RuleMask:
+def evaluate_ma_ribbon(bars: List[Candle], fast_period: int, mid_period: int, slow_period: int) -> RuleMask:
     closes = [float(bar["c"]) for bar in bars]
     fast = ema(closes, fast_period)
     mid = ema(closes, max(mid_period, fast_period + 1))
@@ -86,7 +86,7 @@ def evaluate_ma_ribbon(bars: list[Candle], fast_period: int, mid_period: int, sl
     return out
 
 
-def evaluate_rsi_regime(bars: list[Candle], period: int, level: float) -> RuleMask:
+def evaluate_rsi_regime(bars: List[Candle], period: int, level: float) -> RuleMask:
     closes = [float(bar["c"]) for bar in bars]
     values = compute_rsi(closes, period)
     short_threshold = clamp_number(100 - level, 50, 1, 99)
@@ -97,7 +97,7 @@ def evaluate_rsi_regime(bars: list[Candle], period: int, level: float) -> RuleMa
     return out
 
 
-def evaluate_rsi_reclaim(bars: list[Candle], period: int, lower: float, upper: float) -> RuleMask:
+def evaluate_rsi_reclaim(bars: List[Candle], period: int, lower: float, upper: float) -> RuleMask:
     closes = [float(bar["c"]) for bar in bars]
     values = compute_rsi(closes, period)
     out = create_empty_mask(len(bars))
@@ -107,7 +107,7 @@ def evaluate_rsi_reclaim(bars: list[Candle], period: int, lower: float, upper: f
     return out
 
 
-def evaluate_breakout(bars: list[Candle], lookback: int, buffer_pct: float) -> RuleMask:
+def evaluate_breakout(bars: List[Candle], lookback: int, buffer_pct: float) -> RuleMask:
     out = create_empty_mask(len(bars))
     buffer = buffer_pct / 100
     for i in range(lookback, len(bars)):
@@ -119,7 +119,7 @@ def evaluate_breakout(bars: list[Candle], lookback: int, buffer_pct: float) -> R
     return out
 
 
-def evaluate_donchian_breakout(bars: list[Candle], lookback: int) -> RuleMask:
+def evaluate_donchian_breakout(bars: List[Candle], lookback: int) -> RuleMask:
     out = create_empty_mask(len(bars))
     for i in range(lookback, len(bars)):
         prior_high = max_high(bars, i - lookback, i)
@@ -130,7 +130,7 @@ def evaluate_donchian_breakout(bars: list[Candle], lookback: int) -> RuleMask:
     return out
 
 
-def evaluate_pullback(bars: list[Candle], ema_period: int, tolerance_pct: float) -> RuleMask:
+def evaluate_pullback(bars: List[Candle], ema_period: int, tolerance_pct: float) -> RuleMask:
     closes = [float(bar["c"]) for bar in bars]
     ema_line = ema(closes, ema_period)
     tolerance = tolerance_pct / 100
@@ -147,7 +147,7 @@ def evaluate_pullback(bars: list[Candle], ema_period: int, tolerance_pct: float)
     return out
 
 
-def evaluate_compression(bars: list[Candle], window_bars: int, range_pct: float) -> RuleMask:
+def evaluate_compression(bars: List[Candle], window_bars: int, range_pct: float) -> RuleMask:
     out = create_empty_mask(len(bars))
     for i in range(window_bars, len(bars)):
         high = max_high(bars, i - window_bars, i + 1)
@@ -160,7 +160,7 @@ def evaluate_compression(bars: list[Candle], window_bars: int, range_pct: float)
     return out
 
 
-def evaluate_bollinger_squeeze(bars: list[Candle], period: int, deviation: float, width_pct: float) -> RuleMask:
+def evaluate_bollinger_squeeze(bars: List[Candle], period: int, deviation: float, width_pct: float) -> RuleMask:
     closes = [float(bar["c"]) for bar in bars]
     mid = sma(closes, period)
     out = create_empty_mask(len(bars))
@@ -177,7 +177,7 @@ def evaluate_bollinger_squeeze(bars: list[Candle], period: int, deviation: float
     return out
 
 
-def evaluate_fib_bounce(bars: list[Candle], lookback: int, upper_level: float, lower_level: float) -> RuleMask:
+def evaluate_fib_bounce(bars: List[Candle], lookback: int, upper_level: float, lower_level: float) -> RuleMask:
     out = create_empty_mask(len(bars))
     high_level = min(upper_level, lower_level)
     low_level = max(upper_level, lower_level)
@@ -205,7 +205,7 @@ def evaluate_fib_bounce(bars: list[Candle], lookback: int, upper_level: float, l
     return out
 
 
-def evaluate_support_hold(bars: list[Candle], lookback: int, tolerance_pct: float) -> RuleMask:
+def evaluate_support_hold(bars: List[Candle], lookback: int, tolerance_pct: float) -> RuleMask:
     tolerance = tolerance_pct / 100
     out = create_empty_mask(len(bars))
     for i in range(lookback, len(bars)):
@@ -220,7 +220,7 @@ def evaluate_support_hold(bars: list[Candle], lookback: int, tolerance_pct: floa
     return out
 
 
-def evaluate_sr_flip_retest(bars: list[Candle], lookback: int, tolerance_pct: float) -> RuleMask:
+def evaluate_sr_flip_retest(bars: List[Candle], lookback: int, tolerance_pct: float) -> RuleMask:
     tolerance = tolerance_pct / 100
     out = create_empty_mask(len(bars))
     for i in range(lookback + 1, len(bars)):
@@ -237,7 +237,7 @@ def evaluate_sr_flip_retest(bars: list[Candle], lookback: int, tolerance_pct: fl
     return out
 
 
-def evaluate_ascending_triangle(bars: list[Candle], window_bars: int, tolerance_pct: float) -> RuleMask:
+def evaluate_ascending_triangle(bars: List[Candle], window_bars: int, tolerance_pct: float) -> RuleMask:
     tolerance = tolerance_pct / 100
     out = create_empty_mask(len(bars))
     for i in range(window_bars, len(bars)):
@@ -256,7 +256,7 @@ def evaluate_ascending_triangle(bars: list[Candle], window_bars: int, tolerance_
     return out
 
 
-def evaluate_double_bottom(bars: list[Candle], window_bars: int, tolerance_pct: float) -> RuleMask:
+def evaluate_double_bottom(bars: List[Candle], window_bars: int, tolerance_pct: float) -> RuleMask:
     tolerance = tolerance_pct / 100
     out = create_empty_mask(len(bars))
     for i in range(window_bars, len(bars)):
@@ -277,7 +277,7 @@ def evaluate_double_bottom(bars: list[Candle], window_bars: int, tolerance_pct: 
     return out
 
 
-def evaluate_bull_flag(bars: list[Candle], impulse_bars: int, pullback_bars: int, min_move_pct: float) -> RuleMask:
+def evaluate_bull_flag(bars: List[Candle], impulse_bars: int, pullback_bars: int, min_move_pct: float) -> RuleMask:
     out = create_empty_mask(len(bars))
     total_bars = impulse_bars + pullback_bars
     for i in range(total_bars, len(bars)):
@@ -310,7 +310,7 @@ def evaluate_bull_flag(bars: list[Candle], impulse_bars: int, pullback_bars: int
     return out
 
 
-def evaluate_rectangle_breakout(bars: list[Candle], window_bars: int, range_pct: float) -> RuleMask:
+def evaluate_rectangle_breakout(bars: List[Candle], window_bars: int, range_pct: float) -> RuleMask:
     out = create_empty_mask(len(bars))
     for i in range(window_bars, len(bars)):
         prior_high = max_high(bars, i - window_bars, i)
@@ -324,7 +324,7 @@ def evaluate_rectangle_breakout(bars: list[Candle], window_bars: int, range_pct:
     return out
 
 
-def evaluate_trend_slope(bars: list[Candle], lookback: int, min_move_pct: float) -> RuleMask:
+def evaluate_trend_slope(bars: List[Candle], lookback: int, min_move_pct: float) -> RuleMask:
     out = create_empty_mask(len(bars))
     for i in range(lookback, len(bars)):
         start_close = max(1e-9, float(bars[i - lookback]["c"]))
@@ -334,7 +334,7 @@ def evaluate_trend_slope(bars: list[Candle], lookback: int, min_move_pct: float)
     return out
 
 
-def evaluate_channel_trend(bars: list[Candle], lookback: int) -> RuleMask:
+def evaluate_channel_trend(bars: List[Candle], lookback: int) -> RuleMask:
     out = create_empty_mask(len(bars))
     for i in range(lookback, len(bars)):
         high = max_high(bars, i - lookback, i + 1)
@@ -351,7 +351,7 @@ def evaluate_channel_trend(bars: list[Candle], lookback: int) -> RuleMask:
 
 
 def evaluate_adx_dmi_trend(
-    bars: list[Candle],
+    bars: List[Candle],
     period: int,
     trend_threshold: float,
     min_di_spread: float,
@@ -391,7 +391,7 @@ def evaluate_adx_dmi_trend(
 
 
 def evaluate_aroon_trend(
-    bars: list[Candle],
+    bars: List[Candle],
     period: int,
     strong_level: float,
     weak_level: float,
@@ -417,7 +417,7 @@ def evaluate_aroon_trend(
 
 
 def evaluate_ichimoku_cloud_trend(
-    bars: list[Candle],
+    bars: List[Candle],
     conversion_period: int,
     base_period: int,
     span_b_period: int,
@@ -425,8 +425,8 @@ def evaluate_ichimoku_cloud_trend(
 ) -> RuleMask:
     conversion_line = [0.0] * len(bars)
     base_line = [0.0] * len(bars)
-    leading_span_a_raw: list[float | None] = [None] * len(bars)
-    leading_span_b_raw: list[float | None] = [None] * len(bars)
+    leading_span_a_raw: List[Optional[float]] = [None] * len(bars)
+    leading_span_b_raw: List[Optional[float]] = [None] * len(bars)
 
     for i in range(len(bars)):
         if i >= conversion_period - 1:
@@ -463,7 +463,7 @@ def evaluate_ichimoku_cloud_trend(
 
 
 def evaluate_vortex_trend(
-    bars: list[Candle],
+    bars: List[Candle],
     period: int,
     min_spread: float,
 ) -> RuleMask:
@@ -488,7 +488,7 @@ def evaluate_vortex_trend(
 
 
 def evaluate_supertrend_bias(
-    bars: list[Candle],
+    bars: List[Candle],
     period: int,
     multiplier: float,
 ) -> RuleMask:
@@ -532,7 +532,7 @@ def evaluate_supertrend_bias(
 
 
 def evaluate_psar_trend(
-    bars: list[Candle],
+    bars: List[Candle],
     step: float,
     max_step: float,
 ) -> RuleMask:
@@ -584,7 +584,7 @@ def evaluate_psar_trend(
 
 
 def evaluate_macd_zero_bias(
-    bars: list[Candle],
+    bars: List[Candle],
     fast: int,
     slow: int,
     signal: int,
@@ -603,7 +603,7 @@ def evaluate_macd_zero_bias(
     return out
 
 
-def evaluate_macd_cross(bars: list[Candle], fast: int, slow: int, signal: int) -> RuleMask:
+def evaluate_macd_cross(bars: List[Candle], fast: int, slow: int, signal: int) -> RuleMask:
     closes = [float(bar["c"]) for bar in bars]
     safe_fast = min(fast, max(2, slow - 1))
     safe_slow = max(slow, safe_fast + 1)
@@ -618,7 +618,7 @@ def evaluate_macd_cross(bars: list[Candle], fast: int, slow: int, signal: int) -
     return out
 
 
-def evaluate_retest(bars: list[Candle], window_bars: int, tolerance_pct: float) -> RuleMask:
+def evaluate_retest(bars: List[Candle], window_bars: int, tolerance_pct: float) -> RuleMask:
     tolerance = tolerance_pct / 100
     out = create_empty_mask(len(bars))
     for i in range(window_bars, len(bars)):
@@ -632,7 +632,7 @@ def evaluate_retest(bars: list[Candle], window_bars: int, tolerance_pct: float) 
     return out
 
 
-def evaluate_volume_confirm(bars: list[Candle], factor: float, lookback: int) -> RuleMask:
+def evaluate_volume_confirm(bars: List[Candle], factor: float, lookback: int) -> RuleMask:
     volume = [float(bar["v"]) for bar in bars]
     averages = sma(volume, lookback)
     out = create_empty_mask(len(bars))
@@ -643,7 +643,7 @@ def evaluate_volume_confirm(bars: list[Candle], factor: float, lookback: int) ->
     return out
 
 
-def evaluate_vwap_reclaim(bars: list[Candle]) -> RuleMask:
+def evaluate_vwap_reclaim(bars: List[Candle]) -> RuleMask:
     out = create_empty_mask(len(bars))
     cumulative_price_volume = 0.0
     cumulative_volume = 0.0
@@ -668,7 +668,7 @@ def evaluate_vwap_reclaim(bars: list[Candle]) -> RuleMask:
     return out
 
 
-def evaluate_micro_breakout(bars: list[Candle], pivot_bars: int) -> RuleMask:
+def evaluate_micro_breakout(bars: List[Candle], pivot_bars: int) -> RuleMask:
     out = create_empty_mask(len(bars))
     for i in range(pivot_bars, len(bars)):
         prior_high = max_high(bars, i - pivot_bars, i)
@@ -679,7 +679,7 @@ def evaluate_micro_breakout(bars: list[Candle], pivot_bars: int) -> RuleMask:
     return out
 
 
-def evaluate_inside_breakout(bars: list[Candle]) -> RuleMask:
+def evaluate_inside_breakout(bars: List[Candle]) -> RuleMask:
     out = create_empty_mask(len(bars))
     for i in range(2, len(bars)):
         mother = bars[i - 2]
@@ -693,7 +693,7 @@ def evaluate_inside_breakout(bars: list[Candle]) -> RuleMask:
     return out
 
 
-def evaluate_reversal_candle(bars: list[Candle], body_pct_threshold: float) -> RuleMask:
+def evaluate_reversal_candle(bars: List[Candle], body_pct_threshold: float) -> RuleMask:
     out = create_empty_mask(len(bars))
     for i, bar in enumerate(bars):
         range_value = max(1e-9, float(bar["h"]) - float(bar["l"]))
@@ -706,7 +706,7 @@ def evaluate_reversal_candle(bars: list[Candle], body_pct_threshold: float) -> R
 
 
 def evaluate_stoch_rsi_cross(
-    bars: list[Candle],
+    bars: List[Candle],
     rsi_period: int,
     stoch_period: int,
     signal_period: int,
@@ -729,7 +729,7 @@ def evaluate_stoch_rsi_cross(
     return out
 
 
-def ema(values: list[float], period: int) -> list[float]:
+def ema(values: List[float], period: int) -> List[float]:
     if not values:
         return []
     k = 2 / (period + 1)
@@ -740,7 +740,7 @@ def ema(values: list[float], period: int) -> list[float]:
     return out
 
 
-def compute_true_range(bars: list[Candle]) -> list[float]:
+def compute_true_range(bars: List[Candle]) -> List[float]:
     true_range = [0.0] * len(bars)
     for i, bar in enumerate(bars):
         high = float(bar["h"])
@@ -753,7 +753,7 @@ def compute_true_range(bars: list[Candle]) -> list[float]:
     return true_range
 
 
-def wilder_smoothing(values: list[float], period: int) -> list[float]:
+def wilder_smoothing(values: List[float], period: int) -> List[float]:
     out = [0.0] * len(values)
     if len(values) < period:
         return out
@@ -765,7 +765,7 @@ def wilder_smoothing(values: list[float], period: int) -> list[float]:
     return out
 
 
-def smooth_directional_index(dx: list[float], period: int) -> list[float]:
+def smooth_directional_index(dx: List[float], period: int) -> List[float]:
     out = [0.0] * len(dx)
     start = (period * 2) - 2
     if len(dx) <= start:
@@ -778,7 +778,7 @@ def smooth_directional_index(dx: list[float], period: int) -> list[float]:
     return out
 
 
-def compute_atr(bars: list[Candle], period: int) -> list[float]:
+def compute_atr(bars: List[Candle], period: int) -> List[float]:
     true_range = compute_true_range(bars)
     smoothed = wilder_smoothing(true_range, period)
     atr = [0.0] * len(bars)
@@ -787,7 +787,7 @@ def compute_atr(bars: list[Candle], period: int) -> list[float]:
     return atr
 
 
-def compute_rsi(values: list[float], period: int) -> list[float]:
+def compute_rsi(values: List[float], period: int) -> List[float]:
     if not values:
         return []
     out = [0.0] * len(values)
@@ -816,7 +816,7 @@ def compute_rsi(values: list[float], period: int) -> list[float]:
     return out
 
 
-def sma(values: list[float], period: int) -> list[float]:
+def sma(values: List[float], period: int) -> List[float]:
     out = [0.0] * len(values)
     rolling = 0.0
     for i, value in enumerate(values):
@@ -827,7 +827,7 @@ def sma(values: list[float], period: int) -> list[float]:
     return out
 
 
-def standard_deviation(values: list[float]) -> float:
+def standard_deviation(values: List[float]) -> float:
     if not values:
         return 0.0
     mean = sum(values) / len(values)
@@ -835,7 +835,7 @@ def standard_deviation(values: list[float]) -> float:
     return sqrt(variance)
 
 
-def find_lowest_bar(bars: list[Candle], start: int, end: int) -> dict[str, float | int]:
+def find_lowest_bar(bars: List[Candle], start: int, end: int) -> Dict[str, Union[float, int]]:
     best_index = start
     best_value = float("inf")
     for i in range(start, end):
@@ -846,7 +846,7 @@ def find_lowest_bar(bars: list[Candle], start: int, end: int) -> dict[str, float
     return {"index": best_index, "value": best_value}
 
 
-def find_highest_bar(bars: list[Candle], start: int, end: int) -> dict[str, float | int]:
+def find_highest_bar(bars: List[Candle], start: int, end: int) -> Dict[str, Union[float, int]]:
     best_index = start
     best_value = float("-inf")
     for i in range(start, end):
@@ -857,14 +857,14 @@ def find_highest_bar(bars: list[Candle], start: int, end: int) -> dict[str, floa
     return {"index": best_index, "value": best_value}
 
 
-def max_high(bars: list[Candle], start: int, end: int) -> float:
+def max_high(bars: List[Candle], start: int, end: int) -> float:
     high = float("-inf")
     for i in range(start, end):
         high = max(high, float(bars[i]["h"]))
     return high
 
 
-def min_low(bars: list[Candle], start: int, end: int) -> float:
+def min_low(bars: List[Candle], start: int, end: int) -> float:
     low = float("inf")
     for i in range(start, end):
         low = min(low, float(bars[i]["l"]))

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Optional
+from typing import Dict, List,  Union, Optional, Any, Callable, Optional
 
 import pandas as pd
 
@@ -20,11 +20,11 @@ class MarketDataGateway:
     def load_candles_by_timeframe(
         self,
         symbol: str,
-        timeframes: list[str],
+        timeframes: List[str],
         test_window_days: int,
         warmup_bars: int,
         now_utc: datetime,
-    ) -> dict[str, list[dict[str, float | int]]]:
+    ) -> Dict[str, List[Dict[str, Union[float, int]]]]:
         unique_timeframes = sorted(set(timeframes))
         requests = {
             timeframe: build_timeframe_request(
@@ -39,7 +39,7 @@ class MarketDataGateway:
         if symbol != "TEST" and supports_hourly_bundle(self._client, unique_timeframes):
             return self._load_hourly_bundle(symbol, unique_timeframes, requests, now_utc)
 
-        candles_by_timeframe: dict[str, list[dict[str, float | int]]] = {}
+        candles_by_timeframe: Dict[str, List[Dict[str, Union[float, int]]]] = {}
         for timeframe in unique_timeframes:
             request = requests[timeframe]
             if symbol == "TEST":
@@ -66,10 +66,10 @@ class MarketDataGateway:
     def _load_hourly_bundle(
         self,
         symbol: str,
-        timeframes: list[str],
-        requests: dict[str, dict[str, Any]],
+        timeframes: List[str],
+        requests: Dict[str, Dict[str, Any]],
         now_utc: datetime,
-    ) -> dict[str, list[dict[str, float | int]]]:
+    ) -> Dict[str, List[Dict[str, Union[float, int]]]]:
         expanded_windows = [
             self._client.expand_hourly_query_window(timeframe, request["start"], now_utc)
             for timeframe, request in requests.items()
@@ -85,7 +85,7 @@ class MarketDataGateway:
             end=base_end,
         )
 
-        candles_by_timeframe: dict[str, list[dict[str, float | int]]] = {}
+        candles_by_timeframe: Dict[str, List[Dict[str, Union[float, int]]]] = {}
         for timeframe in timeframes:
             request = requests[timeframe]
             df = self._client.build_from_hourly_base(
@@ -102,12 +102,12 @@ class MarketDataGateway:
 
     def load_candles_for_symbols(
         self,
-        symbols: list[str],
-        timeframes: list[str],
+        symbols: List[str],
+        timeframes: List[str],
         test_window_days: int,
         warmup_bars: int,
         now_utc: datetime,
-    ) -> dict[str, dict[str, list[dict[str, float | int]]]]:
+    ) -> Dict[str, Dict[str, List[Dict[str, Union[float, int]]]]]:
         unique_symbols = list(dict.fromkeys(symbols))
         unique_timeframes = sorted(set(timeframes))
         requests = {
@@ -138,7 +138,7 @@ class MarketDataGateway:
             end=base_end,
         )
 
-        candles_by_symbol: dict[str, dict[str, list[dict[str, float | int]]]] = {}
+        candles_by_symbol: Dict[str, Dict[str, List[Dict[str, Union[float, int]]]]] = {}
         for symbol in unique_symbols:
             hourly = hourly_frames.get(symbol)
             if hourly is None:
@@ -160,11 +160,11 @@ class MarketDataGateway:
         return candles_by_symbol
 
 
-def dataframe_to_candles(df: pd.DataFrame) -> list[dict[str, float | int]]:
+def dataframe_to_candles(df: pd.DataFrame) -> List[Dict[str, Union[float, int]]]:
     if df.empty:
         return []
 
-    candles: list[dict[str, float | int]] = []
+    candles: List[Dict[str, Union[float, int]]] = []
     ordered = df.sort_index()
     for row in ordered.itertuples(index=True):
         ts = row.Index
@@ -218,7 +218,7 @@ def build_timeframe_request(
     test_window_days: int,
     warmup_bars: int,
     now_utc: datetime,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     tf_seconds = get_timeframe_seconds(timeframe)
     start = now_utc - timedelta(seconds=(test_window_days * 86400) + (warmup_bars * tf_seconds))
     limit = min(200_000, max(250, int(((now_utc - start).total_seconds() / tf_seconds)) + 10))
@@ -230,7 +230,7 @@ def build_timeframe_request(
     }
 
 
-def supports_hourly_bundle(client: BistPricesClient, timeframes: list[str]) -> bool:
+def supports_hourly_bundle(client: BistPricesClient, timeframes: List[str]) -> bool:
     checker = getattr(client, "supports_hourly_bundle", None)
     return bool(callable(checker) and checker(list(timeframes)))
 

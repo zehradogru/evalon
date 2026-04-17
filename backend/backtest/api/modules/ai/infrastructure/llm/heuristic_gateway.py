@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Dict, List,  Union, Optional, Any
 
 from api.modules.ai.domain.models import (
     AiAssistantReply,
@@ -21,8 +21,8 @@ class HeuristicLlmGateway:
         user_message: str,
         session: AiSessionRecord,
         request_context: AiRequestContext,
-        context_snapshot: dict[str, Any],
-        tools: list[dict[str, Any]],
+        context_snapshot: Dict[str, Any],
+        tools: List[Dict[str, Any]],
     ) -> AiExecutionPlan:
         del session, context_snapshot, tools
 
@@ -122,11 +122,11 @@ class HeuristicLlmGateway:
         session: AiSessionRecord,
         request_context: AiRequestContext,
         plan: AiExecutionPlan,
-        tool_results: list[dict[str, Any]],
+        tool_results: List[Dict[str, Any]],
     ) -> AiAssistantReply:
         del session
 
-        lines: list[str] = []
+        lines: List[str] = []
         needs_symbol_clarification = self._needs_symbol_clarification(plan, request_context, tool_results)
         needs_timeframe_clarification = self._needs_timeframe_clarification(plan, request_context, tool_results)
 
@@ -187,14 +187,14 @@ class HeuristicLlmGateway:
         return clean[:72]
 
     @staticmethod
-    def _guess_indicator_id(text: str) -> str | None:
+    def _guess_indicator_id(text: str) -> Optional[str]:
         for indicator_id in ("rsi", "macd", "ema", "sma", "bbands", "atr"):
             if indicator_id in text:
                 return indicator_id
         return None
 
     @staticmethod
-    def _draft_arguments(draft: Any) -> dict[str, Any]:
+    def _draft_arguments(draft: Any) -> Dict[str, Any]:
         payload = draft.model_dump(mode="python")
         return {
             "title": payload.get("title") or "Untitled",
@@ -204,7 +204,7 @@ class HeuristicLlmGateway:
         }
 
     @staticmethod
-    def _summarize_tool_result(result: dict[str, Any]) -> str:
+    def _summarize_tool_result(result: Dict[str, Any]) -> str:
         name = result.get("tool")
         payload = result.get("result") or {}
         if name == "run_backtest":
@@ -229,11 +229,11 @@ class HeuristicLlmGateway:
     @staticmethod
     def _suggest_actions(
         plan: AiExecutionPlan,
-        tool_results: list[dict[str, Any]],
+        tool_results: List[Dict[str, Any]],
         request_context: AiRequestContext,
         user_message: str,
-    ) -> list[str]:
-        actions: list[str] = []
+    ) -> List[str]:
+        actions: List[str] = []
         ticker = request_context.ticker or (request_context.selected_symbols[0] if request_context.selected_symbols else None)
         message = user_message.lower()
 
@@ -330,7 +330,7 @@ class HeuristicLlmGateway:
         ]
 
     @staticmethod
-    def _summarize_price_payload(payload: dict[str, Any]) -> str:
+    def _summarize_price_payload(payload: Dict[str, Any]) -> str:
         bars = payload.get("bars") or []
         if not isinstance(bars, list) or len(bars) < 2:
             return f"{payload.get('ticker')} {payload.get('timeframe')} icin fiyat verisi hazir."
@@ -362,7 +362,7 @@ class HeuristicLlmGateway:
     def _needs_symbol_clarification(
         plan: AiExecutionPlan,
         request_context: AiRequestContext,
-        tool_results: list[dict[str, Any]],
+        tool_results: List[Dict[str, Any]],
     ) -> bool:
         if request_context.ticker or request_context.selected_symbols:
             return False
@@ -376,7 +376,7 @@ class HeuristicLlmGateway:
     def _needs_timeframe_clarification(
         plan: AiExecutionPlan,
         request_context: AiRequestContext,
-        tool_results: list[dict[str, Any]],
+        tool_results: List[Dict[str, Any]],
     ) -> bool:
         if request_context.timeframe:
             return False

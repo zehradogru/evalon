@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from time import time
-from typing import Any, Optional
+from typing import Dict, List,  Union, Optional, Any, Optional
 
 from stratejiler.blueprint_rules import get_timeframe_seconds, round_number
 from stratejiler.multi_timeframe_backtest import run_blueprint_backtest
@@ -11,11 +11,11 @@ STAGE_KEYS = ("trend", "setup", "trigger")
 
 
 def run_portfolio_blueprint_backtest(
-    blueprint: dict[str, Any],
-    candles_by_symbol: dict[str, dict[str, list[dict[str, float | int]]]],
+    blueprint: Dict[str, Any],
+    candles_by_symbol: Dict[str, Dict[str, List[Dict[str, Union[float, int]]]]],
     now_ts: Optional[int] = None,
-    symbol_errors: Optional[list[dict[str, str]]] = None,
-) -> dict[str, Any]:
+    symbol_errors: Optional[List[Dict[str, str]]] = None,
+) -> Dict[str, Any]:
     test_window_days = clamp_int(blueprint.get("testWindowDays"), 365, 30, 3650)
     end_time = int(now_ts if now_ts is not None else time())
     active_stage_keys = get_active_stage_keys(blueprint)
@@ -26,7 +26,7 @@ def run_portfolio_blueprint_backtest(
     portfolio = normalize_portfolio_config(blueprint.get("portfolio"))
     symbols = normalize_symbols(blueprint)
     merged_symbol_errors = list(symbol_errors or [])
-    symbol_runs: list[dict[str, Any]] = []
+    symbol_runs: List[Dict[str, Any]] = []
 
     for symbol in symbols:
         symbol_candles = candles_by_symbol.get(symbol)
@@ -98,11 +98,11 @@ def run_portfolio_blueprint_backtest(
 
 
 def simulate_portfolio(
-    symbol_runs: list[dict[str, Any]],
-    portfolio: dict[str, float],
+    symbol_runs: List[Dict[str, Any]],
+    portfolio: Dict[str, float],
     curve_start_time: Optional[int] = None,
-) -> dict[str, Any]:
-    candidate_trades: list[dict[str, Any]] = []
+) -> Dict[str, Any]:
+    candidate_trades: List[Dict[str, Any]] = []
     for run in symbol_runs:
         symbol = str((run.get("context") or {}).get("symbol") or "")
         symbol_key = sanitize_symbol(symbol)
@@ -120,12 +120,12 @@ def simulate_portfolio(
         )
     )
 
-    executed_trades: list[dict[str, Any]] = []
-    skipped_trades: list[dict[str, Any]] = []
-    open_positions: list[dict[str, Any]] = []
+    executed_trades: List[Dict[str, Any]] = []
+    skipped_trades: List[Dict[str, Any]] = []
+    open_positions: List[Dict[str, Any]] = []
     cash = float(portfolio["initialCapital"])
     max_concurrent_positions = 0
-    curve_points: list[dict[str, Any]] = []
+    curve_points: List[Dict[str, Any]] = []
     peak_balance = cash
     max_drawdown_pct = 0.0
 
@@ -229,9 +229,9 @@ def simulate_portfolio(
 
 
 def build_portfolio_summary(
-    portfolio_run: dict[str, Any],
-    portfolio: dict[str, float],
-) -> dict[str, Any]:
+    portfolio_run: Dict[str, Any],
+    portfolio: Dict[str, float],
+) -> Dict[str, Any]:
     trades = portfolio_run["executedTrades"]
     initial_capital = float(portfolio["initialCapital"])
     if not trades:
@@ -284,9 +284,9 @@ def build_portfolio_summary(
 
 
 def build_portfolio_curve_payload(
-    points: list[dict[str, Any]],
-    portfolio: dict[str, float],
-) -> dict[str, Any]:
+    points: List[Dict[str, Any]],
+    portfolio: Dict[str, float],
+) -> Dict[str, Any]:
     normalized_points = sorted(points, key=lambda item: (int(item["time"]), 0 if str(item.get("event")) == "start" else 1))
     balances = [float(point["balance"]) for point in normalized_points] or [float(portfolio["initialCapital"])]
     return {
@@ -301,10 +301,10 @@ def build_portfolio_curve_payload(
 
 
 def aggregate_stage_stats(
-    blueprint: dict[str, Any],
-    symbol_runs: list[dict[str, Any]],
-) -> dict[str, dict[str, Any]]:
-    payload: dict[str, dict[str, Any]] = {}
+    blueprint: Dict[str, Any],
+    symbol_runs: List[Dict[str, Any]],
+) -> Dict[str, Dict[str, Any]]:
+    payload: Dict[str, Dict[str, Any]] = {}
     for stage_key in STAGE_KEYS:
         passed_bars = sum(int(run["stageStats"][stage_key]["passedBars"]) for run in symbol_runs)
         core_bars = sum(int(run["stageStats"][stage_key]["coreBars"]) for run in symbol_runs)
@@ -321,13 +321,13 @@ def aggregate_stage_stats(
     return payload
 
 
-def aggregate_range(symbol_runs: list[dict[str, Any]]) -> dict[str, int]:
+def aggregate_range(symbol_runs: List[Dict[str, Any]]) -> Dict[str, int]:
     from_value = min(int(run["range"]["from"]) for run in symbol_runs)
     to_value = max(int(run["range"]["to"]) for run in symbol_runs)
     return {"from": from_value, "to": to_value}
 
 
-def aggregate_data_points(symbol_runs: list[dict[str, Any]]) -> dict[str, int]:
+def aggregate_data_points(symbol_runs: List[Dict[str, Any]]) -> Dict[str, int]:
     return {
         "trend": sum(int(run["dataPoints"]["trend"]) for run in symbol_runs),
         "setup": sum(int(run["dataPoints"]["setup"]) for run in symbol_runs),
@@ -336,11 +336,11 @@ def aggregate_data_points(symbol_runs: list[dict[str, Any]]) -> dict[str, int]:
 
 
 def build_symbol_stats(
-    portfolio_run: dict[str, Any],
-    symbols: list[str],
+    portfolio_run: Dict[str, Any],
+    symbols: List[str],
     initial_capital: float,
-) -> list[dict[str, Any]]:
-    payload: list[dict[str, Any]] = []
+) -> List[Dict[str, Any]]:
+    payload: List[Dict[str, Any]] = []
     for symbol in symbols:
         executed = [trade for trade in portfolio_run["executedTrades"] if trade["symbol"] == symbol]
         skipped = [trade for trade in portfolio_run["skippedTrades"] if trade["symbol"] == symbol]
@@ -366,15 +366,15 @@ def build_symbol_stats(
 
 
 def build_portfolio_notes(
-    summary: dict[str, Any],
-    stage_stats: dict[str, dict[str, Any]],
+    summary: Dict[str, Any],
+    stage_stats: Dict[str, Dict[str, Any]],
     test_window_days: int,
-    active_stage_keys: list[str],
+    active_stage_keys: List[str],
     execution_stage: str,
-    symbol_runs: list[dict[str, Any]],
-    portfolio: dict[str, float],
-    symbol_errors: list[dict[str, str]],
-) -> list[str]:
+    symbol_runs: List[Dict[str, Any]],
+    portfolio: Dict[str, float],
+    symbol_errors: List[Dict[str, str]],
+) -> List[str]:
     notes = [
         f"{len(symbol_runs)} sembol {test_window_days} gunluk pencerede tarandi. Girisler aktif stage'ler icindeki en alt timeframe olan {execution_stage} stage'inin yeni aktif oldugu barda uretildi.",
         f"Portfoy modeli: baslangic bakiye {format_money(float(portfolio['initialCapital']))} TL, islem basi {format_money(float(portfolio['positionSize']))} TL, komisyon %{round_number(float(portfolio['commissionPct']), 3)} her giris ve cikista dusuldu.",
@@ -397,23 +397,23 @@ def build_portfolio_notes(
     return notes
 
 
-def get_active_stage_keys(blueprint: dict[str, Any]) -> list[str]:
+def get_active_stage_keys(blueprint: Dict[str, Any]) -> List[str]:
     return [stage_key for stage_key in STAGE_KEYS if (blueprint["stages"].get(stage_key) or {}).get("rules")]
 
 
-def get_execution_stage_key(blueprint: dict[str, Any], active_stage_keys: list[str]) -> str:
+def get_execution_stage_key(blueprint: Dict[str, Any], active_stage_keys: List[str]) -> str:
     return sorted(
         active_stage_keys,
         key=lambda stage_key: get_timeframe_seconds(str(blueprint["stages"][stage_key]["timeframe"])),
     )[0]
 
 
-def normalize_symbols(blueprint: dict[str, Any]) -> list[str]:
+def normalize_symbols(blueprint: Dict[str, Any]) -> List[str]:
     raw_symbols = [
         *(str(symbol).strip().upper() for symbol in (blueprint.get("symbols") or [])),
         str(blueprint.get("symbol") or "").strip().upper(),
     ]
-    ordered: list[str] = []
+    ordered: List[str] = []
     seen: set[str] = set()
     for symbol in raw_symbols:
         if not symbol or symbol in seen:
@@ -425,7 +425,7 @@ def normalize_symbols(blueprint: dict[str, Any]) -> list[str]:
     return ordered
 
 
-def normalize_portfolio_config(input_payload: Optional[dict[str, Any]]) -> dict[str, float]:
+def normalize_portfolio_config(input_payload: Optional[Dict[str, Any]]) -> Dict[str, float]:
     initial_capital = clamp_number((input_payload or {}).get("initialCapital"), 100000, 1000, 1_000_000_000)
     position_size = clamp_number((input_payload or {}).get("positionSize"), min(initial_capital, 10000), 100, initial_capital)
     commission_pct = clamp_number((input_payload or {}).get("commissionPct"), 0.1, 0, 10)

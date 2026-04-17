@@ -7,18 +7,16 @@ import tempfile
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from data_clients.bist_prices_1h_client import DEFAULT_1H_WALLET_DIR
-from data_clients.bist_prices_client import BistPricesClient
-from data_clients.hybrid_bist_prices_client import HybridBistPricesClient
 from api.modules.ai.presentation.router import create_ai_router
-from api.modules.backtests.presentation.router import create_backtest_router
 from api.modules.backtests.infrastructure.run_store import InMemoryRunStore
+from api.modules.backtests.presentation.router import create_backtest_router
 from api.talib_indicators import (
     INDICATOR_CATALOG,
     TalibUnavailableError,
@@ -26,11 +24,49 @@ from api.talib_indicators import (
     normalize_indicator_key,
     supported_indicator_ids,
 )
+from data_clients.bist_prices_1h_client import DEFAULT_1H_WALLET_DIR
+from data_clients.bist_prices_client import BistPricesClient
+from data_clients.hybrid_bist_prices_client import HybridBistPricesClient
+
+
+LOCAL_DEV_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+]
 
 
 def _bool_env(name: str) -> bool:
     v = os.environ.get(name)
     return bool(v and v.strip())
+
+
+def _list_env(name: str) -> List[str]:
+    raw = os.environ.get(name, "")
+    return [value.strip() for value in raw.split(",") if value.strip()]
+
+
+def _is_managed_runtime() -> bool:
+    return _bool_env("K_SERVICE") or os.environ.get("VERCEL") == "1"
+
+
+def _cors_options() -> Dict[str, Any]:
+    allow_origins = _list_env("ALLOWED_ORIGINS")
+    allow_origin_regex = (os.environ.get("ALLOWED_ORIGIN_REGEX") or "").strip()
+
+    if not allow_origins and not allow_origin_regex and not _is_managed_runtime():
+        allow_origins = LOCAL_DEV_ORIGINS
+
+    options: Dict[str, Any] = {
+        "allow_origins": allow_origins,
+        "allow_credentials": True,
+        "allow_methods": ["*"],
+        "allow_headers": ["*"],
+    }
+    if allow_origin_regex:
+        options["allow_origin_regex"] = allow_origin_regex
+    return options
 
 
 def _prepare_wallet_dir() -> Optional[str]:
@@ -103,18 +139,24 @@ def _build_client() -> BistPricesClient:
     return client
 
 
+def _resolve_ai_asset_store_path() -> Path:
+    configured = (os.environ.get("AI_ASSET_STORE_PATH") or "").strip()
+    if configured:
+        return Path(configured)
+
+    if _is_managed_runtime():
+        return Path(tempfile.gettempdir()) / "evalon_ai_assets.json"
+
+    return Path(__file__).resolve().parent / "data" / "ai_assets.json"
+
+
 client = _build_client()
 backtest_run_store = InMemoryRunStore()
 app = FastAPI(title="BIST Prices API", version="0.1.0")
 
-from fastapi.middleware.cors import CORSMiddleware
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Geliştirme için * ideal, prod için spesifik domain verilmeli
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    **_cors_options(),
 )
 
 
@@ -131,10 +173,10 @@ class PricesResponse(BaseModel):
     ticker: str
     timeframe: str
     rows: int
-    data: list[Bar]
+    data: List[Bar]
 
 
-def _config_status() -> dict[str, Any]:
+def _config_status() -> Dict[str, Any]:
     default_wallet_dir = Path(__file__).resolve().parents[1] / "wallet"
     default_1h_wallet_dir = Path(DEFAULT_1H_WALLET_DIR)
     return {
@@ -146,12 +188,14 @@ def _config_status() -> dict[str, Any]:
         "default_wallet_dir_exists": default_wallet_dir.is_dir(),
         "default_1h_wallet_dir_exists": default_1h_wallet_dir.is_dir(),
         "pool_enabled": os.environ.get("ORACLE_USE_POOL", "1") == "1",
+        "allowed_origins_count": len(_list_env("ALLOWED_ORIGINS")),
+        "has_allowed_origin_regex": _bool_env("ALLOWED_ORIGIN_REGEX"),
     }
 
 
 TEST_OHLCV_PATH = os.environ.get(
     "TEST_OHLCV_PATH",
-    "/Users/aliberkyesilduman/Downloads/tesla_nvda/EQUS-20260122-HSB5ELSSCC/equs-mini-20230328-20260121.ohlcv-1m.csv.zst",
+    str(Path(__file__).resolve().parent / "fixtures" / "test_ohlcv.csv"),
 )
 
 
@@ -199,7 +243,12 @@ def _load_test_ohlcv(
     end: Optional[datetime],
     limit: Optional[int],
 ) -> pd.DataFrame:
-    df = pd.read_csv(TEST_OHLCV_PATH, compression="zstd")
+    source_path = Path(TEST_OHLCV_PATH)
+    if not source_path.is_file():
+        raise FileNotFoundError(f"TEST_OHLCV_PATH not found: {source_path}")
+
+    compression = "zstd" if source_path.suffix == ".zst" else "infer"
+    df = pd.read_csv(source_path, compression=compression)
 
     if "ts_event" in df.columns:
         df["t"] = pd.to_datetime(df["ts_event"], unit="ns", utc=True, errors="coerce")
@@ -267,13 +316,13 @@ app.include_router(
         client=client,
         test_loader=_load_test_ohlcv,
         run_store=backtest_run_store,
-        asset_store_path=Path(__file__).resolve().parent / "data" / "ai_assets.json",
+        asset_store_path=_resolve_ai_asset_store_path(),
     )
 )
 
 
 @app.get("/")
-def index() -> dict[str, Any]:
+def index() -> Dict[str, Any]:
     # Simple landing payload so the root URL isn't a confusing 404 on Vercel.
     return {
         "name": "BIST Prices API",
@@ -286,7 +335,7 @@ def index() -> dict[str, Any]:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+def health() -> Dict[str, str]:
     return {"status": "ok"}
 
 
@@ -314,7 +363,7 @@ def get_prices(
         if df.empty:
             return PricesResponse(ticker=ticker, timeframe=timeframe, rows=0, data=[])
 
-        bars: list[Bar] = []
+        bars: List[Bar] = []
         for row in df.itertuples(index=True):
             ts = row.Index
             bars.append(
@@ -373,7 +422,7 @@ def get_prices(
         return PricesResponse(ticker=ticker, timeframe=timeframe, rows=0, data=[])
 
     # df index is price_datetime
-    out: list[dict[str, Any]] = []
+    out: List[Dict[str, Any]] = []
     for row in df.itertuples(index=True):
         ts = row.Index
         out.append(
@@ -394,12 +443,12 @@ class IndicatorResponse(BaseModel):
     ticker: str
     timeframe: str
     strategy: str
-    indicators: list[dict[str, Any]]
+    indicators: List[Dict[str, Any]]
 
 
 class IndicatorCatalogResponse(BaseModel):
     count: int
-    indicators: list[dict[str, str]]
+    indicators: List[Dict[str, str]]
 
 
 @app.get("/v1/indicators/catalog", response_model=IndicatorCatalogResponse)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Dict, List,  Union, Optional, Any, Protocol
 
 from api.modules.ai.domain.models import (
     AiAssistantReply,
@@ -11,18 +11,18 @@ from api.modules.ai.domain.models import (
 
 
 class SessionStore(Protocol):
-    def create(self, user_id: str, title: str | None = None) -> AiSessionRecord:
+    def create(self, user_id: str, title: Optional[str] = None) -> AiSessionRecord:
         ...
 
     def save(self, session: AiSessionRecord) -> None:
         ...
 
-    def get(self, session_id: str) -> AiSessionRecord | None:
+    def get(self, session_id: str) -> Optional[AiSessionRecord]:
         ...
 
 
 class AssetStore(Protocol):
-    def list_assets(self, user_id: str) -> dict[str, list[dict[str, Any]]]:
+    def list_assets(self, user_id: str) -> Dict[str, List[Dict[str, Any]]]:
         ...
 
     def save_asset(
@@ -32,20 +32,20 @@ class AssetStore(Protocol):
         kind: str,
         title: str,
         description: str,
-        prompt: str | None,
-        spec: dict[str, Any],
-    ) -> dict[str, Any]:
+        prompt: Optional[str],
+        spec: Dict[str, Any],
+    ) -> Dict[str, Any]:
         ...
 
 
 class ToolGateway(Protocol):
-    def describe_tools(self) -> list[dict[str, Any]]:
+    def describe_tools(self) -> List[Dict[str, Any]]:
         ...
 
-    def build_context_snapshot(self, *, user_id: str) -> dict[str, Any]:
+    def build_context_snapshot(self, *, user_id: str) -> Dict[str, Any]:
         ...
 
-    def execute(self, *, user_id: str, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    def execute(self, *, user_id: str, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         ...
 
 
@@ -56,8 +56,8 @@ class LlmGateway(Protocol):
         user_message: str,
         session: AiSessionRecord,
         request_context: AiRequestContext,
-        context_snapshot: dict[str, Any],
-        tools: list[dict[str, Any]],
+        context_snapshot: Dict[str, Any],
+        tools: List[Dict[str, Any]],
     ) -> AiExecutionPlan:
         ...
 
@@ -68,6 +68,6 @@ class LlmGateway(Protocol):
         session: AiSessionRecord,
         request_context: AiRequestContext,
         plan: AiExecutionPlan,
-        tool_results: list[dict[str, Any]],
+        tool_results: List[Dict[str, Any]],
     ) -> AiAssistantReply:
         ...

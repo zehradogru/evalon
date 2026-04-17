@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Dict, List,  Union, Optional, Any, Dict, Optional
 
 import pandas as pd
 
@@ -47,12 +47,12 @@ class BaseStrategy(ABC):
         """
         pass
 
-    def get_indicators(self, ohlcv: pd.DataFrame, context: Optional[StrategyContext] = None) -> list[dict]:
+    def get_indicators(self, ohlcv: pd.DataFrame, context: Optional[StrategyContext] = None) -> List[dict]:
         """
         Görselleştirme için indikatör verilerini döndürür.
         
         Returns:
-            list[dict]: Her bir dict bir indikatör serisini temsil eder.
+            List[dict]: Her bir dict bir indikatör serisini temsil eder.
         """
         return []
 

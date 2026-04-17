@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { getBacktestApiBase } from '../config/backtest-api.js';
 
 interface IndicatorPoint {
     time: number;
@@ -35,7 +36,7 @@ interface CandleBar {
  * Proxies and normalizes backtest indicator output.
  */
 export const indicatorRoutes: FastifyPluginAsync = async (app) => {
-    const backtestBase = (process.env.BACKTEST_API_BASE || 'http://localhost:8000/v1').replace(/\/$/, '');
+    const backtestBase = getBacktestApiBase();
 
     app.get('/indicators', async (request, reply) => {
         const query = request.query as Record<string, string | undefined>;

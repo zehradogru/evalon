@@ -23,6 +23,7 @@ export class DataLoader {
     private lastVisibleFrom: number | null = null;
     private ignoreRangeEventsUntil: number = 0;
     private paginationCooldownUntil: number = 0;
+    private lastError: string | null = null;
 
     /** Callback when historical data is loaded */
     onHistoricalDataLoaded?: (newBars: number) => void;
@@ -33,7 +34,7 @@ export class DataLoader {
     }
 
     /** Load initial data for a symbol/timeframe */
-    async load(symbol: string, tf: TimeFrame): Promise<void> {
+    async load(symbol: string, tf: TimeFrame): Promise<boolean> {
         this.symbol = symbol;
         this.tf = tf;
         this.data = [];
@@ -42,20 +43,33 @@ export class DataLoader {
         this.lastVisibleFrom = null;
         this.ignoreRangeEventsUntil = 0;
         this.paginationCooldownUntil = 0;
+        this.lastError = null;
 
-        const response = await this.fetchCandles();
-        if (!response) return;
+        try {
+            const response = await this.fetchCandles();
+            if (response.data.length === 0) {
+                this.chartManager.setData([]);
+                this.lastError = `No price data returned for ${symbol} ${tf}.`;
+                return false;
+            }
 
-        this.data = response.data.map((bar) => ({
-            ...bar,
-            t: this.normalizeTime(bar.t as unknown),
-        }));
-        this.nextCursor = response.nextCursor;
-        this.hasMore = response.hasMore;
+            this.data = response.data.map((bar) => ({
+                ...bar,
+                t: this.normalizeTime(bar.t as unknown),
+            }));
+            this.nextCursor = response.nextCursor;
+            this.hasMore = response.hasMore;
 
-        this.ignoreRangeEventsUntil = Date.now() + DataLoader.PROGRAMMATIC_UPDATE_GUARD_MS;
-        this.chartManager.setData(this.data);
-        this.chartManager.autoScale();
+            this.ignoreRangeEventsUntil = Date.now() + DataLoader.PROGRAMMATIC_UPDATE_GUARD_MS;
+            this.chartManager.setData(this.data);
+            this.chartManager.autoScale();
+            return true;
+        } catch (err) {
+            this.chartManager.setData([]);
+            this.lastError = this.buildInitialLoadErrorMessage(err);
+            console.error('[DataLoader] initial load error:', err);
+            return false;
+        }
     }
 
     /** Get the current full dataset */
@@ -73,6 +87,10 @@ export class DataLoader {
         return this.tf;
     }
 
+    getLastError(): string | null {
+        return this.lastError;
+    }
+
     /** Load more historical data (triggered by scroll-left) */
     async loadMore(): Promise<void> {
         if (this.isLoading || !this.hasMore) return;
@@ -81,7 +99,7 @@ export class DataLoader {
         try {
             const oldestTime = this.data.length > 0 ? this.data[0].t : undefined;
             const response = await this.fetchCandles(oldestTime);
-            if (!response || response.data.length === 0) {
+            if (response.data.length === 0) {
                 this.hasMore = false;
                 return;
             }
@@ -110,41 +128,41 @@ export class DataLoader {
             this.ignoreRangeEventsUntil = Date.now() + DataLoader.PROGRAMMATIC_UPDATE_GUARD_MS;
             this.chartManager.setData(this.data);
             this.onHistoricalDataLoaded?.(olderOnly.length);
+        } catch (err) {
+            console.error('[DataLoader] pagination error:', err);
         } finally {
             this.isLoading = false;
         }
     }
 
     /** Fetch candles from REST API */
-    private async fetchCandles(to?: number): Promise<CandleResponse | null> {
-        try {
-            const isInitial = typeof to !== 'number';
-            const limit = isInitial ? this.getInitialLimit(this.tf) : this.getPaginationLimit(this.tf);
+    private async fetchCandles(to?: number): Promise<CandleResponse> {
+        const isInitial = typeof to !== 'number';
+        const limit = isInitial ? this.getInitialLimit(this.tf) : this.getPaginationLimit(this.tf);
 
-            const params = new URLSearchParams({
-                symbol: this.symbol,
-                tf: this.tf,
-                limit: String(limit),
-            });
+        const params = new URLSearchParams({
+            symbol: this.symbol,
+            tf: this.tf,
+            limit: String(limit),
+        });
 
-            if (typeof to === 'number') {
-                params.set('to', String(to));
-            } else {
-                const now = Math.floor(Date.now() / 1000);
-                // Keep the first paint fast; deeper history already loads on left-scroll.
-                const windowSec = limit * this.getTimeframeSeconds(this.tf);
-                params.set('from', String(Math.max(0, now - windowSec)));
-                params.set('to', String(now));
-            }
-            if (this.nextCursor) params.set('cursor', this.nextCursor);
-
-            const res = await fetch(`${API_BASE}/candles?${params}`);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            return await res.json() as CandleResponse;
-        } catch (err) {
-            console.error('[DataLoader] fetch error:', err);
-            return null;
+        if (typeof to === 'number') {
+            params.set('to', String(to));
+        } else {
+            const now = Math.floor(Date.now() / 1000);
+            // Keep the first paint fast; deeper history already loads on left-scroll.
+            const windowSec = limit * this.getTimeframeSeconds(this.tf);
+            params.set('from', String(Math.max(0, now - windowSec)));
+            params.set('to', String(now));
         }
+        if (this.nextCursor) params.set('cursor', this.nextCursor);
+
+        const res = await fetch(`${API_BASE}/candles?${params}`);
+        if (!res.ok) {
+            throw new Error(await this.buildHttpErrorMessage(res));
+        }
+
+        return await res.json() as CandleResponse;
     }
 
     /** Detect left-edge scroll and trigger pagination */
@@ -250,5 +268,39 @@ export class DataLoader {
             '1M': 2592000,
         };
         return map[tf] || 3600;
+    }
+
+    private buildInitialLoadErrorMessage(err: unknown): string {
+        const detail = err instanceof Error ? err.message.trim() : String(err || '').trim();
+        if (detail.includes('Failed to fetch')) {
+            return `Chart API ulasilamiyor. localhost:3001 uzerinde graph api-server calismali.`;
+        }
+        if (detail.length > 0) {
+            return `Price data yuklenemedi: ${detail}`;
+        }
+        return `Price data yuklenemedi.`;
+    }
+
+    private async buildHttpErrorMessage(res: Response): Promise<string> {
+        const fallback = `HTTP ${res.status}`;
+
+        try {
+            const text = await res.text();
+            if (!text) return fallback;
+
+            try {
+                const parsed = JSON.parse(text) as {
+                    message?: string;
+                    detail?: string;
+                    error?: string;
+                };
+                const message = parsed.message || parsed.detail || parsed.error;
+                return message ? `${fallback}: ${message}` : fallback;
+            } catch {
+                return `${fallback}: ${text}`;
+            }
+        } catch {
+            return fallback;
+        }
     }
 }

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from copy import deepcopy
 from threading import Lock
-from typing import Optional
+from typing import Dict, List,  Union, Optional, Optional
 
 from api.modules.backtests.domain.models import BacktestRunRecord
 
 
 class InMemoryRunStore:
     def __init__(self) -> None:
-        self._records: dict[str, BacktestRunRecord] = {}
+        self._records: Dict[str, BacktestRunRecord] = {}
         self._lock = Lock()
 
     def save(self, record: BacktestRunRecord) -> None:

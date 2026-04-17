@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Dict, List,  Union, Optional, Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -18,13 +18,13 @@ def utc_epoch_seconds() -> int:
 
 class AiToolCall(BaseModel):
     name: str
-    arguments: dict[str, Any] = Field(default_factory=dict)
+    arguments: Dict[str, Any] = Field(default_factory=dict)
 
 
 class AiDraftStrategy(BaseModel):
     title: str
     description: str
-    blueprint: dict[str, Any] | None = None
+    blueprint: Dict[str, Any] | None = None
     status: str = "draft"
 
 
@@ -32,7 +32,7 @@ class AiDraftRule(BaseModel):
     title: str
     description: str
     expression: str
-    stages: list[str] = Field(default_factory=list)
+    stages: List[str] = Field(default_factory=list)
     status: str = "draft"
 
 
@@ -40,23 +40,23 @@ class AiDraftIndicator(BaseModel):
     title: str
     description: str
     formula: str
-    inputs: list[str] = Field(default_factory=list)
-    parameters: dict[str, Any] = Field(default_factory=dict)
+    inputs: List[str] = Field(default_factory=list)
+    parameters: Dict[str, Any] = Field(default_factory=dict)
     status: str = "draft"
 
 
 class AiExecutionPlan(BaseModel):
     intent: str = "analyze"
-    tool_calls: list[AiToolCall] = Field(default_factory=list)
-    strategy_draft: AiDraftStrategy | None = None
-    rule_draft: AiDraftRule | None = None
-    indicator_draft: AiDraftIndicator | None = None
-    notes: list[str] = Field(default_factory=list)
+    tool_calls: List[AiToolCall] = Field(default_factory=list)
+    strategy_draft: Optional[AiDraftStrategy] = None
+    rule_draft: Optional[AiDraftRule] = None
+    indicator_draft: Optional[AiDraftIndicator] = None
+    notes: List[str] = Field(default_factory=list)
 
 
 class AiAssistantReply(BaseModel):
     content: str
-    suggested_actions: list[str] = Field(default_factory=list)
+    suggested_actions: List[str] = Field(default_factory=list)
 
 
 class AiChatMessage(BaseModel):
@@ -64,8 +64,8 @@ class AiChatMessage(BaseModel):
     role: ChatRole
     content: str
     created_at: int = Field(default_factory=utc_epoch_seconds)
-    name: str | None = None
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    name: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class AiSessionRecord(BaseModel):
@@ -73,13 +73,13 @@ class AiSessionRecord(BaseModel):
     user_id: str
     created_at: int = Field(default_factory=utc_epoch_seconds)
     updated_at: int = Field(default_factory=utc_epoch_seconds)
-    title: str | None = None
-    messages: list[AiChatMessage] = Field(default_factory=list)
-    last_plan: AiExecutionPlan | None = None
-    last_tool_results: list[dict[str, Any]] = Field(default_factory=list)
-    working_context: dict[str, Any] = Field(default_factory=dict)
-    last_backtest_run_id: str | None = None
-    active_strategy_draft: AiDraftStrategy | None = None
+    title: Optional[str] = None
+    messages: List[AiChatMessage] = Field(default_factory=list)
+    last_plan: Optional[AiExecutionPlan] = None
+    last_tool_results: List[Dict[str, Any]] = Field(default_factory=list)
+    working_context: Dict[str, Any] = Field(default_factory=dict)
+    last_backtest_run_id: Optional[str] = None
+    active_strategy_draft: Optional[AiDraftStrategy] = None
 
 
 class AiAssetRecord(BaseModel):
@@ -88,19 +88,19 @@ class AiAssetRecord(BaseModel):
     kind: AssetKind
     title: str
     description: str
-    prompt: str | None = None
-    spec: dict[str, Any] = Field(default_factory=dict)
+    prompt: Optional[str] = None
+    spec: Dict[str, Any] = Field(default_factory=dict)
     created_at: int = Field(default_factory=utc_epoch_seconds)
     updated_at: int = Field(default_factory=utc_epoch_seconds)
 
 
 class AiRequestContext(BaseModel):
     user_id: str = "demo"
-    ticker: str | None = None
-    timeframe: str | None = None
-    indicator_id: str | None = None
-    active_blueprint: dict[str, Any] | None = None
-    selected_symbols: list[str] = Field(default_factory=list)
+    ticker: Optional[str] = None
+    timeframe: Optional[str] = None
+    indicator_id: Optional[str] = None
+    active_blueprint: Dict[str, Any] | None = None
+    selected_symbols: List[str] = Field(default_factory=list)
     auto_save_drafts: bool = False
 
 
@@ -108,8 +108,8 @@ class AiGraphState(BaseModel):
     session: AiSessionRecord
     request_context: AiRequestContext
     user_message: str
-    context_snapshot: dict[str, Any] = Field(default_factory=dict)
-    plan: AiExecutionPlan | None = None
-    tool_results: list[dict[str, Any]] = Field(default_factory=list)
-    reply: AiAssistantReply | None = None
-    errors: list[str] = Field(default_factory=list)
+    context_snapshot: Dict[str, Any] = Field(default_factory=dict)
+    plan: Optional[AiExecutionPlan] = None
+    tool_results: List[Dict[str, Any]] = Field(default_factory=list)
+    reply: Optional[AiAssistantReply] = None
+    errors: List[str] = Field(default_factory=list)

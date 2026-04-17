@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Dict, List,  Union, Optional, Any
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,7 @@ class TalibUnavailableError(RuntimeError):
     pass
 
 
-INDICATOR_CATALOG: list[dict[str, str]] = [
+INDICATOR_CATALOG: List[Dict[str, str]] = [
     {"id": "sma", "label": "SMA"},
     {"id": "ema", "label": "EMA"},
     {"id": "wma", "label": "WMA"},
@@ -46,7 +46,7 @@ INDICATOR_CATALOG: list[dict[str, str]] = [
 _CATALOG_BY_ID = {item["id"]: item for item in INDICATOR_CATALOG}
 
 
-def supported_indicator_ids() -> list[str]:
+def supported_indicator_ids() -> List[str]:
     return [item["id"] for item in INDICATOR_CATALOG]
 
 
@@ -74,8 +74,8 @@ def normalize_indicator_key(value: str) -> str:
 def build_indicator_series(
     ohlcv: pd.DataFrame,
     strategy: str,
-    params: dict[str, Any],
-) -> list[dict[str, Any]]:
+    params: Dict[str, Any],
+) -> List[Dict[str, Any]]:
     talib = _require_talib()
     key = normalize_indicator_key(strategy)
 
@@ -288,7 +288,7 @@ def _line_series(
     color: str,
     width: int = 2,
     line_style: int = 0,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     data = _points(idx, values)
     return {
         "name": name,
@@ -304,7 +304,7 @@ def _hist_series(
     idx: pd.Index,
     values: np.ndarray,
     panel: int,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     data = _points(idx, values, color_by_sign=True)
     return {
         "name": name,
@@ -321,7 +321,7 @@ def _constant_line(
     value: float,
     panel: int,
     color: str,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     data = [{"time": _time_value(ts), "value": float(value)} for ts in idx]
     return {
         "name": name,
@@ -336,8 +336,8 @@ def _points(
     idx: pd.Index,
     values: np.ndarray,
     color_by_sign: bool = False,
-) -> list[dict[str, Any]]:
-    out: list[dict[str, Any]] = []
+) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
     for ts, raw in zip(idx, values):
         if raw is None:
             continue
@@ -348,7 +348,7 @@ def _points(
         if not np.isfinite(val):
             continue
 
-        point: dict[str, Any] = {"time": _time_value(ts), "value": val}
+        point: Dict[str, Any] = {"time": _time_value(ts), "value": val}
         if color_by_sign:
             point["color"] = "#22c55e" if val >= 0 else "#ef4444"
         out.append(point)
@@ -365,7 +365,7 @@ def _time_value(ts: Any) -> Any:
 
 
 def _int_param(
-    params: dict[str, Any],
+    params: Dict[str, Any],
     key: str,
     default: int,
     min_value: int,
@@ -382,7 +382,7 @@ def _int_param(
 
 
 def _float_param(
-    params: dict[str, Any],
+    params: Dict[str, Any],
     key: str,
     default: float,
     min_value: float,

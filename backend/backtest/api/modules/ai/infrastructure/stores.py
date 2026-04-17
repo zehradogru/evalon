@@ -4,7 +4,7 @@ import json
 from copy import deepcopy
 from pathlib import Path
 from threading import Lock
-from typing import Any
+from typing import Dict, List,  Union, Optional, Any
 from uuid import uuid4
 
 from api.modules.ai.domain.models import AiAssetRecord, AiSessionRecord, utc_epoch_seconds
@@ -12,10 +12,10 @@ from api.modules.ai.domain.models import AiAssetRecord, AiSessionRecord, utc_epo
 
 class InMemoryAiSessionStore:
     def __init__(self) -> None:
-        self._records: dict[str, AiSessionRecord] = {}
+        self._records: Dict[str, AiSessionRecord] = {}
         self._lock = Lock()
 
-    def create(self, user_id: str, title: str | None = None) -> AiSessionRecord:
+    def create(self, user_id: str, title: Optional[str] = None) -> AiSessionRecord:
         with self._lock:
             session = AiSessionRecord(
                 session_id=f"aisess_{uuid4().hex}",
@@ -29,19 +29,26 @@ class InMemoryAiSessionStore:
         with self._lock:
             self._records[session.session_id] = session.model_copy(deep=True)
 
-    def get(self, session_id: str) -> AiSessionRecord | None:
+    def get(self, session_id: str) -> Optional[AiSessionRecord]:
         with self._lock:
             record = self._records.get(session_id)
             return record.model_copy(deep=True) if record is not None else None
 
 
 class JsonFileAiAssetStore:
-    def __init__(self, path: str | Path) -> None:
+    def __init__(self, path: Union[str, Path]) -> None:
         self._path = Path(path)
         self._lock = Lock()
-        self._ensure_file()
+        self._memory_payload = {"strategies": [], "rules": [], "indicators": []}
+        self._file_storage_enabled = True
+        try:
+            self._ensure_file()
+        except OSError:
+            # Some serverless platforms mount the deployment bundle as read-only.
+            # Fall back to in-memory storage so API startup still succeeds.
+            self._file_storage_enabled = False
 
-    def list_assets(self, user_id: str) -> dict[str, list[dict[str, Any]]]:
+    def list_assets(self, user_id: str) -> Dict[str, List[Dict[str, Any]]]:
         payload = self._read()
         return {
             "strategies": [item for item in payload["strategies"] if item.get("user_id") == user_id],
@@ -56,9 +63,9 @@ class JsonFileAiAssetStore:
         kind: str,
         title: str,
         description: str,
-        prompt: str | None,
-        spec: dict[str, Any],
-    ) -> dict[str, Any]:
+        prompt: Optional[str],
+        spec: Dict[str, Any],
+    ) -> Dict[str, Any]:
         record = AiAssetRecord(
             user_id=user_id,
             kind=kind,  # type: ignore[arg-type]
@@ -71,13 +78,19 @@ class JsonFileAiAssetStore:
         )
         with self._lock:
             payload = self._read_unlocked()
-            key = f"{kind}s"
+            key = {
+                "strategy": "strategies",
+                "rule": "rules",
+                "indicator": "indicators",
+            }.get(kind, f"{kind}s")
             payload.setdefault(key, [])
             payload[key].append(record.model_dump(mode="python"))
             self._write_unlocked(payload)
         return record.model_dump(mode="python")
 
     def _ensure_file(self) -> None:
+        if not self._file_storage_enabled:
+            return
         self._path.parent.mkdir(parents=True, exist_ok=True)
         if not self._path.exists():
             self._path.write_text(
@@ -85,16 +98,26 @@ class JsonFileAiAssetStore:
                 encoding="utf-8",
             )
 
-    def _read(self) -> dict[str, Any]:
+    def _read(self) -> Dict[str, Any]:
         with self._lock:
             return self._read_unlocked()
 
-    def _read_unlocked(self) -> dict[str, Any]:
+    def _read_unlocked(self) -> Dict[str, Any]:
+        if not self._file_storage_enabled:
+            return deepcopy(self._memory_payload)
         self._ensure_file()
         try:
             return json.loads(self._path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             return {"strategies": [], "rules": [], "indicators": []}
 
-    def _write_unlocked(self, payload: dict[str, Any]) -> None:
-        self._path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
+    def _write_unlocked(self, payload: Dict[str, Any]) -> None:
+        if not self._file_storage_enabled:
+            self._memory_payload = deepcopy(payload)
+            return
+
+        try:
+            self._path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
+        except OSError:
+            self._file_storage_enabled = False
+            self._memory_payload = deepcopy(payload)

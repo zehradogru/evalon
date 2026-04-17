@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { CandleData, CandleResponse } from '@graph/shared-types';
+import { getBacktestApiBase } from '../config/backtest-api.js';
 
 /**
  * Candle routes — GET /candles
@@ -7,7 +8,7 @@ import type { CandleData, CandleResponse } from '@graph/shared-types';
  * Fallback: local mock data
  */
 export const candleRoutes: FastifyPluginAsync = async (app) => {
-    const backtestBase = (process.env.BACKTEST_API_BASE || 'http://localhost:8000/v1').replace(/\/$/, '');
+    const backtestBase = getBacktestApiBase();
     const allowSyntheticFallback = process.env.ALLOW_SYNTHETIC_CANDLES_FALLBACK === '1';
 
     app.get('/candles', async (request, reply) => {

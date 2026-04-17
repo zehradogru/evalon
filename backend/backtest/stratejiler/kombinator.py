@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Tuple, List
+from typing import Dict, List,  Union, Optional, Optional, Tuple, List
 
 import pandas as pd
 
@@ -30,8 +30,8 @@ class StratejiKombinator(BaseStrategy):
             signals_list.append(sig)
 
         # Tüm sinyalleri birleştir: hepsi 1 ise 1, değilse 0
-        combined = signals_list[0].copy()
-        for sig in signals_list[1:]:
+        combined = signals_List[0].copy()
+        for sig in signals_List[1:]:
             combined = combined & sig
 
         return combined.astype("int8")

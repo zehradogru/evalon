@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Dict, List,  Union, Optional, Any
 
 from api.modules.ai.application.context_resolver import resolve_request_context
 from api.modules.ai.domain.contracts import AssetStore, SessionStore
@@ -11,7 +11,7 @@ class StartAiSessionUseCase:
     def __init__(self, session_store: SessionStore) -> None:
         self._session_store = session_store
 
-    def execute(self, *, user_id: str, title: str | None = None) -> dict[str, Any]:
+    def execute(self, *, user_id: str, title: Optional[str] = None) -> Dict[str, Any]:
         session = self._session_store.create(user_id=user_id, title=title)
         return {
             "sessionId": session.session_id,
@@ -26,7 +26,7 @@ class GetAiSessionUseCase:
     def __init__(self, session_store: SessionStore) -> None:
         self._session_store = session_store
 
-    def execute(self, session_id: str) -> dict[str, Any] | None:
+    def execute(self, session_id: str) -> Dict[str, Any] | None:
         session = self._session_store.get(session_id)
         if session is None:
             return None
@@ -50,7 +50,7 @@ class ProcessAiMessageUseCase:
         session_id: str,
         content: str,
         request_context: AiRequestContext,
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         session = self._session_store.get(session_id)
         if session is None:
             raise ValueError(f"AI session not found: {session_id}")
@@ -84,7 +84,7 @@ class ProcessAiMessageUseCase:
             if res.get("tool") == "run_backtest" and res.get("result", {}).get("runId"):
                 session.last_backtest_run_id = res["result"]["runId"]
 
-        saved_assets: list[dict[str, Any]] = []
+        saved_assets: List[Dict[str, Any]] = []
         if merged_request_context.auto_save_drafts and next_state.plan is not None:
             saved_assets.extend(self._save_drafts(merged_request_context.user_id, next_state.plan, content))
 
@@ -115,8 +115,8 @@ class ProcessAiMessageUseCase:
             "resolvedContext": merged_request_context.model_dump(mode="python"),
         }
 
-    def _save_drafts(self, user_id: str, plan: Any, prompt: str) -> list[dict[str, Any]]:
-        saved: list[dict[str, Any]] = []
+    def _save_drafts(self, user_id: str, plan: Any, prompt: str) -> List[Dict[str, Any]]:
+        saved: List[Dict[str, Any]] = []
         if plan.strategy_draft is not None:
             saved.append(self._asset_store.save_asset(
                 user_id=user_id,
@@ -147,11 +147,11 @@ class ProcessAiMessageUseCase:
         return saved
 
     @staticmethod
-    def _draft_bundle(next_state: AiGraphState) -> dict[str, Any]:
+    def _draft_bundle(next_state: AiGraphState) -> Dict[str, Any]:
         plan = next_state.plan
         if plan is None:
             return {}
-        payload: dict[str, Any] = {}
+        payload: Dict[str, Any] = {}
         if plan.strategy_draft is not None:
             payload["strategy"] = plan.strategy_draft.model_dump(mode="python")
         if plan.rule_draft is not None:
@@ -165,7 +165,7 @@ class ListAiAssetsUseCase:
     def __init__(self, asset_store: AssetStore) -> None:
         self._asset_store = asset_store
 
-    def execute(self, *, user_id: str) -> dict[str, Any]:
+    def execute(self, *, user_id: str) -> Dict[str, Any]:
         assets = self._asset_store.list_assets(user_id)
         return {
             "userId": user_id,
@@ -185,9 +185,9 @@ class SaveAiAssetUseCase:
         user_id: str,
         title: str,
         description: str,
-        prompt: str | None,
-        spec: dict[str, Any],
-    ) -> dict[str, Any]:
+        prompt: Optional[str],
+        spec: Dict[str, Any],
+    ) -> Dict[str, Any]:
         return self._asset_store.save_asset(
             user_id=user_id,
             kind=self._kind,

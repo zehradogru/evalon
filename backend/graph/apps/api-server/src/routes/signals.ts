@@ -7,6 +7,7 @@ import type {
     StrategyDefinition,
 } from '@graph/shared-types';
 import * as crypto from 'crypto';
+import { getBacktestApiBase } from '../config/backtest-api.js';
 
 interface CandleBar {
     t: number;
@@ -49,7 +50,7 @@ const KNOWN_STRATEGIES = new Set(STRATEGY_CATALOG.map((s) => s.id));
  * Supports multiple strategies and server-side combinator (AND/OR).
  */
 export const signalRoutes: FastifyPluginAsync = async (app) => {
-    const backtestBase = (process.env.BACKTEST_API_BASE || 'http://localhost:8000/v1').replace(/\/$/, '');
+    const backtestBase = getBacktestApiBase();
 
     app.get('/strategies/catalog', async (_request, reply) => {
         const response: StrategyCatalogResponse = {

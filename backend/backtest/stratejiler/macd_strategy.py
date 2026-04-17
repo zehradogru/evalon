@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Dict, List,  Union, Optional, Optional, Tuple
 
 import pandas as pd
 
@@ -39,7 +39,7 @@ class MACDStrategy(BaseStrategy):
         entry = (macd_line.shift(1) < signal_line.shift(1)) & (macd_line >= signal_line)
         return entry.astype("int8")
 
-    def get_indicators(self, ohlcv: pd.DataFrame, context: Optional[StrategyContext] = None) -> list[dict]:
+    def get_indicators(self, ohlcv: pd.DataFrame, context: Optional[StrategyContext] = None) -> List[dict]:
         close = ohlcv["close"].astype(float)
         macd, signal, hist = self.compute_macd(close)
         

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
+from typing import Dict, List,  Union, Optional, Any
 
 from api.modules.ai.domain.models import AiAssistantReply, AiExecutionPlan, AiRequestContext, AiSessionRecord
 from api.modules.ai.infrastructure.llm.heuristic_gateway import HeuristicLlmGateway
@@ -25,8 +25,8 @@ class GeminiLlmGateway:
         user_message: str,
         session: AiSessionRecord,
         request_context: AiRequestContext,
-        context_snapshot: dict[str, Any],
-        tools: list[dict[str, Any]],
+        context_snapshot: Dict[str, Any],
+        tools: List[Dict[str, Any]],
     ) -> AiExecutionPlan:
         client = self._build_client()
         if client is None:
@@ -74,7 +74,7 @@ class GeminiLlmGateway:
         session: AiSessionRecord,
         request_context: AiRequestContext,
         plan: AiExecutionPlan,
-        tool_results: list[dict[str, Any]],
+        tool_results: List[Dict[str, Any]],
     ) -> AiAssistantReply:
         client = self._build_client()
         fallback_reply = self._fallback.compose_reply(
@@ -108,12 +108,22 @@ class GeminiLlmGateway:
         except Exception:
             return fallback_reply
 
-    def _build_client(self) -> Any | None:
-        if not self._project:
-            return None
+    def _build_client(self) -> Optional[Any]:
         try:
             from google import genai
         except Exception:
+            return None
+
+        # Standard API Key support
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if api_key:
+            try:
+                return genai.Client(api_key=api_key)
+            except Exception:
+                pass
+
+        # Vertex AI support
+        if not self._project:
             return None
         try:
             return genai.Client(vertexai=True, project=self._project, location=self._location)
@@ -140,7 +150,7 @@ class GeminiLlmGateway:
             return ""
 
     @staticmethod
-    def _extract_json_payload(text: str) -> dict[str, Any]:
+    def _extract_json_payload(text: str) -> Dict[str, Any]:
         value = text.strip()
         if "```" in value:
             segments = [segment.strip() for segment in value.split("```") if segment.strip()]

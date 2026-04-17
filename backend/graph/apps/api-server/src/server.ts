@@ -9,6 +9,8 @@ import { drawingRoutes } from './routes/drawings.js';
 import { backtestRoutes } from './routes/backtests.js';
 import { signalRoutes } from './routes/signals.js';
 import { streamRoutes } from './routes/stream.js';
+import { getBacktestApiDisplayBase } from './config/backtest-api.js';
+import { getWebDistDir, registerStaticSite } from './static-site.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -52,7 +54,14 @@ async function bootstrap() {
     await app.register(streamRoutes, { prefix: '/api/v1' });
 
     // ─── Health Check ────────────────────────────────────────────
-    app.get('/health', async () => ({ status: 'ok', timestamp: Date.now() }));
+    app.get('/health', async () => ({
+        status: 'ok',
+        timestamp: Date.now(),
+        backtestApiBase: getBacktestApiDisplayBase(),
+        webDistDir: getWebDistDir(),
+    }));
+
+    registerStaticSite(app);
 
     // ─── Error Handler ───────────────────────────────────────────
     app.setErrorHandler((error: unknown, _request, reply) => {
@@ -69,6 +78,8 @@ async function bootstrap() {
     try {
         await app.listen({ port: PORT, host: HOST });
         app.log.info(`🚀 API Server running on http://${HOST}:${PORT}`);
+        app.log.info({ backtestApiBase: getBacktestApiDisplayBase() }, 'Using backtest API upstream');
+        app.log.info({ webDistDir: getWebDistDir() }, 'Serving chart client assets from');
     } catch (err) {
         app.log.error(err);
         process.exit(1);

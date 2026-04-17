@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Dict, List,  Union, Optional, Any
 
 from stratejiler.strategy_catalog import PRESET_LIBRARY, RULE_LIBRARY
 
@@ -24,15 +24,15 @@ class BacktestRunRecord:
     run_id: str
     status: str
     created_at: int
-    started_at: int | None = None
-    finished_at: int | None = None
-    progress: dict[str, Any] = field(default_factory=dict)
-    result: dict[str, Any] | None = None
-    events: list[dict[str, Any]] = field(default_factory=list)
-    error: str | None = None
+    started_at: Optional[int] = None
+    finished_at: Optional[int] = None
+    progress: Dict[str, Any] = field(default_factory=dict)
+    result: Dict[str, Any] | None = None
+    events: List[Dict[str, Any]] = field(default_factory=list)
+    error: Optional[str] = None
 
 
-def build_rule_catalog() -> dict[str, Any]:
+def build_rule_catalog() -> Dict[str, Any]:
     return {
         "count": len(RULE_LIBRARY),
         "families": FAMILY_LABELS,
@@ -50,7 +50,7 @@ def build_rule_catalog() -> dict[str, Any]:
     }
 
 
-def build_preset_catalog() -> dict[str, Any]:
+def build_preset_catalog() -> Dict[str, Any]:
     return {
         "count": len(PRESET_LIBRARY),
         "presets": [
@@ -67,7 +67,7 @@ def build_preset_catalog() -> dict[str, Any]:
     }
 
 
-def validate_blueprint_payload(payload: dict[str, Any]) -> None:
+def validate_blueprint_payload(payload: Dict[str, Any]) -> None:
     symbol = str(payload.get("symbol") or "").strip()
     symbols_raw = payload.get("symbols") or []
     if not isinstance(symbols_raw, list):
@@ -98,7 +98,7 @@ def validate_blueprint_payload(payload: dict[str, Any]) -> None:
     if not isinstance(stages, dict):
         raise ValueError("stages zorunlu")
 
-    all_rules: list[dict[str, Any]] = []
+    all_rules: List[Dict[str, Any]] = []
     for stage_key in STAGE_KEYS:
         stage = stages.get(stage_key)
         if not isinstance(stage, dict):

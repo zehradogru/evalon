@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, List,  Union, Optional, Optional
 
 import pandas as pd
 
@@ -39,7 +39,7 @@ class RSIStrategy(BaseStrategy):
         entry = (rsi.shift(1) < self.config.entry_level) & (rsi >= self.config.entry_level)
         return entry.astype("int8")
 
-    def get_indicators(self, ohlcv: pd.DataFrame, context: Optional[StrategyContext] = None) -> list[dict]:
+    def get_indicators(self, ohlcv: pd.DataFrame, context: Optional[StrategyContext] = None) -> List[dict]:
         close = ohlcv["close"].astype(float)
         rsi = self.compute_rsi(close)
         

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Dict, List,  Union, Optional, Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -24,7 +24,7 @@ from api.modules.backtests.infrastructure.run_store import InMemoryRunStore
 
 class CreateAiSessionRequest(BaseModel):
     userId: str = "demo"
-    title: str | None = None
+    title: Optional[str] = None
 
 
 class AiMessageRequest(BaseModel):
@@ -36,8 +36,8 @@ class SaveAiAssetRequest(BaseModel):
     userId: str = "demo"
     title: str
     description: str = ""
-    prompt: str | None = None
-    spec: dict[str, Any] = Field(default_factory=dict)
+    prompt: Optional[str] = None
+    spec: Dict[str, Any] = Field(default_factory=dict)
 
 
 def create_ai_router(
@@ -45,7 +45,7 @@ def create_ai_router(
     client: BistPricesClient,
     test_loader: Any,
     run_store: InMemoryRunStore,
-    asset_store_path: str | Path,
+    asset_store_path: Union[str, Path],
 ) -> APIRouter:
     router = APIRouter(prefix="/v1", tags=["ai"])
     session_store = InMemoryAiSessionStore()
@@ -68,28 +68,28 @@ def create_ai_router(
     save_indicator_use_case = SaveAiAssetUseCase(asset_store, "indicator")
 
     @router.get("/ai/tools")
-    def get_ai_tool_catalog() -> dict[str, Any]:
+    def get_ai_tool_catalog() -> Dict[str, Any]:
         return {
             "count": len(tool_gateway.describe_tools()),
             "tools": tool_gateway.describe_tools(),
         }
 
     @router.post("/ai/sessions")
-    def create_ai_session(body: CreateAiSessionRequest) -> dict[str, Any]:
+    def create_ai_session(body: CreateAiSessionRequest) -> Dict[str, Any]:
         try:
             return start_session_use_case.execute(user_id=body.userId, title=body.title)
         except Exception as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @router.get("/ai/sessions/{session_id}")
-    def get_ai_session(session_id: str) -> dict[str, Any]:
+    def get_ai_session(session_id: str) -> Dict[str, Any]:
         payload = get_session_use_case.execute(session_id)
         if payload is None:
             raise HTTPException(status_code=404, detail=f"AI session not found: {session_id}")
         return payload
 
     @router.post("/ai/sessions/{session_id}/messages")
-    def post_ai_message(session_id: str, body: AiMessageRequest) -> dict[str, Any]:
+    def post_ai_message(session_id: str, body: AiMessageRequest) -> Dict[str, Any]:
         try:
             return process_message_use_case.execute(
                 session_id=session_id,
@@ -100,11 +100,11 @@ def create_ai_router(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @router.get("/ai/assets")
-    def list_ai_assets(user_id: str = Query("demo", alias="userId")) -> dict[str, Any]:
+    def list_ai_assets(user_id: str = Query("demo", alias="userId")) -> Dict[str, Any]:
         return list_assets_use_case.execute(user_id=user_id)
 
     @router.post("/ai/strategies")
-    def save_ai_strategy(body: SaveAiAssetRequest) -> dict[str, Any]:
+    def save_ai_strategy(body: SaveAiAssetRequest) -> Dict[str, Any]:
         return save_strategy_use_case.execute(
             user_id=body.userId,
             title=body.title,
@@ -114,7 +114,7 @@ def create_ai_router(
         )
 
     @router.post("/ai/rules")
-    def save_ai_rule(body: SaveAiAssetRequest) -> dict[str, Any]:
+    def save_ai_rule(body: SaveAiAssetRequest) -> Dict[str, Any]:
         return save_rule_use_case.execute(
             user_id=body.userId,
             title=body.title,
@@ -124,7 +124,7 @@ def create_ai_router(
         )
 
     @router.post("/ai/indicators")
-    def save_ai_indicator(body: SaveAiAssetRequest) -> dict[str, Any]:
+    def save_ai_indicator(body: SaveAiAssetRequest) -> Dict[str, Any]:
         return save_indicator_use_case.execute(
             user_id=body.userId,
             title=body.title,

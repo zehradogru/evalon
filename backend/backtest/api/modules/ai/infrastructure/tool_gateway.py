@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Callable, Optional
+from typing import Dict, List,  Union, Optional, Any, Callable, Optional
 
 import pandas as pd
 
@@ -45,7 +45,7 @@ class AiToolGateway:
         self._get_events_use_case = GetRunEventsUseCase(run_store)
         self._get_curve_use_case = GetRunPortfolioCurveUseCase(run_store)
 
-    def describe_tools(self) -> list[dict[str, Any]]:
+    def describe_tools(self) -> List[Dict[str, Any]]:
         return [
             {"name": "get_rule_catalog", "description": "Hazir rule katalogunu getirir.", "args": {}},
             {"name": "get_preset_catalog", "description": "Hazir preset/strateji kombinasyonlarini getirir.", "args": {}},
@@ -62,7 +62,7 @@ class AiToolGateway:
             {"name": "save_user_indicator", "description": "Kullaniciya ait indicator taslagini kaydeder.", "args": {"title": "Momentum Blend", "description": "Draft indicator", "prompt": "...", "spec": {}}},
         ]
 
-    def build_context_snapshot(self, *, user_id: str) -> dict[str, Any]:
+    def build_context_snapshot(self, *, user_id: str) -> Dict[str, Any]:
         preset_catalog = BacktestCatalogUseCases.list_presets()
         rule_catalog = BacktestCatalogUseCases.list_rules()
         assets = self._asset_store.list_assets(user_id)
@@ -83,7 +83,7 @@ class AiToolGateway:
             "userAssets": {key: len(values) for key, values in assets.items()},
         }
 
-    def execute(self, *, user_id: str, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    def execute(self, *, user_id: str, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         if name == "get_rule_catalog":
             return BacktestCatalogUseCases.list_rules()
         if name == "get_preset_catalog":
@@ -138,7 +138,7 @@ class AiToolGateway:
             )
         raise ValueError(f"Bilinmeyen AI tool: {name}")
 
-    def _execute_get_prices(self, arguments: dict[str, Any]) -> dict[str, Any]:
+    def _execute_get_prices(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         ticker = str(arguments.get("ticker") or "").strip()
         timeframe = str(arguments.get("timeframe") or "1h").strip()
         limit = int(arguments.get("limit") or 120)
@@ -147,7 +147,7 @@ class AiToolGateway:
         df = self._load_prices_dataframe(ticker=ticker, timeframe=timeframe, start=start, end=end, limit=limit)
         return self._frame_to_price_payload(ticker=ticker, timeframe=timeframe, df=df)
 
-    def _execute_get_indicators(self, arguments: dict[str, Any]) -> dict[str, Any]:
+    def _execute_get_indicators(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         ticker = str(arguments.get("ticker") or "").strip()
         timeframe = str(arguments.get("timeframe") or "1h").strip()
         strategy = normalize_indicator_key(str(arguments.get("strategy") or "").strip())
@@ -173,9 +173,9 @@ class AiToolGateway:
         *,
         ticker: str,
         timeframe: str,
-        start: datetime | None,
-        end: datetime | None,
-        limit: int | None,
+        start: Optional[datetime],
+        end: Optional[datetime],
+        limit: Optional[int],
     ) -> pd.DataFrame:
         if not ticker:
             raise ValueError("Ticker zorunlu.")
@@ -191,7 +191,7 @@ class AiToolGateway:
         )
 
     @staticmethod
-    def _frame_to_price_payload(*, ticker: str, timeframe: str, df: pd.DataFrame) -> dict[str, Any]:
+    def _frame_to_price_payload(*, ticker: str, timeframe: str, df: pd.DataFrame) -> Dict[str, Any]:
         if df.empty:
             return {"ticker": ticker, "timeframe": timeframe, "rows": 0, "range": None, "bars": []}
         ordered = df.sort_index()
@@ -218,7 +218,7 @@ class AiToolGateway:
         }
 
     @staticmethod
-    def _parse_datetime(raw: Any) -> datetime | None:
+    def _parse_datetime(raw: Any) -> Optional[datetime]:
         if raw in (None, "", 0):
             return None
         return pd.Timestamp(raw).to_pydatetime()

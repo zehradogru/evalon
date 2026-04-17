@@ -34,6 +34,11 @@ Wallet options:
 ./venv/bin/uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+Smoke-test fixture:
+
+- `GET /v1/prices?ticker=TEST&timeframe=1m&limit=2`
+- Default test data now ships from `api/fixtures/test_ohlcv.csv`, so this works without Oracle credentials.
+
 ## Endpoints
 
 - `GET /health`
@@ -53,3 +58,16 @@ To make `/v1/prices` work on Vercel you must set Env Vars:
 - `ORACLE_DB_PASSWORD`
 - `ORACLE_DB_DSN`
 - Wallet: `ORACLE_WALLET_ZIP_B64` (base64 zip of your Oracle wallet) or `ORACLE_WALLET_DIR` (rarely useful on Vercel)
+
+## Cloud Run Notes
+
+Cloud Run deployment assets are included:
+
+- `Dockerfile`
+- `.dockerignore`
+- `.gcloudignore`
+- `scripts/deploy_cloud_run.sh`
+- `scripts/smoke_test_cloud_run.sh`
+- `DEPLOY_CLOUD_RUN.md`
+
+For Cloud Run, prefer `ALLOWED_ORIGINS` and optionally `ALLOWED_ORIGIN_REGEX` instead of wildcard CORS.

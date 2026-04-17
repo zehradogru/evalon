@@ -1,12 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { StreamSubscription, StreamEvent } from '@graph/shared-types';
+import { getBacktestApiBase } from '../config/backtest-api.js';
 
 /**
  * WebSocket stream route — WS /stream
  * Broadcasts mock real-time bar updates to subscribed clients.
  */
 export const streamRoutes: FastifyPluginAsync = async (app) => {
-    const backtestBase = (process.env.BACKTEST_API_BASE || 'http://localhost:8000/v1').replace(/\/$/, '');
+    const backtestBase = getBacktestApiBase();
 
     app.get('/stream', { websocket: true }, (socket, _req) => {
         let subscription: { symbol: string; tf: string } | null = null;

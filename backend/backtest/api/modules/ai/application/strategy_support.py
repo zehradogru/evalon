@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Dict, List,  Union, Optional, Any
 
 from api.modules.ai.domain.models import AiDraftStrategy, AiRequestContext, AiSessionRecord
 
@@ -49,8 +49,8 @@ def message_requests_activation(message: str) -> bool:
 
 def resolve_existing_strategy_draft(
     session: AiSessionRecord,
-    fallback: AiDraftStrategy | None = None,
-) -> AiDraftStrategy | None:
+    fallback: Optional[AiDraftStrategy] = None,
+) -> Optional[AiDraftStrategy]:
     if fallback is not None:
         return fallback
     if session.last_plan and session.last_plan.strategy_draft is not None:
@@ -63,8 +63,8 @@ def build_strategy_draft(
     user_message: str,
     request_context: AiRequestContext,
     session: AiSessionRecord,
-    fallback_title: str | None = None,
-) -> AiDraftStrategy | None:
+    fallback_title: Optional[str] = None,
+) -> Optional[AiDraftStrategy]:
     symbols = list(request_context.selected_symbols or ([] if not request_context.ticker else [request_context.ticker]))
     if not symbols and request_context.ticker:
         symbols = [request_context.ticker]
@@ -127,7 +127,7 @@ def _resolve_strategy_focus(
     return "support"
 
 
-def _infer_timeframe_from_session(session: AiSessionRecord) -> str | None:
+def _infer_timeframe_from_session(session: AiSessionRecord) -> Optional[str]:
     for result in reversed(session.last_tool_results or []):
         payload = result.get("result") or {}
         timeframe = payload.get("timeframe")
@@ -136,7 +136,7 @@ def _infer_timeframe_from_session(session: AiSessionRecord) -> str | None:
     return None
 
 
-def _build_title(*, primary_symbol: str, focus: str, symbols: list[str]) -> str:
+def _build_title(*, primary_symbol: str, focus: str, symbols: List[str]) -> str:
     focus_label = {
         "rsi": "RSI Reclaim Blueprint",
         "macd": "MACD Cross Blueprint",
@@ -151,16 +151,16 @@ def _build_title(*, primary_symbol: str, focus: str, symbols: list[str]) -> str:
     return f"{primary_symbol} {focus_label}"
 
 
-def _build_blueprint(*, symbols: list[str], timeframe: str, focus: str) -> dict[str, Any]:
+def _build_blueprint(*, symbols: List[str], timeframe: str, focus: str) -> Dict[str, Any]:
     frames = _frames_for(timeframe)
     primary_symbol = symbols[0]
     direction = "both"
     stage_threshold = 2
     risk = {"stopPct": 1.8, "targetPct": 4.0, "maxBars": 12}
 
-    trend_rules: list[dict[str, Any]] = []
-    setup_rules: list[dict[str, Any]] = []
-    trigger_rules: list[dict[str, Any]] = []
+    trend_rules: List[Dict[str, Any]] = []
+    setup_rules: List[Dict[str, Any]] = []
+    trigger_rules: List[Dict[str, Any]] = []
 
     if focus == "rsi":
         setup_rules = [_rule("rsi-reclaim", True, {"period": 14, "lower": 35, "upper": 65})]
@@ -239,7 +239,7 @@ def _build_blueprint(*, symbols: list[str], timeframe: str, focus: str) -> dict[
     }
 
 
-def _frames_for(timeframe: str) -> dict[str, str]:
+def _frames_for(timeframe: str) -> Dict[str, str]:
     normalized = timeframe.strip() or "1h"
     mapping = {
         "1m": {"trend": "1h", "setup": "15m", "trigger": "1m"},
@@ -254,7 +254,7 @@ def _frames_for(timeframe: str) -> dict[str, str]:
     return mapping.get(normalized, {"trend": normalized, "setup": normalized, "trigger": normalized})
 
 
-def _rule(rule_id: str, required: bool, params: dict[str, float | int]) -> dict[str, Any]:
+def _rule(rule_id: str, required: bool, params: Dict[str, Union[float, int]]) -> Dict[str, Any]:
     return {
         "id": rule_id,
         "required": required,

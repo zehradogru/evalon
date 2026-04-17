@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Dict, List,  Union, Optional, Any, TypedDict
 
 from api.modules.ai.application.strategy_support import (
     message_requests_save,
@@ -10,14 +10,14 @@ from api.modules.ai.domain.models import AiAssistantReply, AiDraftStrategy, AiEx
 
 
 class _State(TypedDict, total=False):
-    session: dict[str, Any]
-    request_context: dict[str, Any]
+    session: Dict[str, Any]
+    request_context: Dict[str, Any]
     user_message: str
-    context_snapshot: dict[str, Any]
-    plan: dict[str, Any]
-    tool_results: list[dict[str, Any]]
-    reply: dict[str, Any]
-    errors: list[str]
+    context_snapshot: Dict[str, Any]
+    plan: Dict[str, Any]
+    tool_results: List[Dict[str, Any]]
+    reply: Dict[str, Any]
+    errors: List[str]
 
 
 class AiLangGraphWorkflow:
@@ -45,14 +45,14 @@ class AiLangGraphWorkflow:
         graph.add_edge("compose_reply", END)
         return graph.compile()
 
-    def _load_context_node(self, state: _State) -> dict[str, Any]:
+    def _load_context_node(self, state: _State) -> Dict[str, Any]:
         request_context = state["request_context"]
         return {
             "context_snapshot": self._tool_gateway.build_context_snapshot(user_id=str(request_context["user_id"])),
             "errors": list(state.get("errors") or []),
         }
 
-    def _build_plan_node(self, state: _State) -> dict[str, Any]:
+    def _build_plan_node(self, state: _State) -> Dict[str, Any]:
         session = state["session"]
         request_context = state["request_context"]
         context_snapshot = state.get("context_snapshot") or {}
@@ -77,10 +77,10 @@ class AiLangGraphWorkflow:
             "request_context": request_context,
         }
 
-    def _execute_tools_node(self, state: _State) -> dict[str, Any]:
+    def _execute_tools_node(self, state: _State) -> Dict[str, Any]:
         plan = AiExecutionPlan.model_validate(state.get("plan") or {})
         request_context = state["request_context"]
-        results: list[dict[str, Any]] = []
+        results: List[Dict[str, Any]] = []
         errors = list(state.get("errors") or [])
         for tool_call in plan.tool_calls:
             try:
@@ -98,7 +98,7 @@ class AiLangGraphWorkflow:
             "errors": errors,
         }
 
-    def _compose_reply_node(self, state: _State) -> dict[str, Any]:
+    def _compose_reply_node(self, state: _State) -> Dict[str, Any]:
         model_state = AiGraphState.model_validate(state)
         plan = model_state.plan or AiExecutionPlan()
         reply = self._llm_gateway.compose_reply(

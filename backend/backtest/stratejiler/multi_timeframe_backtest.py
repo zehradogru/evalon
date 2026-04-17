@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from time import time
-from typing import Any, Optional
+from typing import Dict, List,  Union, Optional, Any, Optional
 
 from stratejiler.blueprint_rules import (
     Candle,
@@ -59,18 +59,18 @@ class StageState:
     time: int
     long_pass: bool
     short_pass: bool
-    long_required_hits: list[str]
-    short_required_hits: list[str]
-    long_optional_hits: list[str]
-    short_optional_hits: list[str]
+    long_required_hits: List[str]
+    short_required_hits: List[str]
+    long_optional_hits: List[str]
+    short_optional_hits: List[str]
 
 
 @dataclass
 class StageEvaluation:
     stage_key: str
     timeframe: str
-    bars: list[Candle]
-    states: list[StageState]
+    bars: List[Candle]
+    states: List[StageState]
 
 
 @dataclass
@@ -82,15 +82,15 @@ class OpenTrade:
     entry_price: float
     stop_price: float
     target_price: float
-    snapshots: dict[str, dict[str, Any]]
+    snapshots: Dict[str, Dict[str, Any]]
     score: int
 
 
 def run_blueprint_backtest(
-    blueprint: dict[str, Any],
-    candles_by_timeframe: dict[str, list[Candle]],
+    blueprint: Dict[str, Any],
+    candles_by_timeframe: Dict[str, List[Candle]],
     now_ts: Optional[int] = None,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     test_window_days = clamp_int(blueprint.get("testWindowDays"), 365, 30, 3650)
     end_time = int(now_ts if now_ts is not None else time())
     core_start_time = end_time - test_window_days * 86400
@@ -100,7 +100,7 @@ def run_blueprint_backtest(
 
     execution_stage = get_execution_stage_key(blueprint, active_stage_keys)
 
-    evaluations: dict[str, StageEvaluation] = {}
+    evaluations: Dict[str, StageEvaluation] = {}
     for stage_key in STAGE_KEYS:
         stage = blueprint["stages"][stage_key]
         if stage_key not in active_stage_keys:
@@ -149,7 +149,7 @@ def run_blueprint_backtest(
     }
 
 
-def evaluate_stage(stage: dict[str, Any], bars: list[Candle]) -> StageEvaluation:
+def evaluate_stage(stage: Dict[str, Any], bars: List[Candle]) -> StageEvaluation:
     masks = [
         {
             "rule": rule,
@@ -158,7 +158,7 @@ def evaluate_stage(stage: dict[str, Any], bars: list[Candle]) -> StageEvaluation
         for rule in stage["rules"]
     ]
 
-    states: list[StageState] = []
+    states: List[StageState] = []
     for index, bar in enumerate(bars):
         if not stage["rules"]:
             states.append(
@@ -174,10 +174,10 @@ def evaluate_stage(stage: dict[str, Any], bars: list[Candle]) -> StageEvaluation
             )
             continue
 
-        long_required_hits: list[str] = []
-        short_required_hits: list[str] = []
-        long_optional_hits: list[str] = []
-        short_optional_hits: list[str] = []
+        long_required_hits: List[str] = []
+        short_required_hits: List[str] = []
+        long_optional_hits: List[str] = []
+        short_optional_hits: List[str] = []
         required_long_ok = True
         required_short_ok = True
 
@@ -222,7 +222,7 @@ def evaluate_stage(stage: dict[str, Any], bars: list[Candle]) -> StageEvaluation
     )
 
 
-def evaluate_rule(rule: dict[str, Any], bars: list[Candle]) -> RuleMask:
+def evaluate_rule(rule: Dict[str, Any], bars: List[Candle]) -> RuleMask:
     params = rule.get("params") or {}
     rule_id = str(rule["id"])
 
@@ -447,14 +447,14 @@ def evaluate_rule(rule: dict[str, Any], bars: list[Candle]) -> RuleMask:
 
 
 def simulate_trades(
-    blueprint: dict[str, Any],
-    evaluations: dict[str, StageEvaluation],
+    blueprint: Dict[str, Any],
+    evaluations: Dict[str, StageEvaluation],
     core_start_time: int,
-    active_stage_keys: list[str],
+    active_stage_keys: List[str],
     execution_stage: str,
-) -> list[dict[str, Any]]:
+) -> List[Dict[str, Any]]:
     execution_bars = evaluations[execution_stage].bars
-    trades: list[dict[str, Any]] = []
+    trades: List[Dict[str, Any]] = []
     cursors = {"trend": -1, "setup": -1, "trigger": -1}
     open_trade: Optional[OpenTrade] = None
     previous_execution_long = False
@@ -485,7 +485,7 @@ def simulate_trades(
         long_decision = build_direction_decision(blueprint, "long", snapshots, active_stage_keys, execution_stage)
         short_decision = build_direction_decision(blueprint, "short", snapshots, active_stage_keys, execution_stage)
 
-        candidates: list[dict[str, Any]] = []
+        candidates: List[Dict[str, Any]] = []
         if long_decision["eligible"] and not previous_execution_long:
             candidates.append(long_decision)
         if short_decision["eligible"] and not previous_execution_short:
@@ -518,7 +518,7 @@ def simulate_trades(
     return trades
 
 
-def maybe_close_trade(trade: OpenTrade, bar: Candle, current_index: int, max_bars: int) -> Optional[dict[str, Any]]:
+def maybe_close_trade(trade: OpenTrade, bar: Candle, current_index: int, max_bars: int) -> Optional[Dict[str, Any]]:
     high = float(bar["h"])
     low = float(bar["l"])
     close = float(bar["c"])
@@ -546,7 +546,7 @@ def finalize_trade(
     current_index: int,
     exit_reason: str,
     exit_price: float,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     if trade.side == "long":
         pnl_pct = ((exit_price - trade.entry_price) / trade.entry_price) * 100
     else:
@@ -568,10 +568,10 @@ def finalize_trade(
 
 
 def collect_snapshots(
-    evaluations: dict[str, StageEvaluation],
+    evaluations: Dict[str, StageEvaluation],
     time_value: int,
-    cursors: dict[str, int],
-) -> dict[str, Optional[StageState]]:
+    cursors: Dict[str, int],
+) -> Dict[str, Optional[StageState]]:
     return {
         "trend": lookup_state(evaluations["trend"], time_value, cursors, "trend"),
         "setup": lookup_state(evaluations["setup"], time_value, cursors, "setup"),
@@ -582,7 +582,7 @@ def collect_snapshots(
 def lookup_state(
     evaluation: StageEvaluation,
     time_value: int,
-    cursors: dict[str, int],
+    cursors: Dict[str, int],
     stage_key: str,
 ) -> Optional[StageState]:
     cursor = cursors[stage_key]
@@ -593,13 +593,13 @@ def lookup_state(
 
 
 def build_direction_decision(
-    blueprint: dict[str, Any],
+    blueprint: Dict[str, Any],
     direction: str,
-    snapshots: dict[str, Optional[StageState]],
-    active_stage_keys: list[str],
+    snapshots: Dict[str, Optional[StageState]],
+    active_stage_keys: List[str],
     execution_stage: str,
-) -> dict[str, Any]:
-    result_snapshots: dict[str, dict[str, Any]] = {}
+) -> Dict[str, Any]:
+    result_snapshots: Dict[str, Dict[str, Any]] = {}
     passed_stages = 0
     score = 0
     required_stages_ok = True
@@ -645,7 +645,7 @@ def build_direction_decision(
     }
 
 
-def pick_candidate(candidates: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
+def pick_candidate(candidates: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     if not candidates:
         return None
     if len(candidates) == 1:
@@ -658,12 +658,12 @@ def pick_candidate(candidates: list[dict[str, Any]]) -> Optional[dict[str, Any]]
 
 
 def build_stage_stats(
-    blueprint: dict[str, Any],
-    evaluations: dict[str, StageEvaluation],
+    blueprint: Dict[str, Any],
+    evaluations: Dict[str, StageEvaluation],
     core_start_time: int,
-    active_stage_keys: list[str],
-) -> dict[str, dict[str, Any]]:
-    payload: dict[str, dict[str, Any]] = {}
+    active_stage_keys: List[str],
+) -> Dict[str, Dict[str, Any]]:
+    payload: Dict[str, Dict[str, Any]] = {}
     for stage_key in STAGE_KEYS:
         evaluation = evaluations[stage_key]
         core_states = [state for state in evaluation.states if state.time >= core_start_time]
@@ -682,7 +682,7 @@ def build_stage_stats(
     return payload
 
 
-def build_summary(trades: list[dict[str, Any]]) -> dict[str, Any]:
+def build_summary(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
     if not trades:
         return {
             "totalTrades": 0,
@@ -720,7 +720,7 @@ def build_summary(trades: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def derive_range(bars: list[Candle], core_start_time: int, fallback: int) -> dict[str, int]:
+def derive_range(bars: List[Candle], core_start_time: int, fallback: int) -> Dict[str, int]:
     core_bars = [bar for bar in bars if int(bar["t"]) >= core_start_time]
     if not core_bars:
         return {"from": fallback, "to": fallback}
@@ -731,13 +731,13 @@ def derive_range(bars: list[Candle], core_start_time: int, fallback: int) -> dic
 
 
 def build_notes(
-    blueprint: dict[str, Any],
-    summary: dict[str, Any],
-    stage_stats: dict[str, dict[str, Any]],
+    blueprint: Dict[str, Any],
+    summary: Dict[str, Any],
+    stage_stats: Dict[str, Dict[str, Any]],
     test_window_days: int,
-    active_stage_keys: list[str],
+    active_stage_keys: List[str],
     execution_stage: str,
-) -> list[str]:
+) -> List[str]:
     notes = [
         f"{test_window_days} gunluk pencere tarandi. Girisler aktif stage'ler icindeki en alt timeframe olan {execution_stage} stage'inin yeni aktif oldugu barda uretiliyor.",
         "Price action kurallari local heuristics ile calisiyor; bu ilk surumde broker-grade execution modeli yok.",
@@ -757,7 +757,7 @@ def build_notes(
     return notes
 
 
-def derive_warmup_bars(blueprint: dict[str, Any]) -> int:
+def derive_warmup_bars(blueprint: Dict[str, Any]) -> int:
     max_param = 50
     for stage_key in STAGE_KEYS:
         stage = blueprint["stages"][stage_key]
@@ -771,15 +771,15 @@ def derive_warmup_bars(blueprint: dict[str, Any]) -> int:
     return max(160, max_param * 3)
 
 
-def get_active_stage_keys(blueprint: dict[str, Any]) -> list[str]:
+def get_active_stage_keys(blueprint: Dict[str, Any]) -> List[str]:
     return [stage_key for stage_key in STAGE_KEYS if blueprint["stages"][stage_key]["rules"]]
 
 
-def get_execution_stage_key(blueprint: dict[str, Any], active_stage_keys: list[str]) -> str:
+def get_execution_stage_key(blueprint: Dict[str, Any], active_stage_keys: List[str]) -> str:
     return sorted(active_stage_keys, key=lambda stage_key: get_timeframe_seconds(str(blueprint["stages"][stage_key]["timeframe"])))[0]
 
 
-def normalize_bars(bars: list[Candle]) -> list[Candle]:
+def normalize_bars(bars: List[Candle]) -> List[Candle]:
     normalized = [
         {
             "t": int(float(bar["t"])),

@@ -392,15 +392,17 @@ function syncPriceAxisMask(): void {
     priceAxisMask.style.top = `${(ratio * 100).toFixed(2)}%`;
 }
 
-function setChartLoadStatus(message: string | null): void {
+function setChartLoadStatus(message: string | null, state: 'loading' | 'error' = 'loading'): void {
     if (!message) {
         chartLoadStatus.classList.remove('visible');
+        chartLoadStatus.classList.remove('error');
         chartLoadStatus.textContent = '';
         return;
     }
 
     chartLoadStatus.textContent = message;
     chartLoadStatus.classList.add('visible');
+    chartLoadStatus.classList.toggle('error', state === 'error');
 }
 
 function setSelectedDrawing(id: string | null): void {
@@ -1171,16 +1173,28 @@ async function loadChartContext(
     message: string = `Loading ${symbol} ${tf} price data...`
 ): Promise<void> {
     setChartLoadStatus(message);
+    const loaded = await dataLoader.load(symbol, tf);
+    if (!loaded) {
+        realtimeStream.unsubscribe();
+        setChartLoadStatus(
+            dataLoader.getLastError() || `Price data yuklenemedi.`,
+            'error'
+        );
+        return;
+    }
+
     try {
-        await dataLoader.load(symbol, tf);
         await drawingStore.load(symbol, tf);
         await indicatorManager.refresh();
         await strategyManager.refresh();
         applySignalPreviewIfRelevant(symbol, tf);
         syncRealtimeSubscription(symbol, tf);
         syncPriceAxisMask();
-    } finally {
         setChartLoadStatus(null);
+    } catch (err) {
+        realtimeStream.unsubscribe();
+        const messageText = err instanceof Error && err.message ? err.message : 'Chart context yuklenemedi.';
+        setChartLoadStatus(messageText, 'error');
     }
 }
 

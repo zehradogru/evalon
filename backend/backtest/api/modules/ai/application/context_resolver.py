@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterable
+from typing import Dict, List,  Union, Optional, Iterable
 
 from api.modules.ai.domain.models import AiRequestContext, AiSessionRecord
 
@@ -25,12 +25,12 @@ _TRANSLATION_TABLE = str.maketrans({
     "Ü": "u",
 })
 
-_TIMEFRAME_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+_TIMEFRAME_PATTERNS: List[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b1\s*(?:m|dk|dakika)\b"), "1m"),
     (re.compile(r"\b5\s*(?:m|dk|dakika)\b"), "5m"),
     (re.compile(r"\b15\s*(?:m|dk|dakika)\b"), "15m"),
-    (re.compile(r"\b1\s*(?:h|saat)\b|\b1\s*saatlik\b|\bsaatlik\b"), "1h"),
     (re.compile(r"\b4\s*(?:h|saat)\b|\b4\s*saatlik\b"), "4h"),
+    (re.compile(r"\b1\s*(?:h|saat)\b|\b1\s*saatlik\b|\bsaatlik\b"), "1h"),
     (re.compile(r"\b1\s*(?:d|gun|gün)\b|\bgunluk\b|\bgunlük\b"), "1d"),
     (re.compile(r"\b1\s*(?:w|hafta)\b|\bhaftalik\b|\bhaftalık\b"), "1w"),
     (re.compile(r"\b1\s*(?:mo|ay)\b|\baylik\b|\baylık\b"), "1M"),
@@ -151,7 +151,7 @@ def resolve_request_context(
     return resolved
 
 
-def infer_ticker(message: str) -> str | None:
+def infer_ticker(message: str) -> Optional[str]:
     normalized = _normalize_text(message)
     for alias, ticker in _COMPANY_ALIASES.items():
         if alias in normalized:
@@ -161,7 +161,7 @@ def infer_ticker(message: str) -> str | None:
     original_tokens = re.findall(r"\b[A-Za-zÇĞİÖŞÜçğıöşü]{3,8}(?:\.IS|\.is)?\b", message)
     normalized_tokens = _TOKEN_PATTERN.findall(normalized)
 
-    candidates: list[str] = []
+    candidates: List[str] = []
     for token in original_tokens:
         canonical = _canonicalize_ticker(token)
         base = canonical.removesuffix(".IS")
@@ -182,9 +182,9 @@ def infer_ticker(message: str) -> str | None:
     return candidates[0] if candidates else None
 
 
-def infer_symbol_list(message: str) -> list[str]:
+def infer_symbol_list(message: str) -> List[str]:
     normalized = _normalize_text(message)
-    matches: list[str] = []
+    matches: List[str] = []
 
     for alias, ticker in _COMPANY_ALIASES.items():
         if alias in normalized and ticker not in matches:
@@ -213,7 +213,7 @@ def infer_symbol_list(message: str) -> list[str]:
     return matches
 
 
-def infer_timeframe(message: str) -> str | None:
+def infer_timeframe(message: str) -> Optional[str]:
     normalized = _normalize_text(message)
     for pattern, timeframe in _TIMEFRAME_PATTERNS:
         if pattern.search(normalized):
@@ -221,8 +221,8 @@ def infer_timeframe(message: str) -> str | None:
     return None
 
 
-def _normalize_symbol_list(symbols: Iterable[str]) -> list[str]:
-    seen: list[str] = []
+def _normalize_symbol_list(symbols: Iterable[str]) -> List[str]:
+    seen: List[str] = []
     for symbol in symbols:
         canonical = _canonicalize_ticker(symbol)
         if not canonical or canonical in seen:

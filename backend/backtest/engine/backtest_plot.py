@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Dict, List,  Union, Optional, Optional, Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -111,8 +111,8 @@ def _norm_side(value: Any) -> str:
     return "long"
 
 
-def _build_markers(trades: pd.DataFrame, precision: int, theme: ChartTheme) -> list[dict]:
-    markers: list[dict] = []
+def _build_markers(trades: pd.DataFrame, precision: int, theme: ChartTheme) -> List[dict]:
+    markers: List[dict] = []
     for row in trades.itertuples(index=False):
         data = row._asdict()
         entry_time = data.get("entry_time")
@@ -409,7 +409,7 @@ def create_multi_timeframe_chart(
     main_tf = timeframes[0]
 
     chart = plot_trades_lightweight(
-        ohlcv=data_dict[main_tf],
+        ohlcv=data_Dict[main_tf],
         trades=trades,
         title=f"Multi-TF Chart | {main_tf.upper()}",
         theme=theme,
@@ -456,7 +456,7 @@ if __name__ == "__main__":
     chart = plot_trades_lightweight(
         ohlcv=ohlcv,
         trades=trades,
-        title="Demo | Lightweight Charts",
+        title="Union[Demo, Lightweight] Charts",
         theme="dark",
         show_volume=False,
         watermark="DEMO",

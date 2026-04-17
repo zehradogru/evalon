@@ -1,0 +1,266 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{listings}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue
+}
+
+\definecolor{codebg}{RGB}{245,247,250}
+\definecolor{codeframe}{RGB}{220,225,232}
+
+\lstdefinestyle{evalon}{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true
+}
+
+\title{Evalon Graph WebView Cloud Run Kullanim Dokumani}
+\author{Codex}
+\date{17 Nisan 2026}
+
+\begin{document}
+\maketitle
+
+\section{Ozet}
+
+Bu dokuman, \texttt{backend/graph} icindeki chart istemcisinin Cloud Run uzerine nasil alindigini ve web ile mobile tarafinda bu sayfanin nasil WebView olarak kullanilacagini aciklar.
+
+Mevcut durum:
+
+\begin{itemize}
+  \item Chart istemcisi artik ayri bir Vite dev server'a bagimli degildir.
+  \item Ayni Cloud Run hostu hem static sayfalari hem de \texttt{/api/v1/*} endpointlerini servis eder.
+  \item Bu servis, veri icin \texttt{evalon-backtest-api} Cloud Run backend'ine gider.
+  \item Web veya mobile uygulama yalnizca dogru URL'i olusturup WebView acarak chart'i gosterebilir.
+\end{itemize}
+
+\section{Canli Production Host}
+
+Ana host:
+
+\begin{lstlisting}[style=evalon]
+https://evalon-graph-web-474112640179.europe-west1.run.app
+\end{lstlisting}
+
+Chart icin onerilen URL:
+
+\begin{lstlisting}[style=evalon]
+https://evalon-graph-web-474112640179.europe-west1.run.app/chart?symbol=ADEL&tf=1d
+\end{lstlisting}
+
+Alternatif tam dosya path'i:
+
+\begin{lstlisting}[style=evalon]
+https://evalon-graph-web-474112640179.europe-west1.run.app/chart.html?symbol=ADEL&tf=1d
+\end{lstlisting}
+
+Ek sayfalar:
+
+\begin{itemize}
+  \item \texttt{/backtest} veya \texttt{/backtest.html}
+  \item \texttt{/ai} veya \texttt{/ai.html}
+\end{itemize}
+
+\section{Mimari}
+
+Deploy edilen servis tek host uzerinden su akisi izler:
+
+\begin{enumerate}
+  \item Kullanici uygulamada hisse secer.
+  \item Uygulama \texttt{symbol} ve \texttt{tf} query parametreleriyle chart URL'ini olusturur.
+  \item WebView bu URL'i acar.
+  \item Chart sayfasi kendi icinden ayni origin altindaki \texttt{/api/v1/candles}, \texttt{/api/v1/indicators}, \texttt{/api/v1/backtests/*} gibi rotalara istek atar.
+  \item Bu rotalar da arka planda \texttt{evalon-backtest-api} Cloud Run servisine proxy olur.
+\end{enumerate}
+
+Bu sayede web veya mobile tarafinin ayrica candle API, indicator API ya da backtest API cagirisi yapmasi gerekmez.
+
+\section{Desteklenen Query Parametreleri}
+
+\begin{longtable}{|>{\ttfamily}p{3cm}|p{3cm}|p{7cm}|}
+\hline
+\textnormal{Parametre} & \textnormal{Tip} & \textnormal{Aciklama} \\
+\hline
+\textnormal{symbol} & string & Zorunlu hisse kodu. Ornek: \texttt{ADEL}, \texttt{THYAO}, \texttt{SISE}. \\
+\hline
+\textnormal{tf} & string & Zaman dilimi. Ornek: \texttt{1m}, \texttt{5m}, \texttt{15m}, \texttt{1h}, \texttt{4h}, \texttt{1d}, \texttt{1w}. \\
+\hline
+\end{longtable}
+
+Ornek URL'ler:
+
+\begin{lstlisting}[style=evalon]
+/chart?symbol=THYAO&tf=1h
+/chart?symbol=SISE&tf=4h
+/chart?symbol=ADEL&tf=1d
+\end{lstlisting}
+
+\section{Web Tarafinda Nasil Kullanilir}
+
+\subsection{Temel Mantik}
+
+Web uygulamasi kullanicidan bir hisse ve timeframe secer. Sonra su sekilde URL olusturur:
+
+\begin{lstlisting}[style=evalon]
+const GRAPH_HOST =
+  "https://evalon-graph-web-474112640179.europe-west1.run.app";
+
+function buildChartUrl(symbol, tf = "1d") {
+  const params = new URLSearchParams({
+    symbol: symbol.toUpperCase(),
+    tf,
+  });
+  return `${GRAPH_HOST}/chart?${params.toString()}`;
+}
+\end{lstlisting}
+
+\subsection{Iframe veya Embedded WebView}
+
+Web tarafinda tam ekran bir alan icine \texttt{iframe} ile koyabilirsiniz:
+
+\begin{lstlisting}[style=evalon]
+const url = buildChartUrl("ADEL", "1d");
+iframe.src = url;
+\end{lstlisting}
+
+React / Next mantigi:
+
+\begin{lstlisting}[style=evalon]
+const src = buildChartUrl(selectedTicker, selectedTf);
+
+return (
+  <iframe
+    src={src}
+    style={{ width: "100%", height: "100vh", border: "0" }}
+    allow="clipboard-read; clipboard-write"
+  />
+);
+\end{lstlisting}
+
+Not:
+
+\begin{itemize}
+  \item Web tarafinda tam ekran modal veya yeni route icinde iframe gostermek genelde en pratik yontemdir.
+  \item Hisse degistiginde yeni URL uretilip iframe \texttt{src} degeri guncellenir.
+\end{itemize}
+
+\section{Mobile Tarafinda Nasil Kullanilir}
+
+\subsection{Android WebView Ornegi}
+
+\begin{lstlisting}[style=evalon]
+val graphHost = "https://evalon-graph-web-474112640179.europe-west1.run.app"
+
+fun buildChartUrl(symbol: String, tf: String = "1d"): String {
+    return "$graphHost/chart?symbol=${symbol.uppercase()}&tf=$tf"
+}
+
+webView.settings.javaScriptEnabled = true
+webView.settings.domStorageEnabled = true
+webView.loadUrl(buildChartUrl("ADEL", "1d"))
+\end{lstlisting}
+
+\subsection{iOS WKWebView Ornegi}
+
+\begin{lstlisting}[style=evalon]
+let graphHost = "https://evalon-graph-web-474112640179.europe-west1.run.app"
+
+func buildChartUrl(symbol: String, tf: String = "1d") -> URL {
+    var comps = URLComponents(string: "\(graphHost)/chart")!
+    comps.queryItems = [
+        URLQueryItem(name: "symbol", value: symbol.uppercased()),
+        URLQueryItem(name: "tf", value: tf)
+    ]
+    return comps.url!
+}
+\end{lstlisting}
+
+Ardindan:
+
+\begin{lstlisting}[style=evalon]
+webView.load(URLRequest(url: buildChartUrl(symbol: "ADEL", tf: "1d")))
+\end{lstlisting}
+
+\subsection{Mobil Akis}
+
+\begin{enumerate}
+  \item Kullanici uygulamada hisseyi secer.
+  \item Uygulama \texttt{buildChartUrl(selectedTicker, selectedTf)} ile URL olusturur.
+  \item WebView bu URL ile acilir.
+  \item Sayfa kendi icinde verileri yukler.
+\end{enumerate}
+
+\section{Bu Yapiyla Ne Kazanildi}
+
+\begin{itemize}
+  \item Chart sayfasi artik Vercel'e bagimli degil.
+  \item Web tarafi yalnizca URL aciyor; API detayini chart hostunun kendisi yonetiyor.
+  \item Mobile tarafi da ayni URL formatiyla ayni chart deneyimini kullanabiliyor.
+  \item Ayni host uzerinden chart, backtest ve AI sayfalari ileride ayni mantikla WebView olarak kullanilabilir.
+\end{itemize}
+
+\section{Deploy Ozet Bilgisi}
+
+Bu servis su ayarlarla deploy edildi:
+
+\begin{itemize}
+  \item Project: \texttt{evalon-490523}
+  \item Region: \texttt{europe-west1}
+  \item Service: \texttt{evalon-graph-web}
+  \item Runtime account: \texttt{evalon-graph-web-run@evalon-490523.iam.gserviceaccount.com}
+  \item Upstream backtest API: \texttt{https://evalon-backtest-api-474112640179.europe-west1.run.app/v1}
+\end{itemize}
+
+Repo icinde eklenen onemli dosyalar:
+
+\begin{itemize}
+  \item \texttt{backend/graph/Dockerfile}
+  \item \texttt{backend/graph/scripts/deploy\_cloud\_run.sh}
+  \item \texttt{backend/graph/scripts/smoke\_test\_cloud\_run.sh}
+  \item \texttt{backend/graph/DEPLOY\_CLOUD\_RUN.md}
+\end{itemize}
+
+\section{Smoke Test Sonucu}
+
+Canli host uzerinde su kontroller gecti:
+
+\begin{itemize}
+  \item \texttt{/health} 200
+  \item \texttt{/chart.html?symbol=ADEL\&tf=1d} 200
+  \item \texttt{/chart?symbol=ADEL\&tf=1d} 200
+  \item \texttt{/api/v1/candles?symbol=ADEL\&tf=1d\&limit=2} 200
+  \item \texttt{/api/v1/indicators?symbol=ADEL\&tf=1d\&strategy=rsi} 200
+\end{itemize}
+
+\section{Sonuc}
+
+Artik web ve mobile uygulama tarafi su mantikla ilerleyebilir:
+
+\begin{enumerate}
+  \item Kullanici hisse secer.
+  \item Uygulama Cloud Run chart URL'ini uretir.
+  \item WebView bu URL'i acar.
+  \item Chart, indikator ve diger veri isteklerini ayni host uzerinden kendi yonetir.
+\end{enumerate}
+
+Onerilen production kullanim formati:
+
+\begin{lstlisting}[style=evalon]
+https://evalon-graph-web-474112640179.europe-west1.run.app/chart?symbol=THYAO&tf=1d
+\end{lstlisting}
+
+\end{document}

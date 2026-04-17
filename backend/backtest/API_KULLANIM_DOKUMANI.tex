@@ -1,0 +1,874 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+\geometry{margin=2.2cm}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!50!black,
+    urlcolor=blue!50!black
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    columns=fullflexible,
+    keepspaces=true,
+    showstringspaces=false,
+    frame=single,
+    rulecolor=\color{black!20}
+}
+
+\title{Evalon Backtest API\\Kullanim Dokumani}
+\author{Codex tarafindan kod tabani uzerinden uretilmistir}
+\date{17 Nisan 2026}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Amac ve Kapsam}
+
+Bu dokuman, \texttt{backend/backtest} klasorundeki FastAPI tabanli servisin tum ana ozelliklerini, endpointlerini, konfigrasyonunu ve kullanim seklini aciklar. Servis esas olarak dort ana yetenek sunar:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item BIST/Oracle tabanli fiyat verisi sunma
+    \item TA-Lib uzerinden indikator hesaplama
+    \item Blueprint tabanli backtest calistirma
+    \item AI yardimli strateji, kural ve indikator taslagi uretme
+\end{itemize}
+
+Bu dokuman kod tabanindaki mevcut uygulama davranisina gore yazilmistir. Ozellikle \texttt{api/main.py}, \texttt{api/modules/backtests/*} ve \texttt{api/modules/ai/*} altindaki kaynaklar esas alinmistir.
+
+\section{Genel Mimari}
+
+\subsection{Servisin Rolü}
+
+Bu API tek bir FastAPI uygulamasi olarak calisir ve asagidaki fonksiyonlari tek cati altinda sunar:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{/v1/prices}: mum verisi
+    \item \texttt{/v1/indicators*}: indikator katalogu ve indikator hesaplama
+    \item \texttt{/v1/backtests*}: rule katalogu, preset katalogu ve backtest calistirma
+    \item \texttt{/v1/ai*}: AI session, mesajlasma, draft ve asset kayitlari
+\end{itemize}
+
+\subsection{Veri Kaynagi}
+
+Fiyat verisi Oracle uzerindeki BIST verisinden okunur. Uygulama \texttt{HybridBistPricesClient} kullanir:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item dusuk timeframe'lerde klasik tablo sorgulari kullanilir
+    \item \texttt{1h} ve ustunde saatlik veri tabani tablosu tercih edilir
+    \item Oracle wallet desteklenir
+    \item connection pool opsiyonel olarak acilir
+\end{itemize}
+
+\subsection{Test Modu}
+
+\texttt{ticker=TEST} ozel bir davranistir. Bu durumda Oracle yerine repo icindeki fixture dosyasi okunur:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item varsayilan yol: \texttt{api/fixtures/test\_ohlcv.csv}
+    \item amac: Oracle credentials olmadan smoke test ve entegrasyon testi yapabilmek
+\end{itemize}
+
+\subsection{State ve Kalicilik}
+
+v1 surumunde tum state kalici degildir:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item backtest run bilgileri: \texttt{InMemoryRunStore}
+    \item AI session'lari: \texttt{InMemoryAiSessionStore}
+    \item AI asset kayitlari: JSON dosyasi veya gerekli durumda memory fallback
+\end{itemize}
+
+Bu nedenle Cloud Run instance restart, revision degisimi veya coklu instance senaryolarinda run/session kayitlari kaybolabilir. Bu davranis ozellikle \texttt{/v1/backtests/start} ve \texttt{/v1/ai/sessions/*} kullaniminda dikkate alinmalidir.
+
+\section{Calisma ve Konfigurasyon}
+
+\subsection{Calistirma}
+
+Lokal gelistirme:
+
+\begin{lstlisting}[language=bash]
+python3 -m venv venv
+./venv/bin/pip install -r requirements.txt
+./venv/bin/uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+\end{lstlisting}
+
+Cloud Run icin Docker tabanli deploy dosyalari mevcuttur:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{Dockerfile}
+    \item \texttt{scripts/deploy\_cloud\_run.sh}
+    \item \texttt{scripts/smoke\_test\_cloud\_run.sh}
+    \item \texttt{DEPLOY\_CLOUD\_RUN.md}
+\end{itemize}
+
+Bu dokuman hazirlandiginda aktif Cloud Run deployment ornegi:
+
+\begin{quote}
+\url{https://evalon-backtest-api-474112640179.europe-west1.run.app}
+\end{quote}
+
+\subsection{Zorunlu ve Opsiyonel Environment Variable'lar}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{4.5cm} >{\raggedright\arraybackslash}p{2.4cm} >{\raggedright\arraybackslash}p{7.5cm}}
+\toprule
+Degisken & Durum & Aciklama \\
+\midrule
+\endhead
+\texttt{ORACLE\_DB\_USER} & Zorunlu & Oracle kullanici adi. Ornek: \texttt{ADMIN}. \\
+\texttt{ORACLE\_DB\_PASSWORD} & Zorunlu & Oracle baglanti sifresi. \\
+\texttt{ORACLE\_DB\_DSN} & Zorunlu & Oracle TNS alias'i. Ornek: \texttt{evalondb\_high}. \\
+\texttt{ORACLE\_WALLET\_ZIP\_B64} & Cloud icin onerilen & Base64 zip formatinda Oracle wallet. Cloud Run/Vercel gibi ortamlarda en pratik yontem budur. \\
+\texttt{ORACLE\_WALLET\_DIR} & Opsiyonel & Wallet klasor yolu. Lokal calismada kullanisli. \\
+\texttt{ORACLE\_WALLET\_PASSWORD} & Opsiyonel & Wallet sifresi gerekiyorsa kullanilir. \\
+\texttt{ORACLE\_USE\_POOL} & Opsiyonel & \texttt{1} ise Oracle connection pool acilir. Varsayilan \texttt{1}. \\
+\texttt{ORACLE\_POOL\_MIN} & Opsiyonel & Pool min baglanti sayisi. \\
+\texttt{ORACLE\_POOL\_MAX} & Opsiyonel & Pool max baglanti sayisi. \\
+\texttt{ORACLE\_POOL\_INC} & Opsiyonel & Pool artim degeri. \\
+\texttt{BIST\_DEBUG} & Opsiyonel & \texttt{1} ise detayli hata detaylari donebilir. \\
+\texttt{AI\_ASSET\_STORE\_PATH} & Opsiyonel & AI asset JSON dosyasinin yolu. Cloud Run tarafinda tipik deger \texttt{/tmp/evalon\_ai\_assets.json}. \\
+\texttt{GEMINI\_API\_KEY} & Opsiyonel & AI modulu icin Gemini API key. Yoksa heuristic fallback veya Vertex kullanimi denenir. \\
+\texttt{GOOGLE\_CLOUD\_PROJECT} & Opsiyonel & Vertex/GCP baglami icin proje adi. \\
+\texttt{GOOGLE\_CLOUD\_LOCATION} & Opsiyonel & Vertex lokasyonu. Varsayilan \texttt{global}. \\
+\texttt{ALLOWED\_ORIGINS} & Opsiyonel & Virgulle ayrilmis CORS origin listesi. \\
+\texttt{ALLOWED\_ORIGIN\_REGEX} & Opsiyonel & Regex tabanli CORS ayari. \\
+\texttt{TEST\_OHLCV\_PATH} & Opsiyonel & \texttt{ticker=TEST} senaryosunda okunacak CSV veya ZST dosyasi. \\
+\bottomrule
+\end{longtable}
+
+\subsection{CORS Davranisi}
+
+Uygulama uretim ortami icin wildcard CORS kullanmaz. Beklenen model:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{ALLOWED\_ORIGINS} ver
+    \item veya \texttt{ALLOWED\_ORIGIN\_REGEX} ver
+\end{itemize}
+
+Lokal ortamda explicit CORS verilmemisse varsayilan olarak \texttt{localhost:3000}, \texttt{127.0.0.1:3000}, \texttt{localhost:3001}, \texttt{127.0.0.1:3001} izinli kabul edilir.
+
+\section{Genel API Kurallari}
+
+\subsection{Auth}
+
+Mevcut endpointlerin hicbirinde HTTP auth zorunlulugu yoktur. Bu nedenle servis su an public olarak calisir. Uretim guvenligi icin gerekirse reverse proxy veya uygulama seviyesi auth eklenmelidir.
+
+\subsection{Formatlar}
+
+\begin{itemize}[leftmargin=1.5em]
+    \item tum endpointler JSON doner
+    \item zaman alanlari genellikle ISO 8601 tarih-zaman veya epoch second olarak gelir
+    \item hata durumlarinda FastAPI \texttt{detail} alani iceren standart JSON hata yapisi doner
+\end{itemize}
+
+\subsection{Yaygin HTTP Durum Kodlari}
+
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{200}: basarili
+    \item \texttt{400}: request body veya parametre dogrulama hatasi
+    \item \texttt{404}: run ya da session bulunamadi
+    \item \texttt{500}: Oracle, TA-Lib, dosya sistemi veya altyapi hatasi
+\end{itemize}
+
+\section{Endpoint Ozet Tablosu}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{2.4cm} >{\raggedright\arraybackslash}p{5.8cm} >{\raggedright\arraybackslash}p{6cm}}
+\toprule
+Method & Path & Amac \\
+\midrule
+\endhead
+\texttt{GET} & \texttt{/} & Kisa landing payload ve config snapshot \\
+\texttt{GET} & \texttt{/health} & Health check \\
+\texttt{GET} & \texttt{/v1/prices} & Fiyat/mum verisi \\
+\texttt{GET} & \texttt{/v1/indicators/catalog} & Desteklenen indikatorler \\
+\texttt{GET} & \texttt{/v1/indicators} & Indikator serisi hesaplama \\
+\texttt{GET} & \texttt{/v1/backtests/catalog/rules} & Rule katalogu \\
+\texttt{GET} & \texttt{/v1/backtests/catalog/presets} & Preset katalogu \\
+\texttt{POST} & \texttt{/v1/backtests/run} & Senkron backtest \\
+\texttt{POST} & \texttt{/v1/backtests/start} & Asenkron backtest \\
+\texttt{GET} & \texttt{/v1/backtests/\{run\_id\}/status} & Run durumu \\
+\texttt{GET} & \texttt{/v1/backtests/\{run\_id\}/events} & Event sayfalama \\
+\texttt{GET} & \texttt{/v1/backtests/\{run\_id\}/portfolio-curve} & Portfoy egri verisi \\
+\texttt{GET} & \texttt{/v1/ai/tools} & AI tool katalogu \\
+\texttt{POST} & \texttt{/v1/ai/sessions} & Yeni AI session \\
+\texttt{GET} & \texttt{/v1/ai/sessions/\{session\_id\}} & Session detaylari \\
+\texttt{POST} & \texttt{/v1/ai/sessions/\{session\_id\}/messages} & AI ile mesajlasma \\
+\texttt{GET} & \texttt{/v1/ai/assets} & Kayitli AI asset'leri \\
+\texttt{POST} & \texttt{/v1/ai/strategies} & AI strategy asset kaydi \\
+\texttt{POST} & \texttt{/v1/ai/rules} & AI rule asset kaydi \\
+\texttt{POST} & \texttt{/v1/ai/indicators} & AI indicator asset kaydi \\
+\bottomrule
+\end{longtable}
+
+\section{Temel Endpointler}
+
+\subsection{\texttt{GET /}}
+
+\paragraph{Ne ise yarar?}
+Servisin root endpointidir. 404 yerine anlamli bir JSON doner ve servis yuzeyini gosterir.
+
+\paragraph{Ne doner?}
+\begin{itemize}[leftmargin=1.5em]
+    \item servis adi
+    \item health path'i
+    \item docs path'i
+    \item openapi path'i
+    \item ornek prices path'i
+    \item secret degerleri aciga cikarmayan config snapshot
+\end{itemize}
+
+\subsection{\texttt{GET /health}}
+
+\paragraph{Ne ise yarar?}
+Load balancer, uptime monitor ve Cloud Run smoke test icin kullanilir.
+
+\paragraph{Ornek cevap}
+\begin{lstlisting}
+{
+  "status": "ok"
+}
+\end{lstlisting}
+
+\section{Fiyat ve Indikator Endpointleri}
+
+\subsection{\texttt{GET /v1/prices}}
+
+\paragraph{Amac}
+Belirli bir ticker ve timeframe icin OHLCV mum verisi dondurur.
+
+\paragraph{Query parametreleri}
+\begin{longtable}{>{\raggedright\arraybackslash}p{3cm} >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}p{8.2cm}}
+\toprule
+Parametre & Tip & Aciklama \\
+\midrule
+\endhead
+\texttt{ticker} & string & Zorunlu. Ornek: \texttt{THYAO}. Ozel test modu icin \texttt{TEST}. \\
+\texttt{timeframe} & string & Varsayilan \texttt{1m}. Ornekler: \texttt{1m}, \texttt{3m}, \texttt{5m}, \texttt{15m}, \texttt{30m}, \texttt{1h}, \texttt{2h}, \texttt{4h}, \texttt{6h}, \texttt{12h}, \texttt{1d}, \texttt{1g}, \texttt{1w}, \texttt{1M}, \texttt{1mo}. \\
+\texttt{start} & datetime & Opsiyonel alt sinir. \\
+\texttt{end} & datetime & Opsiyonel ust sinir. \\
+\texttt{limit} & int & Opsiyonel. \texttt{1} ile \texttt{200000} arasi. \\
+\bottomrule
+\end{longtable}
+
+\paragraph{Ornek cURL}
+\begin{lstlisting}[language=bash]
+curl "http://127.0.0.1:8000/v1/prices?ticker=THYAO&timeframe=1h&limit=24"
+\end{lstlisting}
+
+\paragraph{Ornek cevap}
+\begin{lstlisting}
+{
+  "ticker": "THYAO",
+  "timeframe": "1h",
+  "rows": 24,
+  "data": [
+    {
+      "t": "2026-04-17T09:00:00+00:00",
+      "o": 287.4,
+      "h": 289.1,
+      "l": 286.8,
+      "c": 288.7,
+      "v": 345678
+    }
+  ]
+}
+\end{lstlisting}
+
+\paragraph{Ozel davranislar}
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{ticker=TEST} ise Oracle yerine fixture dosyasi okunur.
+    \item Oracle sifresi yoksa \texttt{500} doner.
+    \item Wallet configure edilmemisse \texttt{500} doner.
+    \item gecersiz timeframe gibi durumlarda \texttt{400} doner.
+\end{itemize}
+
+\subsection{\texttt{GET /v1/indicators/catalog}}
+
+\paragraph{Amac}
+Desteklenen indikatorlerin katalogunu dondurur. UI tarafinda dropdown doldurmak veya hangi strategy slug'larin desteklendigini ogrenmek icin kullanilir.
+
+\paragraph{Ornek cevap}
+\begin{lstlisting}
+{
+  "count": 30,
+  "indicators": [
+    { "id": "rsi", "label": "RSI" },
+    { "id": "macd", "label": "MACD" }
+  ]
+}
+\end{lstlisting}
+
+\subsection{\texttt{GET /v1/indicators}}
+
+\paragraph{Amac}
+Belirli bir ticker/timeframe uzerinde TA-Lib ile indikator serisi hesaplar.
+
+\paragraph{Query parametreleri}
+\begin{longtable}{>{\raggedright\arraybackslash}p{3cm} >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}p{8.2cm}}
+\toprule
+Parametre & Tip & Aciklama \\
+\midrule
+\endhead
+\texttt{ticker} & string & Zorunlu. \\
+\texttt{timeframe} & string & Varsayilan \texttt{1m}. \\
+\texttt{strategy} & string & Zorunlu indikator slug'i. Ornek: \texttt{rsi}, \texttt{macd}, \texttt{sma}, \texttt{ema}, \texttt{bbands}. \\
+\texttt{period} & int & Ozellikle RSI ve moving average tabanli indikatorlerde kullanilir. Varsayilan \texttt{14}. \\
+\texttt{fast} & int & MACD hizli period. Varsayilan \texttt{12}. \\
+\texttt{slow} & int & MACD yavas period. Varsayilan \texttt{26}. \\
+\texttt{signal} & int & MACD signal period. Varsayilan \texttt{9}. \\
+\texttt{start} & datetime & Opsiyonel alt sinir. \\
+\texttt{end} & datetime & Opsiyonel ust sinir. \\
+\texttt{limit} & int & Opsiyonel. \texttt{1} ile \texttt{200000} arasi. \\
+\bottomrule
+\end{longtable}
+
+\paragraph{Ornek cURL}
+\begin{lstlisting}[language=bash]
+curl "http://127.0.0.1:8000/v1/indicators?ticker=THYAO&timeframe=1h&strategy=rsi&period=14&limit=100"
+\end{lstlisting}
+
+\paragraph{Cevap yapisi}
+\begin{lstlisting}
+{
+  "ticker": "THYAO",
+  "timeframe": "1h",
+  "strategy": "rsi",
+  "indicators": [
+    {
+      "id": "rsi",
+      "series": [
+        { "t": "2026-04-17T09:00:00+00:00", "v": 58.2 }
+      ]
+    }
+  ]
+}
+\end{lstlisting}
+
+\paragraph{Notlar}
+\begin{itemize}[leftmargin=1.5em]
+    \item desteklenmeyen strategy slug'lari \texttt{400} ile reddedilir
+    \item TA-Lib kurulu degilse \texttt{500} doner
+    \item veri bos ise \texttt{indicators: []} doner
+\end{itemize}
+
+\section{Backtest Endpointleri}
+
+\subsection{Genel Yapi}
+
+Backtest modulu blueprint tabanlidir. Request body'si temel olarak su bloklardan olusur:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{symbol} veya \texttt{symbols}
+    \item \texttt{stageThreshold}
+    \item \texttt{direction}
+    \item \texttt{testWindowDays}
+    \item \texttt{portfolio}
+    \item \texttt{risk}
+    \item \texttt{stages.trend/setup/trigger}
+\end{itemize}
+
+Blueprint validasyon kurallari:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item en az bir \texttt{symbol} veya \texttt{symbols} verilmeli
+    \item \texttt{stageThreshold} 1 ile 3 arasinda olmali
+    \item \texttt{stages} sozlugu zorunlu
+    \item \texttt{trend}, \texttt{setup}, \texttt{trigger} stage'leri mevcut olmali
+    \item secilen rule id'leri katalogda tanimli olmali
+\end{itemize}
+
+\subsection{\texttt{GET /v1/backtests/catalog/rules}}
+
+\paragraph{Amac}
+Rule katalogunu ve family bilgilerini dondurur. UI tarafinda rule secici olusturmak icin kullanilir.
+
+\paragraph{Cevap ana alanlari}
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{count}
+    \item \texttt{families}
+    \item \texttt{rules[]}: \texttt{id}, \texttt{label}, \texttt{family}, \texttt{category}, \texttt{stages}, \texttt{summary}
+\end{itemize}
+
+\subsection{\texttt{GET /v1/backtests/catalog/presets}}
+
+\paragraph{Amac}
+Hazir strateji preset'lerini dondurur.
+
+\paragraph{Cevap ana alanlari}
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{count}
+    \item \texttt{presets[]}: \texttt{id}, \texttt{label}, \texttt{summary}, \texttt{direction}, \texttt{stageThreshold}, \texttt{ruleIds}
+\end{itemize}
+
+\subsection{\texttt{POST /v1/backtests/run}}
+
+\paragraph{Amac}
+Backtest'i senkron calistirir; request bitmeden sonuc dondurur.
+
+\paragraph{Ne zaman kullanilir?}
+Kisa ve aninda sonuc beklenen isler icin.
+
+\paragraph{Ornek request body}
+\begin{lstlisting}
+{
+  "symbol": "THYAO",
+  "symbols": ["THYAO"],
+  "stageThreshold": 2,
+  "direction": "long",
+  "testWindowDays": 365,
+  "portfolio": {
+    "initialCapital": 100000,
+    "positionSize": 10000,
+    "commissionPct": 0.1
+  },
+  "risk": {
+    "stopPct": 1.8,
+    "targetPct": 4.0,
+    "maxBars": 12
+  },
+  "stages": {
+    "trend": {
+      "key": "trend",
+      "timeframe": "1d",
+      "required": false,
+      "minOptionalMatches": 0,
+      "rules": [
+        {
+          "id": "trend-slope",
+          "required": true,
+          "params": { "lookback": 20, "minMovePct": 2.0 }
+        }
+      ]
+    },
+    "setup": {
+      "key": "setup",
+      "timeframe": "4h",
+      "required": true,
+      "minOptionalMatches": 0,
+      "rules": [
+        {
+          "id": "breakout",
+          "required": true,
+          "params": { "lookback": 20, "buffer": 0.2 }
+        }
+      ]
+    },
+    "trigger": {
+      "key": "trigger",
+      "timeframe": "1h",
+      "required": true,
+      "minOptionalMatches": 0,
+      "rules": [
+        {
+          "id": "micro-breakout",
+          "required": true,
+          "params": { "bars": 4 }
+        }
+      ]
+    }
+  }
+}
+\end{lstlisting}
+
+\paragraph{Cevap ana alanlari}
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{runId}
+    \item \texttt{result}
+    \item \texttt{summary}: \texttt{totalTrades}, \texttt{winRate}, \texttt{totalPnl}, \texttt{maxDrawdown}
+    \item \texttt{eventsCount}
+\end{itemize}
+
+\subsection{\texttt{POST /v1/backtests/start}}
+
+\paragraph{Amac}
+Backtest'i arka planda baslatir. Hemen \texttt{queued} doner; sonrasinda client status endpointleri ile ilerlemeyi izler.
+
+\paragraph{Cevap ornegi}
+\begin{lstlisting}
+{
+  "runId": "btrun_xxx",
+  "status": "queued",
+  "progress": {
+    "phase": "queued",
+    "progressPct": 0,
+    "totalSymbols": 3,
+    "processedSymbols": 0,
+    "currentSymbol": null,
+    "message": "Backtest kuyruga alindi."
+  }
+}
+\end{lstlisting}
+
+\paragraph{Onemli not}
+Bu mekanizma arka planda Python thread kullanir ve run store memory tabanlidir. Process restart olursa run kaybolur.
+
+\subsection{\texttt{GET /v1/backtests/\{run\_id\}/status}}
+
+\paragraph{Amac}
+Run'in mevcut durumunu verir.
+
+\paragraph{Durum alanlari}
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{queued}
+    \item \texttt{running}
+    \item \texttt{completed}
+    \item \texttt{failed}
+\end{itemize}
+
+\paragraph{Cevap ana alanlari}
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{runId}, \texttt{status}
+    \item \texttt{createdAt}, \texttt{startedAt}, \texttt{finishedAt}
+    \item \texttt{progress}
+    \item \texttt{eventsCount}
+    \item basariliysa \texttt{result} ve \texttt{summary}
+    \item hata varsa \texttt{error}
+\end{itemize}
+
+\subsection{\texttt{GET /v1/backtests/\{run\_id\}/events}}
+
+\paragraph{Amac}
+Trade event'lerini sayfali dondurur.
+
+\paragraph{Query parametreleri}
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{page}: varsayilan 1, minimum 1
+    \item \texttt{limit}: varsayilan 200, maksimum 500
+\end{itemize}
+
+\paragraph{Cevap ana alanlari}
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{events[]}
+    \item \texttt{summary}
+    \item \texttt{page}, \texttt{totalPages}, \texttt{totalEvents}
+\end{itemize}
+
+Her event tipik olarak asagidaki alanlari tasir:
+
+\begin{lstlisting}
+{
+  "id": "trade_1_entry",
+  "type": "entry",
+  "time": 1710000000,
+  "price": 100.0,
+  "side": "long",
+  "symbol": "THYAO",
+  "qty": 10.0,
+  "tradeId": "trade_1",
+  "orderId": "btrun_x_trade_1_entry",
+  "pnl": null,
+  "reason": "Blueprint trigger",
+  "meta": {
+    "allocatedCapital": 1000,
+    "score": 3,
+    "stages": { "trend": true, "setup": true, "trigger": true }
+  }
+}
+\end{lstlisting}
+
+Exit event tipi \texttt{tp}, \texttt{stop} veya \texttt{exit} olabilir.
+
+\subsection{\texttt{GET /v1/backtests/\{run\_id\}/portfolio-curve}}
+
+\paragraph{Amac}
+Portfoy equity curve verisini dondurur.
+
+\paragraph{Cevap ana alanlari}
+\begin{itemize}[leftmargin=1.5em]
+    \item status bilgisi
+    \item progress bilgisi
+    \item hata varsa \texttt{error}
+    \item sonuc varsa \texttt{summary}
+    \item \texttt{curve}: \texttt{portfolioCurve} verisi
+\end{itemize}
+
+\section{AI Endpointleri}
+
+\subsection{AI Modulu Ne Yapar?}
+
+AI modulu kullanicidan mesaj alip bunu bir execution plan'a donusturur, arka planda uygun tool'lari cagirir ve strateji/rule/indikator taslagi uretebilir.
+
+AI tarafinda iki katman vardir:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Session}: konusma gecmisi ve aktif context
+    \item \textbf{Asset}: kullaniciya ait strategy/rule/indicator taslaklari
+\end{itemize}
+
+\subsection{AI Tool Katalogu}
+
+\texttt{GET /v1/ai/tools} endpointi mevcut AI araclarini listeler. Kod tabanina gore temel tool seti su isimlerden olusur:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{get\_rule\_catalog}
+    \item \texttt{get\_preset\_catalog}
+    \item \texttt{get\_prices}
+    \item \texttt{get\_indicator\_catalog}
+    \item \texttt{get\_indicators}
+    \item \texttt{run\_backtest}
+    \item \texttt{get\_backtest\_status}
+    \item \texttt{get\_backtest\_events}
+    \item \texttt{get\_portfolio\_curve}
+    \item \texttt{list\_user\_assets}
+    \item \texttt{save\_user\_strategy}
+    \item \texttt{save\_user\_rule}
+    \item \texttt{save\_user\_indicator}
+\end{itemize}
+
+\subsection{\texttt{POST /v1/ai/sessions}}
+
+\paragraph{Amac}
+Yeni bir AI oturumu olusturur.
+
+\paragraph{Request body}
+\begin{lstlisting}
+{
+  "userId": "demo",
+  "title": "Trend stratejisi arastirmasi"
+}
+\end{lstlisting}
+
+\paragraph{Not}
+Session store memory tabanlidir. Cloud Run restart olursa session kaybolabilir.
+
+\subsection{\texttt{GET /v1/ai/sessions/\{session\_id\}}}
+
+\paragraph{Amac}
+Belirli bir AI session'in mevcut kaydini getirir.
+
+\paragraph{Cevapta gorulebilecek alanlar}
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{session\_id}
+    \item \texttt{user\_id}
+    \item \texttt{messages}
+    \item \texttt{last\_plan}
+    \item \texttt{last\_tool\_results}
+    \item \texttt{working\_context}
+    \item \texttt{last\_backtest\_run\_id}
+    \item \texttt{active\_strategy\_draft}
+\end{itemize}
+
+\subsection{\texttt{POST /v1/ai/sessions/\{session\_id\}/messages}}
+
+\paragraph{Amac}
+AI'ya yeni mesaj gonderir ve cevap alir.
+
+\paragraph{Request body}
+\begin{lstlisting}
+{
+  "content": "THYAO icin 1 saatlik RSI tabanli bir strateji cikar",
+  "context": {
+    "user_id": "demo",
+    "ticker": "THYAO",
+    "timeframe": "1h",
+    "indicator_id": "rsi",
+    "selected_symbols": ["THYAO"],
+    "auto_save_drafts": true
+  }
+}
+\end{lstlisting}
+
+\paragraph{Context alanlari}
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{user\_id}
+    \item \texttt{ticker}
+    \item \texttt{timeframe}
+    \item \texttt{indicator\_id}
+    \item \texttt{active\_blueprint}
+    \item \texttt{selected\_symbols}
+    \item \texttt{auto\_save\_drafts}
+\end{itemize}
+
+\paragraph{Beklenen cevap}
+Kesin shape workflow'a gore degisebilir, ancak tipik olarak su tur alanlar doner:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item AI tarafinin yazdigi cevap metni
+    \item onerilen aksiyonlar
+    \item kullanilan tool sonuclari
+    \item olusmus strategy/rule/indicator draft'i
+    \item gerekiyorsa arka planda baslatilan backtest run id'si
+\end{itemize}
+
+\paragraph{Model davranisi}
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{GEMINI\_API\_KEY} varsa Gemini istemcisi denenir
+    \item aksi halde heuristic fallback devreye girebilir
+    \item \texttt{GOOGLE\_CLOUD\_PROJECT} verilirse Vertex tabanli client denenebilir
+\end{itemize}
+
+\subsection{\texttt{GET /v1/ai/assets}}
+
+\paragraph{Amac}
+Belirli kullanicinin kayitli AI asset'lerini listeler.
+
+\paragraph{Query parametresi}
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{userId} (varsayilan: \texttt{demo})
+\end{itemize}
+
+\paragraph{Cevap}
+\begin{lstlisting}
+{
+  "strategies": [],
+  "rules": [],
+  "indicators": []
+}
+\end{lstlisting}
+
+\paragraph{Onemli not}
+Cloud Run uzerinde varsayilan asset store yolu \texttt{/tmp/evalon\_ai\_assets.json} oldugundan, bu veri kalici bir veritabani yerine gecici instance dosyasi uzerinde tutulur.
+
+\subsection{\texttt{POST /v1/ai/strategies}}
+\subsection*{\texttt{POST /v1/ai/rules}}
+\subsection*{\texttt{POST /v1/ai/indicators}}
+
+\paragraph{Amac}
+Kullaniciya ait AI uretimi draft asset kaydeder.
+
+\paragraph{Ortak request body}
+\begin{lstlisting}
+{
+  "userId": "demo",
+  "title": "Momentum Blend",
+  "description": "Draft indicator",
+  "prompt": "RSI ile EMAyi birlestir",
+  "spec": {
+    "notes": ["ilk taslak"]
+  }
+}
+\end{lstlisting}
+
+\paragraph{Fark}
+Path'e gore asset \texttt{strategy}, \texttt{rule} veya \texttt{indicator} olarak kaydedilir.
+
+\section{Kullanim Senaryolari}
+
+\subsection{Senaryo 1: Canli fiyat cekmek}
+
+\begin{enumerate}[leftmargin=1.5em]
+    \item \texttt{/v1/prices} cagir
+    \item \texttt{ticker}, \texttt{timeframe}, gerekiyorsa \texttt{start/end/limit} ver
+    \item cevapta \texttt{data[]} listesini chart'ta kullan
+\end{enumerate}
+
+\subsection{Senaryo 2: Indikator overlay cikarmak}
+
+\begin{enumerate}[leftmargin=1.5em]
+    \item once \texttt{/v1/indicators/catalog} ile desteklenen indikatorleri cek
+    \item sonra \texttt{/v1/indicators} ile hedef ticker/timeframe icin seri hesaplat
+    \item donen \texttt{indicators[]} verisini chart overlay veya panel olarak goster
+\end{enumerate}
+
+\subsection{Senaryo 3: Asenkron backtest}
+
+\begin{enumerate}[leftmargin=1.5em]
+    \item katalog endpointlerinden rule ve preset bilgilerini cek
+    \item blueprint olustur
+    \item \texttt{POST /v1/backtests/start} ile kuyruga al
+    \item dondurulen \texttt{runId} ile status polling yap
+    \item is bittiginde \texttt{/status}, \texttt{/events}, \texttt{/portfolio-curve} cagir
+\end{enumerate}
+
+\subsection{Senaryo 4: AI ile strateji taslagi cikarip kaydetmek}
+
+\begin{enumerate}[leftmargin=1.5em]
+    \item \texttt{POST /v1/ai/sessions} ile session ac
+    \item \texttt{POST /v1/ai/sessions/\{id\}/messages} ile istegi gonder
+    \item gerekirse tool katalogu ve backtest sonucuyla AI cevabini zenginlestir
+    \item sonuc draft ise \texttt{/v1/ai/strategies}, \texttt{/v1/ai/rules} veya \texttt{/v1/ai/indicators} ile kaydet
+\end{enumerate}
+
+\section{Sinirlar ve Dikkat Edilmesi Gerekenler}
+
+\begin{itemize}[leftmargin=1.5em]
+    \item API su an auth gerektirmez; public kullanimda dikkat gerekir.
+    \item Backtest run store memory tabanlidir; durable degildir.
+    \item AI session store memory tabanlidir; durable degildir.
+    \item AI asset store Cloud Run uzerinde \texttt{/tmp} tabanlidir; kalici veritabani yerine gecici depolama kullanir.
+    \item \texttt{/v1/backtests/start} thread tabanlidir; yatay olceklenmis ortamlarda coordination mekanizmasi yoktur.
+    \item \texttt{ticker=TEST} yalnızca test ve smoke test amacli ozel moddur.
+    \item Oracle wallet veya sifre eksikse fiyat endpointleri \texttt{500} ile fail eder.
+    \item Indikator hesaplama TA-Lib gerektirir.
+\end{itemize}
+
+\section{Web ve Mobile Entegrasyonu}
+
+\subsection{Web}
+
+Frontend tarafinda API base URL env uzerinden kullanilmalidir:
+
+\begin{lstlisting}[language=bash]
+NEXT_PUBLIC_EVALON_API_URL=https://evalon-backtest-api-474112640179.europe-west1.run.app
+\end{lstlisting}
+
+Mevcut Next.js katmaninda \texttt{/api/prices}, \texttt{/api/prices/batch} ve \texttt{/api/markets/list} route'lari bu URL'e proxy veya fetch yapacak sekilde kullanilir.
+
+\subsection{Mobile}
+
+Mobile tarafta build-time host verilmelidir:
+
+\begin{lstlisting}[language=bash]
+EVALON_API_BASE_URL=evalon-backtest-api-474112640179.europe-west1.run.app
+\end{lstlisting}
+
+Mobile tarafinda sadece host verilir; \texttt{https://} prefix'i kod tarafinda eklenir.
+
+\section{Hizli Baslangic}
+
+\subsection{Lokal smoke test}
+
+\begin{lstlisting}[language=bash]
+curl http://127.0.0.1:8000/health
+curl "http://127.0.0.1:8000/v1/prices?ticker=TEST&timeframe=1m&limit=2"
+curl "http://127.0.0.1:8000/v1/indicators/catalog"
+\end{lstlisting}
+
+\subsection{Cloud Run smoke test}
+
+\begin{lstlisting}[language=bash]
+bash scripts/smoke_test_cloud_run.sh \
+  https://evalon-backtest-api-474112640179.europe-west1.run.app
+\end{lstlisting}
+
+\subsection{OpenAPI ve Swagger}
+
+Servis kendi kendini belgeleyen iki onemli endpoint de sunar:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{/docs}
+    \item \texttt{/openapi.json}
+\end{itemize}
+
+Bu nedenle client gelistirirken en guncel saha isimleri icin Swagger/OpenAPI ciktisi de kontrol edilmelidir.
+
+\section{Sonuc}
+
+Bu servis tek basina su is akisini kapsar:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item BIST mum verisini cek
+    \item indikator hesapla
+    \item kural ve preset kataloglariyla strateji blueprint olustur
+    \item senkron veya asenkron backtest kos
+    \item event ve portfolio curve ciktilarini al
+    \item AI tarafinda strateji/rule/indikator taslagi olustur ve kaydet
+\end{itemize}
+
+Uretim ortaminda bir sonraki mantikli adim durable storage, auth ve observability katmanlarini eklemektir. Ancak mevcut haliyle servis, chart, screener, backtest ve AI prototipleme ihtiyaclarini tek API uzerinden karsilayabilecek durumda tasarlanmistir.
+
+\end{document}

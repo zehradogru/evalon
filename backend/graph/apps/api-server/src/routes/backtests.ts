@@ -1,7 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { getBacktestApiBase } from '../config/backtest-api.js';
 
 export const backtestRoutes: FastifyPluginAsync = async (app) => {
-    const backtestBase = (process.env.BACKTEST_API_BASE || 'http://localhost:8000/v1').replace(/\/$/, '');
+    const backtestBase = getBacktestApiBase();
 
     app.get('/backtests/catalog/rules', async (request, reply) => {
         return proxyJson(app, reply, `${backtestBase}/backtests/catalog/rules`, request.id);
