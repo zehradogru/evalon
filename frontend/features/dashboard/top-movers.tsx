@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { TrendingUp, TrendingDown, Flame, Snowflake, Loader2, Activity } from 'lucide-react'
+import { TrendingUp, TrendingDown, Flame, Snowflake, Loader2, Activity, RefreshCw } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import { MarketDataStatusChip } from '@/components/market-data-status-chip'
 import { cn } from '@/lib/utils'
 import { useMarketMovers, DashboardTicker } from '@/hooks/use-dashboard-data'
 
@@ -11,9 +13,13 @@ interface MoverCardProps {
     type: 'gainers' | 'losers'
     data: DashboardTicker[]
     isLoading: boolean
+    isWarming?: boolean
+    isError?: boolean
+    message?: string
+    onRetry?: () => void
 }
 
-function MoverCard({ type, data, isLoading }: MoverCardProps) {
+function MoverCard({ type, data, isLoading, isWarming, isError, message, onRetry }: MoverCardProps) {
     const router = useRouter()
     const isGainers = type === 'gainers'
 
@@ -49,9 +55,19 @@ function MoverCard({ type, data, isLoading }: MoverCardProps) {
                     <div className="flex items-center justify-center h-full">
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
+                ) : isError ? (
+                    <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+                        <span className="text-xs text-muted-foreground">
+                            {message || 'Market data is temporarily unavailable.'}
+                        </span>
+                        <Button size="sm" variant="outline" onClick={onRetry}>
+                            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                            Retry
+                        </Button>
+                    </div>
                 ) : data.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-                        No data available
+                        {isWarming ? 'Market data is starting...' : 'No data available'}
                     </div>
                 ) : (
                     <div className="space-y-1">
@@ -99,13 +115,33 @@ function MoverCard({ type, data, isLoading }: MoverCardProps) {
 }
 
 export function TopGainers() {
-    const { data, isLoading } = useMarketMovers()
-    return <MoverCard type="gainers" data={data?.topGainers || []} isLoading={isLoading} />
+    const { data, marketStatus, retryNow } = useMarketMovers()
+    return (
+        <MoverCard
+            type="gainers"
+            data={data?.topGainers || []}
+            isLoading={marketStatus.isInitialLoading}
+            isWarming={marketStatus.isWarming}
+            isError={marketStatus.source === 'error' && !marketStatus.hasUsableData}
+            message={marketStatus.errorMessage}
+            onRetry={() => void retryNow()}
+        />
+    )
 }
 
 export function TopLosers() {
-    const { data, isLoading } = useMarketMovers()
-    return <MoverCard type="losers" data={data?.topLosers || []} isLoading={isLoading} />
+    const { data, marketStatus, retryNow } = useMarketMovers()
+    return (
+        <MoverCard
+            type="losers"
+            data={data?.topLosers || []}
+            isLoading={marketStatus.isInitialLoading}
+            isWarming={marketStatus.isWarming}
+            isError={marketStatus.source === 'error' && !marketStatus.hasUsableData}
+            message={marketStatus.errorMessage}
+            onRetry={() => void retryNow()}
+        />
+    )
 }
 
 /**
@@ -113,7 +149,7 @@ export function TopLosers() {
  */
 export function MarketMovers() {
     const [activeTab, setActiveTab] = useState<'gainers' | 'losers'>('gainers')
-    const { data, isLoading } = useMarketMovers()
+    const { data, marketStatus, retryNow } = useMarketMovers()
     const router = useRouter()
 
     const items = activeTab === 'gainers'
@@ -131,6 +167,7 @@ export function MarketMovers() {
                 <div className="flex items-center gap-2">
                     <Activity className="h-4 w-4 text-primary" />
                     <h3 className="text-sm font-semibold">Market Movers</h3>
+                    <MarketDataStatusChip status={marketStatus} />
                 </div>
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'gainers' | 'losers')}>
                     <TabsList className="bg-secondary/50 p-0.5 h-7">
@@ -151,13 +188,23 @@ export function MarketMovers() {
             </div>
 
             <div className="flex-1 p-2 overflow-y-auto">
-                {isLoading ? (
+                {marketStatus.isInitialLoading ? (
                     <div className="flex items-center justify-center h-full">
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
+                ) : marketStatus.source === 'error' && !marketStatus.hasUsableData ? (
+                    <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+                        <span className="text-xs text-muted-foreground">
+                            {marketStatus.errorMessage || 'Market movers are temporarily unavailable.'}
+                        </span>
+                        <Button size="sm" variant="outline" onClick={() => void retryNow()}>
+                            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                            Retry
+                        </Button>
+                    </div>
                 ) : items.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-                        No data available
+                        {marketStatus.isWarming ? 'Market data is starting...' : 'No data available'}
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">

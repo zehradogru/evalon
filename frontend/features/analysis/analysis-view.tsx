@@ -31,7 +31,7 @@ function extractSeriesEntries(point: IndicatorSeriesPoint, seriesId: string) {
         .filter(([key, value]) => key !== 't' && typeof value === 'number')
         .map(([key, value]) => ({
             key: key === 'v' ? seriesId : `${seriesId}_${key}`,
-            value,
+            value: value as number,
         }))
 }
 
@@ -100,7 +100,7 @@ export function AnalysisView() {
         const seriesKeys: string[] = []
 
         indicatorsQuery.data?.indicators.forEach((series) => {
-            series.series.forEach((point) => {
+            ;(Array.isArray(series.series) ? series.series : []).forEach((point) => {
                 const row = rows.get(point.t) || { t: point.t }
                 extractSeriesEntries(point, series.id).forEach((entry) => {
                     row[entry.key] = entry.value

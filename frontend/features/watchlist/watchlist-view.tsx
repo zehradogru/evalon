@@ -3,17 +3,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
+import { MarketDataStatusChip } from '@/components/market-data-status-chip'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { useWatchlist } from '@/hooks/use-prices'
 import { useDashboardWatchlist } from '@/hooks/use-dashboard-data'
 import {
     useAddWatchlistTicker,
     useRemoveWatchlistTicker,
     useUserWatchlist,
 } from '@/hooks/use-user-watchlist'
-import { Loader2, Plus, Search, Trash2 } from 'lucide-react'
+import { Loader2, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 
 interface WatchlistViewProps {
     isWidget?: boolean
@@ -63,12 +63,10 @@ async function fetchWatchlistSuggestions(
 export function WatchlistView({ isWidget = false }: WatchlistViewProps) {
     const { data: userWatchlist } = useUserWatchlist()
     const {
-        data: watchlistRows,
-        isLoading: isRowsLoading,
-        isError: isRowsError,
-        error: rowsError,
-    } = useWatchlist()
-    const { data: quoteRows, isLoading: isQuotesLoading } = useDashboardWatchlist()
+        data: quoteRows,
+        marketStatus,
+        retryNow,
+    } = useDashboardWatchlist()
 
     const addTickerMutation = useAddWatchlistTicker()
     const removeTickerMutation = useRemoveWatchlistTicker()
@@ -112,7 +110,8 @@ export function WatchlistView({ isWidget = false }: WatchlistViewProps) {
     )
 
     const isBusy = addTickerMutation.isPending || removeTickerMutation.isPending
-    const isLoading = isRowsLoading || isQuotesLoading
+    const isLoading = marketStatus.isInitialLoading
+    const watchlistRows = quoteRows
 
     const handleAddTicker = async (ticker: string) => {
         setFeedback(null)
@@ -151,9 +150,21 @@ export function WatchlistView({ isWidget = false }: WatchlistViewProps) {
                     <div className="flex flex-col gap-3">
                         <div className="flex items-center justify-between">
                             <h1 className="text-xl font-bold">My Watchlist</h1>
-                            <span className="text-xs text-muted-foreground">
-                                {watchlistTickers.length} / 30
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                    {watchlistTickers.length} / 30
+                                </span>
+                                <MarketDataStatusChip
+                                    status={marketStatus}
+                                    labels={{
+                                        refreshing: 'Yenileniyor',
+                                        warming: 'Hazirlaniyor',
+                                        stale: 'Gecikmeli',
+                                        partial: 'Kismi veri',
+                                        error: 'Baglanti sorunu',
+                                    }}
+                                />
+                            </div>
                         </div>
                         <div className="relative max-w-md">
                             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -208,9 +219,21 @@ export function WatchlistView({ isWidget = false }: WatchlistViewProps) {
                     <span className="font-semibold text-sm flex items-center gap-2">
                         My Watchlist
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
-                        {watchlistTickers.length} tickers
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground">
+                            {watchlistTickers.length} tickers
+                        </span>
+                        <MarketDataStatusChip
+                            status={marketStatus}
+                            labels={{
+                                refreshing: 'Yenileniyor',
+                                warming: 'Hazirlaniyor',
+                                stale: 'Gecikmeli',
+                                partial: 'Kismi veri',
+                                error: 'Baglanti sorunu',
+                            }}
+                        />
+                    </div>
                 </div>
             )}
 
@@ -219,11 +242,17 @@ export function WatchlistView({ isWidget = false }: WatchlistViewProps) {
                     <div className="flex items-center justify-center h-full">
                         <Loader2 className="h-5 w-5 animate-spin text-primary" />
                     </div>
-                ) : isRowsError ? (
-                    <div className="p-6 text-sm text-destructive text-center">
-                        {rowsError instanceof Error
-                            ? rowsError.message
-                            : 'Watchlist could not be loaded.'}
+                ) : marketStatus.source === 'error' && !marketStatus.hasUsableData ? (
+                    <div className="p-6 text-center">
+                        <div className="flex flex-col items-center gap-3">
+                            <p className="text-sm text-destructive">
+                                {marketStatus.errorMessage || 'Watchlist could not be loaded.'}
+                            </p>
+                            <Button size="sm" variant="outline" onClick={() => void retryNow()}>
+                                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                                Tekrar Dene
+                            </Button>
+                        </div>
                     </div>
                 ) : (
                     <table className="w-full text-sm text-left">
@@ -362,7 +391,9 @@ export function WatchlistView({ isWidget = false }: WatchlistViewProps) {
                                         colSpan={isWidget ? 3 : 8}
                                         className="py-8 text-center text-muted-foreground text-sm"
                                     >
-                                        Watchlist is empty. Add a ticker to begin.
+                                        {marketStatus.isWarming
+                                            ? 'Piyasa verisi hazirlaniyor.'
+                                            : 'Watchlist is empty. Add a ticker to begin.'}
                                     </td>
                                 </tr>
                             )}

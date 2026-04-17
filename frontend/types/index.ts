@@ -96,6 +96,7 @@ export interface PriceResponse {
     timeframe: string
     rows: number
     data: PriceBar[]
+    meta?: MarketDataMeta
 }
 
 export type PricesResponse = PriceResponse
@@ -210,6 +211,32 @@ export interface MarketSnapshotMeta {
 
 export type MarketListApiMeta = MarketSnapshotMeta
 
+export type MarketDataSource =
+    | 'live'
+    | 'cache'
+    | 'stale-cache'
+    | 'warming'
+    | 'empty'
+    | 'error'
+
+export type MarketDataEmptyReason =
+    | 'no-data'
+    | 'unsupported-timeframe'
+    | 'warming'
+    | 'unavailable'
+
+export interface MarketDataMeta {
+    stale: boolean
+    warming: boolean
+    partial: boolean
+    hasUsableData: boolean
+    source: MarketDataSource
+    snapshotAgeMs: number | null
+    failedTickers?: string[]
+    message?: string
+    emptyReason?: MarketDataEmptyReason
+}
+
 export interface PaginatedListResponse<T> {
     items: T[]
     total: number
@@ -219,6 +246,7 @@ export interface PaginatedListResponse<T> {
     snapshotAgeMs?: number | null
     stale?: boolean
     warming?: boolean
+    meta?: MarketDataMeta
 }
 
 export interface BacktestRuleCatalogFamily {

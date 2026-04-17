@@ -41,3 +41,6 @@
 # Models and Training
 model_train/
 *.pdf
+
+# Local docs
+API_KULLANIM_DOKUMANI.pdf

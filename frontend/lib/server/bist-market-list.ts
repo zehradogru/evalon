@@ -2,6 +2,7 @@ import { BIST_AVAILABLE, TICKER_NAMES } from '@/config/markets'
 import { DEFAULT_EVALON_API_URL } from '@/lib/evalon'
 import type {
     ListSortDirection,
+    MarketDataMeta,
     MarketListItem,
     MarketListQuery,
     MarketListSortField,
@@ -44,6 +45,8 @@ interface SnapshotState {
     snapshotAgeMs: number | null
     stale: boolean
     warming: boolean
+    source: MarketDataMeta['source']
+    message?: string
 }
 
 let cacheEntry: CacheEntry | null = null
@@ -412,6 +415,7 @@ async function getSnapshotState(): Promise<SnapshotState> {
                 snapshotAgeMs: ageMs,
                 stale: false,
                 warming: false,
+                source: 'cache',
             }
         }
 
@@ -422,6 +426,11 @@ async function getSnapshotState(): Promise<SnapshotState> {
             snapshotAgeMs: ageMs,
             stale: true,
             warming: ageMs > SNAPSHOT_STALE_TTL_MS,
+            source: 'stale-cache',
+            message:
+                ageMs > SNAPSHOT_STALE_TTL_MS
+                    ? 'Piyasa verisi yenileniyor.'
+                    : undefined,
         }
     }
 
@@ -431,6 +440,8 @@ async function getSnapshotState(): Promise<SnapshotState> {
             snapshotAgeMs: null,
             stale: false,
             warming: true,
+            source: 'warming',
+            message: 'Piyasa verisi hazirlaniyor.',
         }
     }
 
@@ -445,14 +456,22 @@ async function getSnapshotState(): Promise<SnapshotState> {
             snapshotAgeMs: getSnapshotAgeMs(warmedSnapshot),
             stale: false,
             warming: false,
+            source: 'live',
         }
     } catch (error) {
         console.warn('Market snapshot warm-up timed out or failed:', error)
+        const message =
+            error instanceof Error ? error.message : 'Piyasa verisi alinamadi.'
+        const timedOut = message.toLowerCase().includes('timed out')
         return {
             entry: null,
             snapshotAgeMs: null,
             stale: false,
-            warming: true,
+            warming: timedOut,
+            source: timedOut ? 'warming' : 'error',
+            message: timedOut
+                ? 'Piyasa verisi hazirlaniyor.'
+                : 'Piyasa verisi gecici olarak alinamiyor.',
         }
     }
 }
@@ -464,6 +483,16 @@ export async function getPaginatedMarketList(
 
     if (!snapshotState.entry) {
         const nowIso = new Date().toISOString()
+        const meta: MarketDataMeta = {
+            stale: false,
+            warming: snapshotState.warming,
+            partial: false,
+            hasUsableData: false,
+            source: snapshotState.source,
+            snapshotAgeMs: null,
+            message: snapshotState.message,
+            emptyReason: snapshotState.warming ? 'warming' : 'unavailable',
+        }
         return {
             items: [],
             total: 0,
@@ -472,7 +501,8 @@ export async function getPaginatedMarketList(
             snapshotAt: nowIso,
             snapshotAgeMs: null,
             stale: false,
-            warming: true,
+            warming: snapshotState.warming,
+            meta,
         }
     }
 
@@ -496,5 +526,19 @@ export async function getPaginatedMarketList(
         snapshotAgeMs: snapshotState.snapshotAgeMs,
         stale: snapshotState.stale,
         warming: snapshotState.warming,
+        meta: {
+            stale: snapshotState.stale,
+            warming: snapshotState.warming,
+            partial: snapshotState.entry.items.some((item) => item.price === null),
+            hasUsableData: sorted.length > 0,
+            source: snapshotState.source,
+            snapshotAgeMs: snapshotState.snapshotAgeMs,
+            message:
+                snapshotState.message ||
+                (snapshotState.stale
+                    ? 'Piyasa verisi guncelleniyor.'
+                    : undefined),
+            emptyReason: sorted.length > 0 ? undefined : 'no-data',
+        },
     }
 }

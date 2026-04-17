@@ -2,12 +2,14 @@
 
 import { useWatchlist } from '@/hooks/use-prices'
 import { MiniChart } from './mini-chart'
+import { Button } from '@/components/ui/button'
+import { MarketDataStatusChip } from '@/components/market-data-status-chip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Star, TrendingUp, TrendingDown } from 'lucide-react'
+import { RefreshCw, Star, TrendingUp, TrendingDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function WatchlistWidget() {
-    const { data: watchlist, isLoading, error } = useWatchlist()
+    const { data: watchlist, marketStatus, retryNow } = useWatchlist()
 
     return (
         <Card className="bg-card border-border hover:border-sidebar-primary/30 transition-all duration-300">
@@ -26,11 +28,21 @@ export function WatchlistWidget() {
                             </p>
                         </div>
                     </div>
+                    <MarketDataStatusChip
+                        status={marketStatus}
+                        labels={{
+                            refreshing: 'Yenileniyor',
+                            warming: 'Hazirlaniyor',
+                            stale: 'Gecikmeli',
+                            partial: 'Kismi veri',
+                            error: 'Baglanti sorunu',
+                        }}
+                    />
                 </div>
             </CardHeader>
 
             <CardContent className="space-y-2 pt-3">
-                {isLoading ? (
+                {marketStatus.isInitialLoading ? (
                     // Loading skeleton
                     [...Array(4)].map((_, i) => (
                         <div
@@ -47,9 +59,15 @@ export function WatchlistWidget() {
                             <div className="w-20 h-8 bg-muted/30 rounded" />
                         </div>
                     ))
-                ) : error ? (
-                    <div className="text-center py-8 text-destructive text-sm">
-                        Veri yüklenemedi
+                ) : marketStatus.source === 'error' && !marketStatus.hasUsableData ? (
+                    <div className="flex flex-col items-center gap-3 py-8 text-center">
+                        <div className="text-destructive text-sm">
+                            {marketStatus.errorMessage || 'Veri yüklenemedi'}
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => void retryNow()}>
+                            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                            Tekrar Dene
+                        </Button>
                     </div>
                 ) : (
                     watchlist?.map((item) => {

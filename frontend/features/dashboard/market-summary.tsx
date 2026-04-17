@@ -1,8 +1,10 @@
 'use client'
 
 import { useMemo } from 'react'
-import { TrendingUp, TrendingDown, Minus, BarChart3 } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, BarChart3, RefreshCw } from 'lucide-react'
 import { useMarketMovers } from '@/hooks/use-dashboard-data'
+import { Button } from '@/components/ui/button'
+import { MarketDataStatusChip } from '@/components/market-data-status-chip'
 import { cn } from '@/lib/utils'
 
 function StatCard({ label, value, positive, icon }: {
@@ -30,7 +32,7 @@ function StatCard({ label, value, positive, icon }: {
 }
 
 export function MarketSummary() {
-  const { data, isLoading } = useMarketMovers()
+  const { data, marketStatus, retryNow } = useMarketMovers()
 
   const stats = useMemo(() => {
     const all = data?.all || []
@@ -50,12 +52,29 @@ export function MarketSummary() {
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50">
         <BarChart3 className="h-4 w-4 text-primary" />
         <h3 className="text-sm font-semibold">Market Overview</h3>
+        <MarketDataStatusChip status={marketStatus} className="ml-auto" />
       </div>
 
       <div className="flex-1 p-4 flex flex-col gap-4">
-        {isLoading || !stats ? (
+        {marketStatus.isInitialLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <span className="text-xs text-muted-foreground">Loading...</span>
+          </div>
+        ) : marketStatus.source === 'error' && !marketStatus.hasUsableData ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+            <span className="text-xs text-muted-foreground">
+              {marketStatus.errorMessage || 'Market breadth is temporarily unavailable.'}
+            </span>
+            <Button size="sm" variant="outline" onClick={() => void retryNow()}>
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              Retry
+            </Button>
+          </div>
+        ) : !stats ? (
+          <div className="flex-1 flex items-center justify-center">
+            <span className="text-xs text-muted-foreground">
+              {marketStatus.isWarming ? 'Market data is starting...' : 'No market data available'}
+            </span>
           </div>
         ) : (
           <>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
     fetchPrices,
     fetchMultipleTickers,
@@ -12,17 +12,37 @@ import {
 import { WatchlistItem } from '@/types'
 import { isMarketCurrentlyOpen } from '@/hooks/use-dashboard-data'
 import { useUserWatchlist } from '@/hooks/use-user-watchlist'
+import { buildMarketQueryStatus, isRetriableMarketError } from '@/lib/market-data'
 
 /**
  * Hook to fetch price data for a single ticker
  */
 export function usePrices(ticker: string, timeframe: Timeframe, limit: number = 100) {
-    return useQuery({
+    const query = useQuery({
         queryKey: ['prices', ticker, timeframe, limit],
         queryFn: () => fetchPrices({ ticker, timeframe, limit }),
         staleTime: 1000 * 60, // 1 minute
+        placeholderData: keepPreviousData,
+        retry: (failureCount, error) =>
+            isRetriableMarketError(error) && failureCount < 2,
+        retryDelay: (attemptIndex) => Math.min(1000 * (attemptIndex + 1), 4000),
         refetchInterval: () => isMarketCurrentlyOpen() ? 1000 * 60 * 5 : false, // 5 min when open, stop when closed
     })
+
+    const marketStatus = buildMarketQueryStatus({
+        meta: query.data?.meta,
+        hasUsableData: (query.data?.data?.length ?? 0) > 0,
+        isLoading: query.isLoading,
+        isFetching: query.isFetching,
+        error: query.error,
+    })
+
+    return {
+        ...query,
+        marketStatus,
+        ...marketStatus,
+        retryNow: query.refetch,
+    }
 }
 
 /**
@@ -46,6 +66,7 @@ export function usePortfolioChart(period: '1D' | '1W' | '1M' = '1D') {
         queryKey: ['portfolio-chart', period],
         queryFn: () => fetchPrices({ ticker: 'THYAO', timeframe, limit }),
         staleTime: 1000 * 60, // 1 minute
+        placeholderData: keepPreviousData,
     })
 }
 
@@ -80,16 +101,29 @@ export function useWatchlist() {
                     changePercent,
                     priceHistory,
                 }
-            })
+            }).filter((item) => item.price > 0 || item.priceHistory.length > 0)
         },
         enabled: tickers.length > 0,
         staleTime: 1000 * 30, // 30 seconds for more frequent updates
+        placeholderData: keepPreviousData,
+        retry: (failureCount, error) =>
+            isRetriableMarketError(error) && failureCount < 2,
         refetchInterval: () => isMarketCurrentlyOpen() ? 1000 * 60 : false, // 1 min when open, stop when closed
+    })
+
+    const marketStatus = buildMarketQueryStatus({
+        hasUsableData: (watchlistQuery.data?.length ?? 0) > 0,
+        isLoading: watchlistQuery.isLoading,
+        isFetching: watchlistQuery.isFetching,
+        error: watchlistQuery.error,
     })
 
     return {
         ...watchlistQuery,
         data: watchlistQuery.data ?? [],
         isLoading: isWatchlistLoading || watchlistQuery.isLoading,
+        marketStatus,
+        ...marketStatus,
+        retryNow: watchlistQuery.refetch,
     }
 }
