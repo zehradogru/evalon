@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import base64
 import io
+import logging
 import os
 import tempfile
 import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Request

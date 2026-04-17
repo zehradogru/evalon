@@ -595,7 +595,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
         return { result, activeId, userMsg: payload.userMsg }
       } catch (err) {
         const msg = err instanceof Error ? err.message.toLowerCase() : ''
-        if (msg.includes('not found') || msg.includes('404') || msg.includes('400')) {
+        if (msg.includes('not found') || msg.includes('session') || msg.includes('404') || msg.includes('400')) {
           // Session expired on backend — recreate transparently
           const fresh = await aiService.createSession(user!.id, sessionTitle)
           activeId = fresh.sessionId

@@ -11,5 +11,6 @@ export async function POST(
         pathname: `/v1/ai/sessions/${sessionId}/messages`,
         method: 'POST',
         body,
+        timeoutMs: 120_000,
     })
 }
