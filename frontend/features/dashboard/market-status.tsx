@@ -1,12 +1,18 @@
 'use client'
 
+import Link from 'next/link'
 import { Clock, CircleDot, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useMarketStatus, useDashboardRefresh } from '@/hooks/use-dashboard-data'
+import {
+    useBackendHealth,
+    useDashboardRefresh,
+    useMarketStatus,
+} from '@/hooks/use-dashboard-data'
 import { useState } from 'react'
 
 export function MarketStatus() {
     const { data: status, isLoading } = useMarketStatus()
+    const { data: backendHealth } = useBackendHealth()
     const { refresh } = useDashboardRefresh()
     const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -26,7 +32,7 @@ export function MarketStatus() {
     }
 
     return (
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
             {/* Market Status Badge */}
             <div
                 className={cn(
@@ -61,6 +67,39 @@ export function MarketStatus() {
             <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Clock className="h-3 w-3" />
                 <span className="text-[11px] font-medium">{status.currentTime} TR</span>
+            </div>
+
+            <div
+                className={cn(
+                    'flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[11px] font-medium',
+                    backendHealth?.isHealthy
+                        ? 'border-chart-2/30 bg-chart-2/10 text-chart-2'
+                        : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+                )}
+            >
+                <CircleDot className="h-3 w-3" />
+                API {backendHealth?.isHealthy ? 'READY' : 'CHECKING'}
+            </div>
+
+            <div className="flex items-center gap-1.5">
+                <Link
+                    href="/analysis"
+                    className="rounded-lg bg-secondary px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-secondary/80"
+                >
+                    Indicator Lab
+                </Link>
+                <Link
+                    href="/backtest"
+                    className="rounded-lg bg-secondary px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-secondary/80"
+                >
+                    Backtest
+                </Link>
+                <Link
+                    href="/llm"
+                    className="rounded-lg bg-secondary px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-secondary/80"
+                >
+                    Evalon AI
+                </Link>
             </div>
 
             {/* Refresh Button */}

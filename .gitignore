@@ -36,3 +36,7 @@ denemelerrr/
 
 # macOS
 .DS_Store
+
+# Models and Training
+model_train/
+*.pdf

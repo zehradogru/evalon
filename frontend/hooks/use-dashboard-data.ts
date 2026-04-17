@@ -184,6 +184,7 @@ export function useDashboardRefresh() {
             queryClient.invalidateQueries({ queryKey: ['dashboard-watchlist'] }),
             queryClient.invalidateQueries({ queryKey: ['market-snapshot'] }),
             queryClient.invalidateQueries({ queryKey: ['prices'] }),
+            queryClient.invalidateQueries({ queryKey: ['backend-health'] }),
         ])
     }
 
@@ -256,5 +257,28 @@ export function useMarketStatus() {
         },
         staleTime: 1000 * 30, // 30 seconds
         refetchInterval: 1000 * 60, // Update every minute
+    })
+}
+
+export function useBackendHealth() {
+    return useQuery({
+        queryKey: ['backend-health'],
+        queryFn: async () => {
+            const response = await fetch('/api/health', {
+                cache: 'no-store',
+            })
+
+            if (!response.ok) {
+                throw new Error('Backend health request failed')
+            }
+
+            const payload = (await response.json()) as { status?: string }
+            return {
+                isHealthy: payload.status === 'ok',
+                status: payload.status || 'unknown',
+            }
+        },
+        staleTime: 60 * 1000,
+        refetchInterval: 5 * 60 * 1000,
     })
 }

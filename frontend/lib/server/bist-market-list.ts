@@ -1,4 +1,5 @@
 import { BIST_AVAILABLE, TICKER_NAMES } from '@/config/markets'
+import { DEFAULT_EVALON_API_URL } from '@/lib/evalon'
 import type {
     ListSortDirection,
     MarketListItem,
@@ -8,7 +9,8 @@ import type {
     PriceBar,
 } from '@/types'
 
-const EVALON_API_URL = process.env.NEXT_PUBLIC_EVALON_API_URL || 'https://evalon-mu.vercel.app'
+const EVALON_API_URL =
+    process.env.NEXT_PUBLIC_EVALON_API_URL || DEFAULT_EVALON_API_URL
 
 const SNAPSHOT_FRESH_TTL_MS = 30 * 1000
 const SNAPSHOT_STALE_TTL_MS = 5 * 60 * 1000

@@ -1,12 +1,10 @@
-'use client';
+import { redirect } from 'next/navigation'
 
-import { DashboardShell } from '@/components/layout/dashboard-shell';
-import { StockDetailView } from '@/features/stocks/stock-detail-view';
-
-export default function StockPage({ params }: { params: { ticker: string } }) {
-    return (
-        <DashboardShell>
-            <StockDetailView ticker={params.ticker} />
-        </DashboardShell>
-    );
+export default async function StockPage({
+    params,
+}: {
+    params: Promise<{ ticker: string }>
+}) {
+    const { ticker } = await params
+    redirect(`/markets/${ticker.toUpperCase()}`)
 }

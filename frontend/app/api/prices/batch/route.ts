@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { DEFAULT_EVALON_API_URL } from '@/lib/evalon'
 import { PriceBar } from '@/types'
 
-const EVALON_API_URL = process.env.NEXT_PUBLIC_EVALON_API_URL || 'https://evalon-mu.vercel.app'
+const EVALON_API_URL =
+    process.env.NEXT_PUBLIC_EVALON_API_URL || DEFAULT_EVALON_API_URL
 
 interface TickerResult {
     ticker: string
