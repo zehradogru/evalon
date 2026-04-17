@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MainChart } from '@/features/dashboard/main-chart'
 import { LiveWatchlist } from '@/features/dashboard/live-watchlist'
 import { MarketMovers } from '@/features/dashboard/top-movers'
@@ -8,13 +8,47 @@ import { MarketSummary } from '@/features/dashboard/market-summary'
 import { MarketStatus } from '@/features/dashboard/market-status'
 import { MarketNews } from '@/features/dashboard/market-news'
 
+const DASHBOARD_LAST_SELECTION_KEY = 'dashboard:last-selection'
+
 export function DashboardView() {
     const [selectedTicker, setSelectedTicker] = useState('THYAO')
     const [selectedName, setSelectedName] = useState('Turkish Airlines')
 
+    useEffect(() => {
+        try {
+            const saved = window.localStorage.getItem(DASHBOARD_LAST_SELECTION_KEY)
+            if (!saved) return
+
+            const parsed = JSON.parse(saved) as {
+                ticker?: string
+                name?: string
+            }
+
+            if (typeof parsed.ticker === 'string' && parsed.ticker.trim().length > 0) {
+                setSelectedTicker(parsed.ticker)
+                setSelectedName(
+                    typeof parsed.name === 'string' && parsed.name.trim().length > 0
+                        ? parsed.name
+                        : parsed.ticker
+                )
+            }
+        } catch {
+            // Ignore invalid localStorage payloads and keep defaults.
+        }
+    }, [])
+
     const handleSelectTicker = (ticker: string, name: string) => {
         setSelectedTicker(ticker)
         setSelectedName(name)
+
+        try {
+            window.localStorage.setItem(
+                DASHBOARD_LAST_SELECTION_KEY,
+                JSON.stringify({ ticker, name })
+            )
+        } catch {
+            // Ignore storage write failures.
+        }
     }
 
     return (

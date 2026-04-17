@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState, type RefObject } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQuery } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -10,7 +11,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
     Activity,
-    Bitcoin,
     ChevronDown,
     ChevronUp,
     ChevronsUpDown,
@@ -25,7 +25,12 @@ import type { MarketQueryStatus } from '@/lib/market-data'
 import { cn } from '@/lib/utils'
 import { useInfiniteLoad } from '@/hooks/use-infinite-load'
 import { useMarketList } from '@/hooks/use-market-list'
-import type { ListSortDirection, MarketListItem, MarketListSortField } from '@/types'
+import type {
+    ListSortDirection,
+    MarketListItem,
+    MarketListSortField,
+    MarketOverviewCard,
+} from '@/types'
 
 type SortField = Exclude<MarketListSortField, 'marketCap' | 'pe' | 'eps' | 'sector'>
 type SortDirection = ListSortDirection
@@ -472,39 +477,87 @@ function MarketTable({
 }
 
 function MarketSummaryCard({
-    title,
+    card,
+    defaultTitle,
     icon,
     color,
-    data,
+    isLoading,
 }: {
-    title: string
+    card?: MarketOverviewCard
+    defaultTitle: string
     icon: React.ReactNode
     color: string
-    data: { value: number; change: number }
+    isLoading: boolean
 }) {
+    const title = card?.label || defaultTitle
+    const hasValue = typeof card?.value === 'number'
+    const hasChange = typeof card?.changePct === 'number'
+    const numericChangePct = hasChange && card ? card.changePct : null
+    const sourceLabel = (() => {
+        if (!card) return isLoading ? 'yenileniyor' : 'veri alinamiyor'
+        if (card.source === 'tcmb-official-daily') return 'resmi gunluk kur'
+        if (card.source === 'error-yahoo-429') return 'kaynak limit (yahoo 429)'
+        if (card.source === 'error') return 'veri alinamiyor'
+        if (card.stale || card.source.startsWith('stale-cache')) return 'gecikmeli'
+        return 'canli'
+    })()
+
+    const numericValue = hasValue && card ? card.value : null
+    const formattedValue = typeof numericValue === 'number'
+        ? numericValue.toLocaleString('tr-TR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: card?.currency === 'TRY' ? 2 : 3,
+        })
+        : '-'
+
     return (
-        <Card className="p-5 bg-card border-border hover:border-primary/50 transition-all cursor-pointer group">
+        <Card className="p-5 bg-card border-border hover:border-primary/50 transition-all cursor-default group">
             <div className="flex justify-between items-start mb-4">
                 <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105', color)}>
                     <div className="text-white">{icon}</div>
                 </div>
                 <div className="flex flex-col items-end">
-                    <span className={cn('text-sm font-bold', data.change >= 0 ? 'text-chart-2' : 'text-destructive')}>
-                        {data.change > 0 ? '+' : ''}
-                        {data.change}%
+                    <span
+                        className={cn(
+                            'text-sm font-bold',
+                            !hasChange
+                                ? 'text-muted-foreground'
+                                : (numericChangePct ?? 0) >= 0
+                                    ? 'text-chart-2'
+                                    : 'text-destructive'
+                        )}
+                    >
+                        {typeof numericChangePct === 'number'
+                            ? `${numericChangePct > 0 ? '+' : ''}${numericChangePct.toFixed(2)}%`
+                            : '--'}
                     </span>
-                    <span className="text-xs text-muted-foreground">24h Change</span>
+                    <span className="text-xs text-muted-foreground">24h Degisim</span>
                 </div>
             </div>
             <div className="space-y-1">
                 <h3 className="text-base font-medium text-muted-foreground">{title}</h3>
                 <p className="text-2xl font-bold tracking-tight" suppressHydrationWarning>
-                    {data.value.toLocaleString('tr-TR')}
+                    {formattedValue}
+                </p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                    {card?.currency || (defaultTitle.includes('USD') ? 'USD' : 'TRY')} | {sourceLabel}
                 </p>
             </div>
         </Card>
     )
 }
+
+const OVERVIEW_LAYOUT: Array<{
+    id: MarketOverviewCard['id']
+    title: string
+    color: string
+    icon: React.ReactNode
+}> = [
+        { id: 'bist100', title: 'BIST 100', color: 'bg-chart-5', icon: <TrendingUp size={20} /> },
+        { id: 'bist30', title: 'BIST 30', color: 'bg-primary', icon: <Activity size={20} /> },
+        { id: 'xauusd', title: 'Ons Altın / USD', color: 'bg-chart-4', icon: <DollarSign size={20} /> },
+        { id: 'usdtry', title: 'USD / TRY', color: 'bg-chart-2', icon: <DollarSign size={20} /> },
+    ]
 
 export function MarketsView() {
     const [sortField, setSortField] = useState<SortField>('changePct')
@@ -529,6 +582,29 @@ export function MarketsView() {
 
     const rows = useMemo(() => data?.pages.flatMap((page) => page.items) || [], [data])
     const total = data?.pages[0]?.total
+    const overviewQuery = useQuery<{ cards: MarketOverviewCard[] }>({
+        queryKey: ['market-overview-cards'],
+        queryFn: async () => {
+            const response = await fetch('/api/market-overview', { cache: 'no-store' })
+            if (!response.ok) {
+                throw new Error('Overview kart verisi alinamadi.')
+            }
+            return response.json() as Promise<{ cards: MarketOverviewCard[] }>
+        },
+        staleTime: 60 * 1000,
+        refetchInterval: 5 * 60 * 1000,
+        retry: 1,
+    })
+
+    const overviewCards = useMemo(() => {
+        const byId = new Map(
+            (overviewQuery.data?.cards || []).map((card) => [card.id, card] as const)
+        )
+        return OVERVIEW_LAYOUT.map((item) => ({
+            ...item,
+            card: byId.get(item.id),
+        }))
+    }, [overviewQuery.data?.cards])
 
     const handleSortChange = useCallback(
         (field: SortField) => {
@@ -563,30 +639,16 @@ export function MarketsView() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-                    <MarketSummaryCard
-                        title="BIST 100"
-                        icon={<TrendingUp size={20} />}
-                        color="bg-chart-5"
-                        data={{ value: 9250.45, change: 1.25 }}
-                    />
-                    <MarketSummaryCard
-                        title="NASDAQ"
-                        icon={<Activity size={20} />}
-                        color="bg-primary"
-                        data={{ value: 16200.8, change: 0.85 }}
-                    />
-                    <MarketSummaryCard
-                        title="Bitcoin"
-                        icon={<Bitcoin size={20} />}
-                        color="bg-chart-4"
-                        data={{ value: 65200, change: 2.1 }}
-                    />
-                    <MarketSummaryCard
-                        title="EUR/USD"
-                        icon={<DollarSign size={20} />}
-                        color="bg-chart-2"
-                        data={{ value: 1.085, change: 0.1 }}
-                    />
+                    {overviewCards.map((item) => (
+                        <MarketSummaryCard
+                            key={item.id}
+                            defaultTitle={item.title}
+                            icon={item.icon}
+                            color={item.color}
+                            card={item.card}
+                            isLoading={overviewQuery.isLoading}
+                        />
+                    ))}
                 </div>
             </div>
 
