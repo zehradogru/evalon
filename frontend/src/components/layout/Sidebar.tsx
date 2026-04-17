@@ -31,7 +31,7 @@ const tools = [
     { name: 'Alerts', icon: Bell, path: '/alerts', isWidget: true },
     { name: 'News', icon: Newspaper, path: '/news', isWidget: true },
     { name: 'Screeners', icon: Search, path: '/screener', isWidget: true },
-    { name: 'Evalon AI', icon: Lightbulb, path: '/llm', isWidget: true },
+    { name: 'Evalon AI', icon: Lightbulb, path: '/ai', isWidget: true },
     { name: 'Calendar', icon: Calendar, path: '/calendar', isWidget: true },
     { name: 'Notifications', icon: MessageSquare, path: '/notifications', isWidget: true },
 ];

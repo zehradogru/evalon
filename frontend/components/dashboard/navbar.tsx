@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Search, Bell, Menu, ChevronDown, Monitor, BarChart2, GitBranch, Cpu, Globe, List, Activity, Users, Newspaper } from 'lucide-react'
+import { Search, Bell, Menu, ChevronDown, Monitor, BarChart2, GitBranch, Globe, List, Activity, Users, Newspaper, Sparkles } from 'lucide-react'
 import { useAuthStore } from '@/store/use-auth-store'
 import { authService } from '@/services/auth.service'
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,6 @@ const menuItems = [
       { href: '/analysis', label: 'Analysis', icon: BarChart2 },
       { href: '/backtest', label: 'Backtest', icon: Activity },
       { href: '/strategy', label: 'Strategy', icon: GitBranch },
-      { href: '/llm', label: 'AI Terminal', icon: Cpu },
     ]
   },
   {
@@ -35,6 +34,11 @@ const menuItems = [
   {
     label: 'Community',
     href: '/community',
+  },
+  {
+    label: 'Evalon AI',
+    href: '/ai',
+    highlight: true,
   },
   {
     label: 'More',
@@ -227,10 +231,14 @@ export function Navbar() {
                 >
                   <button
                     className={cn(
-                      "px-4 py-2 text-sm font-medium transition-colors rounded-md hover:bg-secondary/50 flex items-center gap-1 h-10",
-                      isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                      "px-4 py-2 text-sm font-medium transition-colors rounded-md flex items-center gap-1.5 h-10",
+                      item.highlight
+                        ? "text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 hover:from-blue-300 hover:to-purple-300"
+                        : "hover:bg-secondary/50",
+                      !item.highlight && (isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground")
                     )}
                   >
+                    {item.highlight && <Sparkles size={13} className="text-blue-400 flex-shrink-0" />}
                     {item.label}
                     {item.items && <ChevronDown size={14} className="mt-0.5 opacity-50" />}
                   </button>

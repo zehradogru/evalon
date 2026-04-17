@@ -1,12 +1,10 @@
-'use client';
-
 import { DashboardShell } from '@/components/layout/dashboard-shell';
-import { LLMView } from '@/features/llm/llm-view';
+import { AiAssistantView } from '@/features/ai-assistant/ai-assistant-view';
 
-export default function LLMPage() {
+export default function AiPage() {
     return (
         <DashboardShell>
-            <LLMView />
+            <AiAssistantView />
         </DashboardShell>
     );
 }

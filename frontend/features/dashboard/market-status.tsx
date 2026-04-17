@@ -95,7 +95,7 @@ export function MarketStatus() {
                     Backtest
                 </Link>
                 <Link
-                    href="/llm"
+                    href="/ai"
                     className="rounded-lg bg-secondary px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-secondary/80"
                 >
                     Evalon AI
