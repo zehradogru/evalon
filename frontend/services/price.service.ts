@@ -5,6 +5,32 @@ import { FetchPricesParams, PriceBar, PriceResponse, Timeframe } from '@/types'
 export type { Timeframe }
 export { TICKER_NAMES }
 
+async function readErrorPayload(response: Response): Promise<string> {
+    try {
+        const payload = await response.json()
+        if (
+            payload &&
+            typeof payload === 'object' &&
+            'detail' in payload &&
+            typeof payload.detail === 'string'
+        ) {
+            return payload.detail
+        }
+        if (
+            payload &&
+            typeof payload === 'object' &&
+            'error' in payload &&
+            typeof payload.error === 'string'
+        ) {
+            return payload.error
+        }
+    } catch {
+        // Ignore JSON parsing failures and fall back to status text.
+    }
+
+    return response.statusText || 'Price request failed'
+}
+
 export async function fetchPrices({
     ticker,
     timeframe,
@@ -19,7 +45,11 @@ export async function fetchPrices({
     const response = await fetch(url)
 
     if (!response.ok) {
-        throw new Error(`Failed to fetch prices for ${ticker}: ${response.statusText}`)
+        const error = new Error(
+            `Failed to fetch prices for ${ticker}: ${await readErrorPayload(response)}`
+        ) as Error & { status?: number }
+        error.status = response.status
+        throw error
     }
 
     const data: PriceResponse = await response.json()

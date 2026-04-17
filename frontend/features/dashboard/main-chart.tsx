@@ -9,7 +9,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { TrendingUp, TrendingDown, Maximize2, Minus, Loader2 } from 'lucide-react'
+import { TrendingUp, TrendingDown, Maximize2, Minus, Loader2, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { MarketDataStatusChip } from '@/components/market-data-status-chip'
 import { cn } from '@/lib/utils'
 import { usePrices } from '@/hooks/use-prices'
 import type { Timeframe } from '@/types'
@@ -37,19 +39,23 @@ interface ChartDataPoint {
   volume: number
 }
 
+type ChartYDomain = [number, number] | ['auto', 'auto']
+
 export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainChartProps) {
   const [period, setPeriod] = useState<Period>('1D')
 
   const config = PERIOD_CONFIG[period]
-  const { data: priceData, isLoading, error } = usePrices(ticker, config.timeframe, config.limit)
+  const {
+    data: priceData,
+    marketStatus,
+    retryNow,
+  } = usePrices(ticker, config.timeframe, config.limit)
 
   // Always fetch daily data for consistent header price/change
   const { data: dailyPriceData } = usePrices(ticker, '1d', 2)
 
-  const rawData = priceData?.data || []
-
   const chartData: ChartDataPoint[] = useMemo(() => {
-    return rawData.map((bar) => {
+    return (priceData?.data ?? []).map((bar) => {
       const date = new Date(bar.t)
       let timeStr: string
       if (period === '1D') {
@@ -72,7 +78,7 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
         volume: bar.v,
       }
     })
-  }, [rawData, period])
+  }, [priceData?.data, period])
 
   const lastPrice = chartData[chartData.length - 1]?.price ?? 0
   const lastBar = chartData[chartData.length - 1]
@@ -87,7 +93,7 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
   const color = isPositive ? '#089981' : '#f23645'
 
   // Dynamic Y-axis domain with 5% padding
-  const yDomain = useMemo(() => {
+  const yDomain = useMemo<ChartYDomain>(() => {
     if (chartData.length === 0) return ['auto', 'auto']
     const prices = chartData.map(d => d.price)
     const min = Math.min(...prices)
@@ -98,6 +104,16 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
       Math.ceil((max + padding) * 100) / 100
     ]
   }, [chartData])
+
+  const showChart = marketStatus.hasUsableData && chartData.length > 0
+  const showInitialLoading = marketStatus.isInitialLoading && !showChart
+  const showHardFailure = marketStatus.source === 'error' && !showChart
+  const showEmptyState = !showChart && !showInitialLoading && !showHardFailure
+  const emptyMessage = marketStatus.isWarming
+    ? 'Chart data is still warming up.'
+    : marketStatus.emptyReason === 'no-data'
+      ? 'No price series is available for this period yet.'
+      : 'No chart data is available right now.'
 
   return (
     <div className="rounded-xl bg-card border border-border overflow-hidden h-full flex flex-col">
@@ -112,6 +128,16 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
                 {ticker}
               </span>
               <div className="h-2 w-2 rounded-full bg-chart-2 animate-pulse" />
+              <MarketDataStatusChip
+                status={marketStatus}
+                labels={{
+                  refreshing: 'Refreshing',
+                  warming: 'Starting',
+                  stale: 'Delayed',
+                  partial: 'Partial',
+                  error: 'Unavailable',
+                }}
+              />
             </div>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-2xl font-bold text-foreground">
@@ -157,17 +183,25 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
 
       {/* Chart Area */}
       <div className="flex-1 min-h-[340px] px-2 relative">
-        {isLoading ? (
+        {showInitialLoading ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : error ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-sm text-destructive">Failed to load chart data</span>
+        ) : showHardFailure ? (
+          <div className="absolute inset-0 flex items-center justify-center px-6">
+            <div className="flex max-w-sm flex-col items-center gap-3 text-center">
+              <span className="text-sm text-destructive">
+                {marketStatus.errorMessage || 'Chart data is temporarily unavailable.'}
+              </span>
+              <Button size="sm" variant="outline" onClick={() => void retryNow()}>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                Retry
+              </Button>
+            </div>
           </div>
-        ) : chartData.length === 0 ? (
+        ) : showEmptyState ? (
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-sm text-muted-foreground">No data available</span>
+            <span className="text-sm text-muted-foreground">{emptyMessage}</span>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={1}>
@@ -188,7 +222,7 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
                 minTickGap={period === '1W' ? 80 : 60}
               />
               <YAxis
-                domain={yDomain as any}
+                domain={yDomain}
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: '#787b86', fontSize: 10 }}
@@ -223,6 +257,11 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
             </AreaChart>
           </ResponsiveContainer>
         )}
+        {showChart && marketStatus.isBackgroundRefreshing ? (
+          <div className="absolute right-4 top-4 rounded-full border border-border/70 bg-background/90 px-2 py-1 text-[10px] text-muted-foreground backdrop-blur">
+            Refreshing data...
+          </div>
+        ) : null}
       </div>
 
       {/* Chart Footer */}

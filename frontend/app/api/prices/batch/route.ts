@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { DEFAULT_EVALON_API_URL } from '@/lib/evalon'
-import { PriceBar } from '@/types'
+import { MarketDataMeta, PriceBar } from '@/types'
 
 const EVALON_API_URL =
     process.env.NEXT_PUBLIC_EVALON_API_URL || DEFAULT_EVALON_API_URL
@@ -23,6 +23,7 @@ interface BatchResponsePayload {
 interface BatchApiResponse extends BatchResponsePayload {
     cached: boolean
     stale: boolean
+    meta: MarketDataMeta
 }
 
 interface CacheEntry {
@@ -52,6 +53,18 @@ function getCached(key: string): { data: BatchResponsePayload; isStale: boolean 
 
 function setCache(key: string, data: BatchResponsePayload): void {
     cache.set(key, { data, timestamp: Date.now() })
+}
+
+function buildMeta(overrides: Partial<MarketDataMeta> = {}): MarketDataMeta {
+    return {
+        stale: false,
+        warming: false,
+        partial: false,
+        hasUsableData: false,
+        source: 'empty',
+        snapshotAgeMs: null,
+        ...overrides,
+    }
 }
 
 async function fetchWithTimeout(url: string, timeoutMs: number = 10000): Promise<Response> {
@@ -110,7 +123,16 @@ export async function GET(request: NextRequest) {
 
     const cached = CACHE_ENABLED ? getCached(cacheKey) : null
     if (cached && !cached.isStale) {
-        return NextResponse.json({ ...cached.data, cached: true, stale: false })
+        return NextResponse.json({
+            ...cached.data,
+            cached: true,
+            stale: false,
+            meta: buildMeta({
+                hasUsableData: cached.data.data.length > 0,
+                source: 'cache',
+                failedTickers: cached.data.failedTickers,
+            }),
+        })
     }
 
     const inFlightKey = forceRefresh ? `${cacheKey}:refresh` : cacheKey
@@ -207,6 +229,7 @@ export async function GET(request: NextRequest) {
             })
         }
 
+        const hadFailedFetches = failed.length > 0
         const response: BatchResponsePayload = {
             count: allResults.length,
             successCount: mergedData.length,
@@ -220,18 +243,66 @@ export async function GET(request: NextRequest) {
         const successRate = mergedData.length / tickers.length
         if (CACHE_ENABLED && successRate >= 0.7) {
             setCache(cacheKey, response)
-            return { ...response, cached: false, stale: false }
+            return {
+                ...response,
+                cached: false,
+                stale: false,
+                meta: buildMeta({
+                    hasUsableData: response.data.length > 0,
+                    partial: hadFailedFetches,
+                    source: hadFailedFetches ? 'stale-cache' : 'live',
+                    failedTickers: response.failedTickers,
+                    message:
+                        hadFailedFetches
+                            ? 'Bazi ticker fiyatlari gecici olarak eksik.'
+                            : undefined,
+                }),
+            }
         }
 
         if (CACHE_ENABLED && cached && cached.data.successCount > mergedData.length) {
-            return { ...cached.data, cached: true, stale: true }
+            return {
+                ...cached.data,
+                cached: true,
+                stale: true,
+                meta: buildMeta({
+                    hasUsableData: cached.data.data.length > 0,
+                    stale: true,
+                    source: 'stale-cache',
+                    failedTickers: cached.data.failedTickers,
+                    message: 'Son basarili fiyatlar gosteriliyor.',
+                }),
+            }
         }
 
-        if (CACHE_ENABLED) {
+        if (CACHE_ENABLED && response.data.length > 0) {
             setCache(cacheKey, response)
         }
 
-        return { ...response, cached: false, stale: false }
+        return {
+            ...response,
+            cached: false,
+            stale: false,
+            meta:
+                response.data.length > 0
+                    ? buildMeta({
+                          hasUsableData: true,
+                          partial: hadFailedFetches,
+                          source: hadFailedFetches ? 'stale-cache' : 'live',
+                          failedTickers: response.failedTickers,
+                          message:
+                              hadFailedFetches
+                                  ? 'Bazi ticker fiyatlari gecici olarak eksik.'
+                                  : undefined,
+                      })
+                    : buildMeta({
+                          hasUsableData: false,
+                          source: 'error',
+                          failedTickers: response.failedTickers,
+                          emptyReason: 'unavailable',
+                          message: 'Toplu fiyat verisi gecici olarak alinamiyor.',
+                      }),
+        }
     })()
 
     inFlightRequests.set(inFlightKey, fetchBatchPromise)

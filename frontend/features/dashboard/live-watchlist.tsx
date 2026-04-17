@@ -1,6 +1,8 @@
 'use client'
 
-import { TrendingUp, TrendingDown, Star, Loader2 } from 'lucide-react'
+import { TrendingUp, TrendingDown, Star, Loader2, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { MarketDataStatusChip } from '@/components/market-data-status-chip'
 import { cn } from '@/lib/utils'
 import { useDashboardWatchlist, DashboardTicker } from '@/hooks/use-dashboard-data'
 
@@ -10,7 +12,7 @@ interface LiveWatchlistProps {
 }
 
 export function LiveWatchlist({ onSelectTicker, activeTicker }: LiveWatchlistProps) {
-  const { data: rawWatchlistData, isLoading } = useDashboardWatchlist()
+  const { data: rawWatchlistData, marketStatus, retryNow } = useDashboardWatchlist()
   const items: DashboardTicker[] = rawWatchlistData || []
 
   return (
@@ -21,20 +23,31 @@ export function LiveWatchlist({ onSelectTicker, activeTicker }: LiveWatchlistPro
         <div>
           <h3 className="text-sm font-semibold text-foreground">Watchlist</h3>
           <p className="text-[10px] text-muted-foreground">
-            {isLoading ? 'Loading...' : `${items.length} tickers`}
+            {marketStatus.isInitialLoading ? 'Loading...' : `${items.length} tickers`}
           </p>
         </div>
+        <MarketDataStatusChip status={marketStatus} className="ml-auto" />
       </div>
 
       {/* List */}
       <div className="flex-1 overflow-y-auto">
-        {isLoading ? (
+        {marketStatus.isInitialLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
           </div>
+        ) : marketStatus.source === 'error' && !marketStatus.hasUsableData ? (
+          <div className="flex flex-col items-center justify-center gap-3 px-4 py-8 text-center">
+            <span className="text-xs text-muted-foreground">
+              {marketStatus.errorMessage || 'Watchlist quotes are temporarily unavailable.'}
+            </span>
+            <Button size="sm" variant="outline" onClick={() => void retryNow()}>
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              Retry
+            </Button>
+          </div>
         ) : items.length === 0 ? (
           <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
-            No data available
+            {marketStatus.isWarming ? 'Market data is starting...' : 'No data available'}
           </div>
         ) : (
           items.map((item) => {

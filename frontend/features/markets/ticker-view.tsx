@@ -2,16 +2,18 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts'
 import { AlertCircle, ArrowDown, ArrowLeft, ArrowUp, BarChart3, Bell, Clock, LineChart as LineChartIcon, Loader2, Maximize2, RefreshCw, Share2, Star, TrendingDown, TrendingUp, Waves } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { MarketDataStatusChip } from '@/components/market-data-status-chip'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select-native'
 import { usePrices } from '@/hooks/use-prices'
-import { EVALON_SUPPORTED_TIMEFRAMES, formatTimeframeLabel } from '@/lib/evalon'
+import { EVALON_SUPPORTED_TIMEFRAMES, formatTimeframeLabel, toGraphWebTimeframe } from '@/lib/evalon'
 import { cn } from '@/lib/utils'
 import { indicatorsService } from '@/services/indicators.service'
 import { useAuthStore } from '@/store/use-auth-store'
@@ -41,7 +43,7 @@ const formatAxisTime = (timeframe: Timeframe, value: string) => {
   if (timeframe === '1M' || timeframe === '1mo') return date.toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' })
   return date.toLocaleDateString('tr-TR', { month: 'short', day: 'numeric' })
 }
-const extractEntries = (point: IndicatorSeriesPoint, seriesId: string) => Object.entries(point).filter(([key, value]) => key !== 't' && typeof value === 'number').map(([key, value]) => ({ key: key === 'v' ? seriesId : `${seriesId}_${key}`, value }))
+const extractEntries = (point: IndicatorSeriesPoint, seriesId: string) => Object.entries(point).filter(([key, value]) => key !== 't' && typeof value === 'number').map(([key, value]) => ({ key: key === 'v' ? seriesId : `${seriesId}_${key}`, value: value as number }))
 const buildIndicatorComment = (indicatorId: string, latest: Array<{ label: string; value: number }>) => {
   if (!latest.length) return 'Secili indikator bu kombinasyon icin seri dondurmedi. Farkli timeframe veya parametre deneyin.'
   if (indicatorId === 'rsi') {
@@ -59,6 +61,7 @@ const buildIndicatorComment = (indicatorId: string, latest: Array<{ label: strin
 }
 
 export function TickerView({ ticker }: TickerViewProps) {
+  const router = useRouter()
   const normalizedTicker = ticker.toUpperCase()
   const [timeframe, setTimeframe] = useState<Timeframe>('1d')
   const [indicatorId, setIndicatorId] = useState('rsi')
@@ -89,7 +92,11 @@ export function TickerView({ ticker }: TickerViewProps) {
   }
 
   const { data: dailyData } = usePrices(normalizedTicker, '1d', 2)
-  const { data: chartPriceData, isLoading, error, refetch, isFetching } = usePrices(normalizedTicker, timeframe, getLimit(timeframe))
+  const {
+    data: chartPriceData,
+    marketStatus,
+    retryNow,
+  } = usePrices(normalizedTicker, timeframe, getLimit(timeframe))
   const indicatorCatalogQuery = useQuery({ queryKey: ['ticker-indicator-catalog'], queryFn: () => indicatorsService.getCatalog(), staleTime: 300000 })
   const indicatorSeriesQuery = useQuery({
     queryKey: ['ticker-indicators', normalizedTicker, timeframe, indicatorId, period, fast, slow, signal],
@@ -99,6 +106,15 @@ export function TickerView({ ticker }: TickerViewProps) {
   })
 
   const data = useMemo(() => chartPriceData?.data ?? [], [chartPriceData])
+  const showChart = marketStatus.hasUsableData && data.length > 0
+  const showInitialLoading = marketStatus.isInitialLoading && !showChart
+  const showHardFailure = marketStatus.source === 'error' && !showChart
+  const showEmptyState = !showChart && !showInitialLoading && !showHardFailure
+  const chartEmptyMessage = marketStatus.isWarming
+    ? 'Grafik verisi hazirlaniyor.'
+    : marketStatus.emptyReason === 'no-data'
+      ? 'Secili zaman araligi icin fiyat serisi bulunamadi.'
+      : 'Grafik verisi su anda alinamiyor.'
   const headerStats = useMemo(() => {
     const bars = dailyData?.data || []
     if (!bars.length) return null
@@ -132,7 +148,7 @@ export function TickerView({ ticker }: TickerViewProps) {
   const indicatorChart = useMemo(() => {
     const rows = new Map<string, Record<string, number | string>>()
     const keys: string[] = []
-    indicatorSeriesQuery.data?.indicators.forEach((series) => series.series.forEach((point) => {
+    indicatorSeriesQuery.data?.indicators.forEach((series) => (Array.isArray(series.series) ? series.series : []).forEach((point) => {
       const row = rows.get(point.t) || { t: point.t }
       extractEntries(point, series.id).forEach((entry) => {
         row[entry.key] = entry.value
@@ -192,15 +208,26 @@ export function TickerView({ ticker }: TickerViewProps) {
               <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:bg-primary/10 hover:text-primary disabled:opacity-50" disabled title="Yakinda aktif olacak"><Bell size={16} /><span className="ml-1.5 hidden text-xs sm:inline">Alert</span></Button>
               <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground disabled:opacity-50" disabled title="Yakinda aktif olacak"><Share2 size={16} /><span className="ml-1.5 hidden text-xs sm:inline">Paylas</span></Button>
               <div className="mx-1 h-5 w-px bg-border" />
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => { void refetch(); void indicatorSeriesQuery.refetch() }} disabled={isLoading || isFetching || indicatorSeriesQuery.isFetching} title="Yenile"><RefreshCw size={16} className={cn((isLoading || isFetching || indicatorSeriesQuery.isFetching) && 'animate-spin')} /></Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground disabled:opacity-50" disabled title="Tam ekran - yakinda"><Maximize2 size={16} /></Button>
+              <MarketDataStatusChip
+                status={marketStatus}
+                labels={{
+                  refreshing: 'Yenileniyor',
+                  warming: 'Hazirlaniyor',
+                  stale: 'Gecikmeli',
+                  partial: 'Kismi veri',
+                  error: 'Baglanti sorunu',
+                }}
+              />
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => { void retryNow(); void indicatorSeriesQuery.refetch() }} disabled={marketStatus.isInitialLoading || marketStatus.isBackgroundRefreshing || indicatorSeriesQuery.isFetching} title="Yenile"><RefreshCw size={16} className={cn((marketStatus.isInitialLoading || marketStatus.isBackgroundRefreshing || indicatorSeriesQuery.isFetching) && 'animate-spin')} /></Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => router.push(`/markets/${normalizedTicker}/chart?tf=${encodeURIComponent(toGraphWebTimeframe(timeframe))}`)} title="Tam ekran grafigi ac"><Maximize2 size={16} /></Button>
             </div>
           </div>
 
           <div className="grid gap-6 p-4 xl:grid-cols-[1.7fr_1fr]">
             <div className="relative min-h-[420px] rounded-xl border border-border/60 bg-background/40 p-4">
-              {isLoading ? <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/80 backdrop-blur-sm"><div className="flex flex-col items-center gap-3"><div className="relative"><div className="h-12 w-12 rounded-full border-2 border-primary/20" /><Loader2 className="absolute inset-0 m-auto h-6 w-6 animate-spin text-primary" /></div><div className="flex flex-col items-center gap-1"><span className="text-sm font-medium">Grafik yukleniyor</span><span className="text-xs text-muted-foreground">{normalizedTicker} - {formatTimeframeLabel(timeframe)}</span></div></div></div> : null}
-              {error ? <div className="absolute inset-0 flex items-center justify-center"><div className="flex max-w-xs flex-col items-center gap-3 text-center"><div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10"><AlertCircle className="h-6 w-6 text-destructive" /></div><div className="flex flex-col gap-1"><span className="text-sm font-medium">Fiyat verisi yuklenemedi</span><span className="text-xs text-muted-foreground">Backend bu timeframe icin veri donmuyor olabilir ya da servis gecici hata veriyor.</span></div><Button variant="outline" size="sm" onClick={() => void refetch()}><RefreshCw size={14} className="mr-1.5" />Tekrar Dene</Button></div></div> : !data.length ? <div className="absolute inset-0 flex items-center justify-center"><div className="flex max-w-xs flex-col items-center gap-3 text-center"><div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary"><LineChartIcon className="h-6 w-6 text-muted-foreground" /></div><div className="flex flex-col gap-1"><span className="text-sm font-medium">Veri bulunamadi</span><span className="text-xs text-muted-foreground">{normalizedTicker} icin secili timeframe desteklenmiyor olabilir.</span></div></div></div> : <ResponsiveContainer width="100%" height={390}><AreaChart data={data} margin={{ top: 10, right: 8, left: 8, bottom: 0 }}><defs><linearGradient id="colorPricePos" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} /><stop offset="95%" stopColor="#22c55e" stopOpacity={0} /></linearGradient><linearGradient id="colorPriceNeg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} /><stop offset="95%" stopColor="#ef4444" stopOpacity={0} /></linearGradient></defs><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333333" opacity={0.4} /><XAxis dataKey="t" tickFormatter={(value) => formatAxisTime(timeframe, String(value))} stroke="#888888" fontSize={12} tickLine={false} axisLine={false} dy={10} minTickGap={30} /><YAxis domain={yDomain} stroke="#888888" fontSize={12} tickLine={false} axisLine={false} width={yAxisWidth} tickFormatter={(value) => typeof value === 'number' ? formatYAxisTick(value) : String(value)} /><RechartsTooltip contentStyle={{ backgroundColor: '#111111', borderColor: '#333333', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#ffffff' }} labelStyle={{ color: '#888888', marginBottom: '4px' }} labelFormatter={(label) => new Date(String(label)).toLocaleString('tr-TR')} formatter={(value, name) => [typeof value === 'number' ? value.toFixed(2) : String(value ?? ''), name === 'c' ? 'Price' : String(name ?? '')]} /><Area type="monotone" dataKey="c" stroke={headerStats?.isPositive ? '#22c55e' : '#ef4444'} strokeWidth={2} fillOpacity={1} fill={headerStats?.isPositive ? 'url(#colorPricePos)' : 'url(#colorPriceNeg)'} animationDuration={500} /></AreaChart></ResponsiveContainer>}
+              {showInitialLoading ? <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/80 backdrop-blur-sm"><div className="flex flex-col items-center gap-3"><div className="relative"><div className="h-12 w-12 rounded-full border-2 border-primary/20" /><Loader2 className="absolute inset-0 m-auto h-6 w-6 animate-spin text-primary" /></div><div className="flex flex-col items-center gap-1"><span className="text-sm font-medium">Grafik yukleniyor</span><span className="text-xs text-muted-foreground">{normalizedTicker} - {formatTimeframeLabel(timeframe)}</span></div></div></div> : null}
+              {showHardFailure ? <div className="absolute inset-0 flex items-center justify-center"><div className="flex max-w-xs flex-col items-center gap-3 text-center"><div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10"><AlertCircle className="h-6 w-6 text-destructive" /></div><div className="flex flex-col gap-1"><span className="text-sm font-medium">Fiyat verisi yuklenemedi</span><span className="text-xs text-muted-foreground">{marketStatus.errorMessage || 'Servis gecici olarak cevap vermiyor.'}</span></div><Button variant="outline" size="sm" onClick={() => void retryNow()}><RefreshCw size={14} className="mr-1.5" />Tekrar Dene</Button></div></div> : showEmptyState ? <div className="absolute inset-0 flex items-center justify-center"><div className="flex max-w-xs flex-col items-center gap-3 text-center"><div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary"><LineChartIcon className="h-6 w-6 text-muted-foreground" /></div><div className="flex flex-col gap-1"><span className="text-sm font-medium">Veri bulunamadi</span><span className="text-xs text-muted-foreground">{chartEmptyMessage}</span></div></div></div> : <ResponsiveContainer width="100%" height={390}><AreaChart data={data} margin={{ top: 10, right: 8, left: 8, bottom: 0 }}><defs><linearGradient id="colorPricePos" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} /><stop offset="95%" stopColor="#22c55e" stopOpacity={0} /></linearGradient><linearGradient id="colorPriceNeg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} /><stop offset="95%" stopColor="#ef4444" stopOpacity={0} /></linearGradient></defs><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333333" opacity={0.4} /><XAxis dataKey="t" tickFormatter={(value) => formatAxisTime(timeframe, String(value))} stroke="#888888" fontSize={12} tickLine={false} axisLine={false} dy={10} minTickGap={30} /><YAxis domain={yDomain} stroke="#888888" fontSize={12} tickLine={false} axisLine={false} width={yAxisWidth} tickFormatter={(value) => typeof value === 'number' ? formatYAxisTick(value) : String(value)} /><RechartsTooltip contentStyle={{ backgroundColor: '#111111', borderColor: '#333333', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#ffffff' }} labelStyle={{ color: '#888888', marginBottom: '4px' }} labelFormatter={(label) => new Date(String(label)).toLocaleString('tr-TR')} formatter={(value, name) => [typeof value === 'number' ? value.toFixed(2) : String(value ?? ''), name === 'c' ? 'Price' : String(name ?? '')]} /><Area type="monotone" dataKey="c" stroke={headerStats?.isPositive ? '#22c55e' : '#ef4444'} strokeWidth={2} fillOpacity={1} fill={headerStats?.isPositive ? 'url(#colorPricePos)' : 'url(#colorPriceNeg)'} animationDuration={500} /></AreaChart></ResponsiveContainer>}
+              {showChart && marketStatus.isBackgroundRefreshing ? <div className="absolute right-4 top-4 rounded-full border border-border/70 bg-background/90 px-2 py-1 text-[10px] text-muted-foreground backdrop-blur">Veri yenileniyor...</div> : null}
             </div>
 
             <div className="flex flex-col gap-4">

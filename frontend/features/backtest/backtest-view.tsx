@@ -82,7 +82,7 @@ export function BacktestView() {
   })
 
   const groupedRules = useMemo(() => {
-    const map = new Map<BacktestStageKey, typeof rulesQuery.data.rules>()
+    const map = new Map<BacktestStageKey, NonNullable<typeof rulesQuery.data>['rules']>()
     BACKTEST_STAGE_KEYS.forEach((stage) => map.set(stage, []))
     ;(rulesQuery.data?.rules || []).forEach((rule) => rule.stages.forEach((stage) => {
       if (BACKTEST_STAGE_KEYS.includes(stage as BacktestStageKey)) map.get(stage as BacktestStageKey)?.push(rule)

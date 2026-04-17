@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { MarketDataStatusChip } from '@/components/market-data-status-chip'
 import { Select } from '@/components/ui/select-native'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
@@ -139,6 +140,8 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
         fetchNextPage,
         refetch,
         isFetching,
+        marketStatus,
+        retryNow,
     } = useMarketList({
         view: 'screener',
         limit: 10,
@@ -255,21 +258,37 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
                         size="icon"
                         className="h-6 w-6"
                         onClick={() => {
-                            void refetch()
+                            void retryNow()
                         }}
                     >
                         <RefreshCcw size={14} className={cn(isFetching && 'animate-spin')} />
                     </Button>
+                    <MarketDataStatusChip
+                        status={marketStatus}
+                        labels={{
+                            refreshing: 'Yenileniyor',
+                            warming: 'Hazirlaniyor',
+                            stale: 'Gecikmeli',
+                            partial: 'Kismi veri',
+                            error: 'Baglanti sorunu',
+                        }}
+                    />
                 </div>
 
                 <div className="flex-1 overflow-auto p-0">
-                    {isLoading ? (
+                    {marketStatus.isInitialLoading ? (
                         <div className="flex items-center justify-center h-full">
                             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                         </div>
-                    ) : isError ? (
+                    ) : marketStatus.source === 'error' && !marketStatus.hasUsableData ? (
                         <div className="px-4 py-6 text-xs text-destructive text-center">
-                            {error instanceof Error ? error.message : 'Screener yüklenemedi'}
+                            <div className="flex flex-col items-center gap-3">
+                                <span>{marketStatus.errorMessage || 'Screener yüklenemedi'}</span>
+                                <Button size="sm" variant="outline" onClick={() => void retryNow()}>
+                                    <RefreshCcw size={14} className="mr-1.5" />
+                                    Tekrar Dene
+                                </Button>
+                            </div>
                         </div>
                     ) : (
                         <>
@@ -331,6 +350,16 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
                         Stock Screener <Badge variant="secondary" className="text-xs">LIVE</Badge>
                     </h1>
                     <div className="flex items-center gap-2">
+                        <MarketDataStatusChip
+                            status={marketStatus}
+                            labels={{
+                                refreshing: 'Yenileniyor',
+                                warming: 'Hazirlaniyor',
+                                stale: 'Gecikmeli',
+                                partial: 'Kismi veri',
+                                error: 'Baglanti sorunu',
+                            }}
+                        />
                         <Button variant="outline" size="sm" className="h-8 gap-2 border-border text-muted-foreground hover:text-foreground" disabled>
                             <Download size={14} />
                             Export
@@ -340,7 +369,7 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
                             size="sm"
                             className="h-8 gap-2 border-border text-muted-foreground hover:text-foreground"
                             onClick={() => {
-                                void refetch()
+                                void retryNow()
                             }}
                             disabled={isFetching}
                         >
@@ -496,22 +525,28 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
                         </TableHeader>
 
                         <TableBody>
-                            {isLoading ? (
+                            {marketStatus.isInitialLoading ? (
                                 <TableRow>
                                     <TableCell colSpan={9} className="py-10 text-center">
                                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mx-auto" />
                                     </TableCell>
                                 </TableRow>
-                            ) : isError ? (
+                            ) : marketStatus.source === 'error' && !marketStatus.hasUsableData ? (
                                 <TableRow>
                                     <TableCell colSpan={9} className="py-10 text-center text-sm text-destructive">
-                                        {error instanceof Error ? error.message : 'Screener yüklenemedi'}
+                                        <div className="flex flex-col items-center gap-3">
+                                            <span>{marketStatus.errorMessage || 'Screener yüklenemedi'}</span>
+                                            <Button size="sm" variant="outline" onClick={() => void retryNow()}>
+                                                <RefreshCcw size={14} className="mr-1.5" />
+                                                Tekrar Dene
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ) : rows.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
-                                        No data found
+                                        {marketStatus.isWarming ? 'Piyasa verisi hazirlaniyor.' : 'No data found'}
                                     </TableCell>
                                 </TableRow>
                             ) : (

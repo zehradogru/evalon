@@ -1,7 +1,8 @@
 'use client'
 
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
 import { isMarketCurrentlyOpen } from '@/hooks/use-dashboard-data'
+import { buildMarketQueryStatus, isRetriableMarketError } from '@/lib/market-data'
 import type {
     ListSortDirection,
     MarketListItem,
@@ -43,7 +44,7 @@ async function fetchMarketListPage(
 }
 
 export function useMarketList(params: UseMarketListParams) {
-    return useInfiniteQuery({
+    const query = useInfiniteQuery({
         queryKey: [
             'market-list',
             params.view,
@@ -56,7 +57,28 @@ export function useMarketList(params: UseMarketListParams) {
         queryFn: ({ pageParam }) => fetchMarketListPage(params, pageParam),
         getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
         staleTime: 60 * 1000,
+        placeholderData: keepPreviousData,
+        retry: (failureCount, error) =>
+            isRetriableMarketError(error) && failureCount < 2,
         refetchInterval: () => (isMarketCurrentlyOpen() ? 60 * 1000 : false),
         enabled: params.enabled ?? true,
     })
+
+    const pages = query.data?.pages ?? []
+    const allItems = pages.flatMap((page) => page.items)
+    const meta = pages[0]?.meta
+    const marketStatus = buildMarketQueryStatus({
+        meta,
+        hasUsableData: allItems.length > 0,
+        isLoading: query.isLoading,
+        isFetching: query.isFetching,
+        error: query.error,
+    })
+
+    return {
+        ...query,
+        marketStatus,
+        ...marketStatus,
+        retryNow: query.refetch,
+    }
 }

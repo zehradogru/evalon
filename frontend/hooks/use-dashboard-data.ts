@@ -1,9 +1,10 @@
 'use client'
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BIST_AVAILABLE, TICKER_NAMES } from '@/config/markets'
 import { useUserWatchlist } from '@/hooks/use-user-watchlist'
-import type { MarketListItem, PaginatedListResponse } from '@/types'
+import type { MarketDataMeta, MarketListItem, PaginatedListResponse } from '@/types'
+import { buildMarketQueryStatus, isRetriableMarketError } from '@/lib/market-data'
 
 export interface DashboardTicker {
     ticker: string
@@ -20,6 +21,9 @@ export interface DashboardTicker {
 interface BatchResponse {
     count: number
     cached: boolean
+    stale: boolean
+    failedTickers: string[]
+    meta?: MarketDataMeta
     data: Array<{
         ticker: string
         current: { t: string; o: number; h: number; l: number; c: number; v: number } | null
@@ -28,10 +32,18 @@ interface BatchResponse {
     }>
 }
 
-interface MarketSnapshotResponse extends PaginatedListResponse<MarketListItem> {
-    snapshotAgeMs?: number | null
-    stale?: boolean
-    warming?: boolean
+type MarketSnapshotResponse = PaginatedListResponse<MarketListItem>
+
+interface DashboardTickerPayload {
+    items: DashboardTicker[]
+    meta: MarketDataMeta
+}
+
+interface MarketMoversPayload {
+    topGainers: DashboardTicker[]
+    topLosers: DashboardTicker[]
+    all: DashboardTicker[]
+    meta: MarketDataMeta
 }
 
 /**
@@ -49,8 +61,20 @@ export function isMarketCurrentlyOpen(): boolean {
     return isWeekday && isDuringHours
 }
 
-async function fetchDashboardData(tickers: string[]): Promise<DashboardTicker[]> {
-    if (tickers.length === 0) return []
+async function fetchDashboardData(tickers: string[]): Promise<DashboardTickerPayload> {
+    if (tickers.length === 0) {
+        return {
+            items: [],
+            meta: {
+                stale: false,
+                warming: false,
+                partial: false,
+                hasUsableData: false,
+                source: 'empty',
+                snapshotAgeMs: null,
+            },
+        }
+    }
 
     const tickersParam = tickers.join(',')
     const url = `/api/prices/batch?tickers=${tickersParam}&timeframe=1d&limit=2` // Optimized: only last 2 bars needed
@@ -66,7 +90,7 @@ async function fetchDashboardData(tickers: string[]): Promise<DashboardTicker[]>
         result.data.map((item) => [item.ticker, item] as const)
     )
 
-    return tickers.map((ticker) => {
+    const items = tickers.map((ticker) => {
         const item = byTicker.get(ticker)
         const currentPrice = item?.current?.c ?? 0
         const previousPrice = item?.previous?.c ?? currentPrice
@@ -84,10 +108,28 @@ async function fetchDashboardData(tickers: string[]): Promise<DashboardTicker[]>
             low: item?.current?.l ?? null,
             vol: item?.current?.v ?? null,
         }
-    })
+    }).filter((item) => item.price > 0)
+
+    return {
+        items,
+        meta: {
+            stale: result.meta?.stale ?? result.stale ?? false,
+            warming: result.meta?.warming ?? false,
+            partial: result.meta?.partial ?? result.failedTickers.length > 0,
+            hasUsableData:
+                result.meta?.hasUsableData ?? items.length > 0,
+            source:
+                result.meta?.source ??
+                (items.length > 0 ? 'live' : 'error'),
+            snapshotAgeMs: result.meta?.snapshotAgeMs ?? null,
+            failedTickers: result.meta?.failedTickers ?? result.failedTickers,
+            message: result.meta?.message,
+            emptyReason: result.meta?.emptyReason,
+        },
+    }
 }
 
-async function fetchMarketSnapshotData(): Promise<DashboardTicker[]> {
+async function fetchMarketSnapshotData(): Promise<DashboardTickerPayload> {
     const params = new URLSearchParams({
         view: 'markets',
         limit: String(BIST_AVAILABLE.length),
@@ -102,7 +144,7 @@ async function fetchMarketSnapshotData(): Promise<DashboardTicker[]> {
     const payload: MarketSnapshotResponse = await response.json()
     const rows = payload.items || []
 
-    return rows
+    const items = rows
         .map((item) => {
             const price = item.price ?? 0
             const change = item.changeVal ?? 0
@@ -124,6 +166,24 @@ async function fetchMarketSnapshotData(): Promise<DashboardTicker[]> {
             }
         })
         .filter((item) => item.price > 0)
+
+    return {
+        items,
+        meta: {
+            stale: payload.meta?.stale ?? payload.stale ?? false,
+            warming: payload.meta?.warming ?? payload.warming ?? false,
+            partial: payload.meta?.partial ?? rows.some((item) => item.price === null),
+            hasUsableData: payload.meta?.hasUsableData ?? items.length > 0,
+            source:
+                payload.meta?.source ??
+                (items.length > 0 ? 'live' : 'empty'),
+            snapshotAgeMs:
+                payload.meta?.snapshotAgeMs ?? payload.snapshotAgeMs ?? null,
+            failedTickers: payload.meta?.failedTickers,
+            message: payload.meta?.message,
+            emptyReason: payload.meta?.emptyReason,
+        },
+    }
 }
 
 /**
@@ -139,13 +199,27 @@ export function useDashboardWatchlist() {
         queryFn: () => fetchDashboardData(watchlistTickers),
         enabled: watchlistTickers.length > 0,
         staleTime: 1000 * 30, // 30 seconds
+        placeholderData: keepPreviousData,
+        retry: (failureCount, error) =>
+            isRetriableMarketError(error) && failureCount < 2,
         refetchInterval: () => isMarketCurrentlyOpen() ? 1000 * 60 : false, // 1 min when open, stop when closed
+    })
+
+    const marketStatus = buildMarketQueryStatus({
+        meta: query.data?.meta,
+        hasUsableData: (query.data?.items?.length ?? 0) > 0,
+        isLoading: query.isLoading,
+        isFetching: query.isFetching,
+        error: query.error,
     })
 
     return {
         ...query,
-        data: query.data ?? [],
+        data: query.data?.items ?? [],
         isLoading: isWatchlistLoading || query.isLoading,
+        marketStatus,
+        ...marketStatus,
+        retryNow: query.refetch,
     }
 }
 
@@ -154,10 +228,11 @@ export function useDashboardWatchlist() {
  * Fetches all available tickers and sorts by change
  */
 export function useMarketMovers() {
-    return useQuery({
+    const query = useQuery({
         queryKey: ['market-snapshot'],
-        queryFn: async () => {
-            const data = await fetchMarketSnapshotData()
+        queryFn: async (): Promise<MarketMoversPayload> => {
+            const response = await fetchMarketSnapshotData()
+            const data = response.items
 
             // Sort by changePercent
             const sorted = [...data].sort((a, b) => b.changePercent - a.changePercent)
@@ -166,11 +241,37 @@ export function useMarketMovers() {
                 topGainers: sorted.slice(0, 5),
                 topLosers: sorted.slice(-5).reverse(),
                 all: sorted,
+                meta: {
+                    ...response.meta,
+                    hasUsableData: sorted.length > 0,
+                    source:
+                        response.meta.source === 'empty' && sorted.length > 0
+                            ? 'live'
+                            : response.meta.source,
+                },
             }
         },
         staleTime: 1000 * 60, // 1 minute
+        placeholderData: keepPreviousData,
+        retry: (failureCount, error) =>
+            isRetriableMarketError(error) && failureCount < 2,
         refetchInterval: () => isMarketCurrentlyOpen() ? 1000 * 60 * 2 : false, // 2 min when open, stop when closed
     })
+
+    const marketStatus = buildMarketQueryStatus({
+        meta: query.data?.meta,
+        hasUsableData: (query.data?.all?.length ?? 0) > 0,
+        isLoading: query.isLoading,
+        isFetching: query.isFetching,
+        error: query.error,
+    })
+
+    return {
+        ...query,
+        marketStatus,
+        ...marketStatus,
+        retryNow: query.refetch,
+    }
 }
 
 /**

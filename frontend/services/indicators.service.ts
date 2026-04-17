@@ -39,6 +39,19 @@ export const indicatorsService = {
                 String(error.detail || error.error || 'Indicator request failed.')
             )
         }
-        return response.json()
+
+        const payload = (await response.json()) as Partial<IndicatorResponse>
+
+        return {
+            ticker: payload.ticker || params.ticker,
+            timeframe: payload.timeframe || params.timeframe,
+            strategy: payload.strategy || params.strategy,
+            indicators: Array.isArray(payload.indicators)
+                ? payload.indicators.map((series) => ({
+                      ...series,
+                      series: Array.isArray(series?.series) ? series.series : [],
+                  }))
+                : [],
+        }
     },
 }

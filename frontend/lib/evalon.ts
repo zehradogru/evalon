@@ -2,6 +2,32 @@ import type { Timeframe } from '@/types'
 
 export const DEFAULT_EVALON_API_URL =
     'https://evalon-backtest-api-474112640179.europe-west1.run.app'
+export const DEFAULT_EVALON_GRAPH_WEB_URL =
+    'https://evalon-graph-web-474112640179.europe-west1.run.app'
+export const EVALON_GRAPH_WEB_URL =
+    process.env.NEXT_PUBLIC_EVALON_GRAPH_WEB_URL ||
+    DEFAULT_EVALON_GRAPH_WEB_URL
+
+const GRAPH_WEB_TIMEFRAME_ALIASES: Record<string, string> = {
+    '1g': '1d',
+    '1mo': '1M',
+}
+
+const GRAPH_WEB_SUPPORTED_TIMEFRAMES = new Set([
+    '1m',
+    '3m',
+    '5m',
+    '15m',
+    '30m',
+    '1h',
+    '2h',
+    '4h',
+    '6h',
+    '12h',
+    '1d',
+    '1w',
+    '1M',
+])
 
 export const EVALON_SUPPORTED_TIMEFRAMES: Timeframe[] = [
     '1m',
@@ -120,4 +146,33 @@ export function formatTimeframeLabel(timeframe: Timeframe | string): string {
         default:
             return String(timeframe)
     }
+}
+
+export function toGraphWebTimeframe(timeframe: Timeframe | string): string {
+    const normalized =
+        GRAPH_WEB_TIMEFRAME_ALIASES[String(timeframe)] || String(timeframe)
+
+    return GRAPH_WEB_SUPPORTED_TIMEFRAMES.has(normalized) ? normalized : '1d'
+}
+
+interface BuildGraphWebUrlParams {
+    symbol: string
+    tf: Timeframe | string
+    page?: 'chart' | 'backtest' | 'ai'
+}
+
+export function buildGraphWebUrl({
+    symbol,
+    tf,
+    page = 'chart',
+}: BuildGraphWebUrlParams): string {
+    const url = new URL(`/${page}`, EVALON_GRAPH_WEB_URL)
+    const params = new URLSearchParams({
+        symbol: symbol.trim().toUpperCase(),
+        tf: toGraphWebTimeframe(tf),
+    })
+
+    url.search = params.toString()
+
+    return url.toString()
 }

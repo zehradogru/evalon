@@ -69,7 +69,9 @@ export function LLMView({ isWidget = false }: LLMViewProps) {
         ticker,
         timeframe,
         indicator_id: indicatorId,
-        active_blueprint: activeBlueprint || undefined,
+        active_blueprint: activeBlueprint
+          ? (activeBlueprint as unknown as Record<string, unknown>)
+          : undefined,
         selected_symbols: selectedSymbols.split(',').map((item) => item.trim()).filter(Boolean),
         auto_save_drafts: autoSaveDrafts,
       }
@@ -94,7 +96,7 @@ export function LLMView({ isWidget = false }: LLMViewProps) {
           title: response.drafts.strategy.title,
           description: response.drafts.strategy.description,
           prompt: input,
-          spec: response.drafts.strategy as Record<string, unknown>,
+          spec: response.drafts.strategy as unknown as Record<string, unknown>,
         })
       }
       if (lastDraftKind === 'rules' && response.drafts.rule) {
@@ -103,7 +105,7 @@ export function LLMView({ isWidget = false }: LLMViewProps) {
           title: response.drafts.rule.title,
           description: response.drafts.rule.description,
           prompt: input,
-          spec: response.drafts.rule as Record<string, unknown>,
+          spec: response.drafts.rule as unknown as Record<string, unknown>,
         })
       }
       if (lastDraftKind === 'indicators' && response.drafts.indicator) {
@@ -112,7 +114,7 @@ export function LLMView({ isWidget = false }: LLMViewProps) {
           title: response.drafts.indicator.title,
           description: response.drafts.indicator.description,
           prompt: input,
-          spec: response.drafts.indicator as Record<string, unknown>,
+          spec: response.drafts.indicator as unknown as Record<string, unknown>,
         })
       }
       throw new Error('Draft kayit verisi bulunamadi.')

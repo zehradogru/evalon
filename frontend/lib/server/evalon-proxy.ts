@@ -3,7 +3,6 @@ import { DEFAULT_EVALON_API_URL } from '@/lib/evalon'
 
 type ProxySearchParams =
     | URLSearchParams
-    | ReadonlyURLSearchParams
     | Record<string, string | number | boolean | null | undefined>
 
 interface ProxyOptions {
@@ -26,8 +25,11 @@ function toSearchParams(input?: ProxySearchParams): URLSearchParams {
     if (!input) return new URLSearchParams()
     if (input instanceof URLSearchParams) return new URLSearchParams(input)
     if (
-        typeof ReadonlyURLSearchParams !== 'undefined' &&
-        input instanceof ReadonlyURLSearchParams
+        typeof input === 'object' &&
+        input !== null &&
+        'get' in input &&
+        typeof input.get === 'function' &&
+        'toString' in input
     ) {
         return new URLSearchParams(input.toString())
     }

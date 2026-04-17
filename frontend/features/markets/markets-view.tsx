@@ -3,7 +3,9 @@
 import { useCallback, useMemo, useState, type RefObject } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { MarketDataStatusChip } from '@/components/market-data-status-chip'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -15,9 +17,11 @@ import {
     DollarSign,
     Loader2,
     MoreHorizontal,
+    RefreshCw,
     TrendingUp,
 } from 'lucide-react'
 import { MARKET_TICKERS } from '@/config/markets'
+import type { MarketQueryStatus } from '@/lib/market-data'
 import { cn } from '@/lib/utils'
 import { useInfiniteLoad } from '@/hooks/use-infinite-load'
 import { useMarketList } from '@/hooks/use-market-list'
@@ -160,6 +164,8 @@ interface MarketTableProps {
     onLoadMore?: () => void
     sentinelRef?: RefObject<HTMLDivElement | null>
     total?: number
+    marketStatus?: MarketQueryStatus
+    onRetry?: () => void
 }
 
 function MarketTable({
@@ -176,6 +182,8 @@ function MarketTable({
     onLoadMore,
     sentinelRef,
     total,
+    marketStatus,
+    onRetry,
 }: MarketTableProps) {
     const router = useRouter()
 
@@ -236,10 +244,20 @@ function MarketTable({
         )
     }
 
-    if (isError) {
+    if (isError || (marketStatus?.source === 'error' && !marketStatus.hasUsableData)) {
         return (
-            <Card className="bg-card border-none rounded-none shadow-none overflow-hidden p-8 text-center text-sm text-destructive">
-                {errorMessage || 'Liste yüklenemedi.'}
+            <Card className="bg-card border-none rounded-none shadow-none overflow-hidden p-8">
+                <div className="flex flex-col items-center gap-3 text-center">
+                    <span className="text-sm text-destructive">
+                        {errorMessage || marketStatus?.errorMessage || 'Liste yüklenemedi.'}
+                    </span>
+                    {onRetry ? (
+                        <Button size="sm" variant="outline" onClick={onRetry}>
+                            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                            Tekrar Dene
+                        </Button>
+                    ) : null}
+                </div>
             </Card>
         )
     }
@@ -415,7 +433,9 @@ function MarketTable({
                             {sortedData.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                                        No data available
+                                        {marketStatus?.isWarming
+                                            ? 'Piyasa verisi hazirlaniyor.'
+                                            : 'No data available'}
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -498,6 +518,8 @@ export function MarketsView() {
         hasNextPage,
         isFetchingNextPage,
         fetchNextPage,
+        marketStatus,
+        retryNow,
     } = useMarketList({
         view: 'markets',
         limit: 10,
@@ -606,6 +628,16 @@ export function MarketsView() {
                                 <MoreHorizontal size={14} />
                                 More Filters
                             </Badge>
+                            <MarketDataStatusChip
+                                status={marketStatus}
+                                labels={{
+                                    refreshing: 'Yenileniyor',
+                                    warming: 'Hazirlaniyor',
+                                    stale: 'Gecikmeli',
+                                    partial: 'Kismi veri',
+                                    error: 'Baglanti sorunu',
+                                }}
+                            />
                         </div>
                     </div>
 
@@ -624,6 +656,8 @@ export function MarketsView() {
                             onLoadMore={handleLoadMore}
                             sentinelRef={sentinelRef}
                             total={total}
+                            marketStatus={marketStatus}
+                            onRetry={() => void retryNow()}
                         />
                     </TabsContent>
 
