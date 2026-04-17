@@ -9,7 +9,7 @@ import { WatchlistView } from '@/features/watchlist/watchlist-view';
 import { AlertsView } from '@/features/notifications/alerts-view';
 import { NewsView } from '@/features/news/news-view';
 import { ScreenerView } from '@/features/screener/screener-view';
-import { LLMView } from '@/features/llm/llm-view';
+import { AiAssistantView } from '@/features/ai-assistant/ai-assistant-view';
 import { NotificationsView } from '@/features/notifications/notifications-view';
 import { SupportView } from '@/features/support/support-view';
 import { SettingsView } from '@/features/settings/settings-view';
@@ -70,7 +70,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
                     {activePanel === 'Alerts' && <AlertsView isWidget />}
                     {activePanel === 'News' && <NewsView isWidget />}
                     {activePanel === 'Screeners' && <ScreenerView isWidget />}
-                    {activePanel === 'Evalon AI' && <LLMView isWidget />}
+                    {activePanel === 'Evalon AI' && <AiAssistantView isWidget />}
                     {activePanel === 'Notifications' && <NotificationsView isWidget />}
                     {activePanel === 'Support' && <SupportView isWidget />}
                     {activePanel === 'Settings' && <SettingsView isWidget />}
