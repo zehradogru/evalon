@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
-from typing import Dict, List,  Union, Optional, Any
+from typing import Dict, List, Union, Optional, Any
 
 from api.modules.ai.domain.models import AiAssistantReply, AiExecutionPlan, AiRequestContext, AiSessionRecord
 from api.modules.ai.infrastructure.llm.heuristic_gateway import HeuristicLlmGateway
+
+_log = logging.getLogger(__name__)
 
 
 from api.modules.ai.infrastructure.llm.system_prompts import PLANNING_SYSTEM_PROMPT, COMPOSE_SYSTEM_PROMPT
@@ -111,7 +114,8 @@ class GeminiLlmGateway:
     def _build_client(self) -> Optional[Any]:
         try:
             from google import genai
-        except Exception:
+        except Exception as exc:
+            _log.error("[GeminiGateway] google-genai import failed: %s", exc)
             return None
 
         # Standard API Key support
@@ -119,15 +123,20 @@ class GeminiLlmGateway:
         if api_key:
             try:
                 return genai.Client(api_key=api_key)
-            except Exception:
-                pass
+            except Exception as exc:
+                _log.error("[GeminiGateway] Client(api_key) failed: %s", exc)
 
         # Vertex AI support
         if not self._project:
+            _log.error("[GeminiGateway] GOOGLE_CLOUD_PROJECT not set, skipping Vertex AI")
             return None
         try:
-            return genai.Client(vertexai=True, project=self._project, location=self._location)
-        except Exception:
+            _log.info("[GeminiGateway] Building Vertex AI client project=%s location=%s", self._project, self._location)
+            client = genai.Client(vertexai=True, project=self._project, location=self._location)
+            _log.info("[GeminiGateway] Vertex AI client built successfully")
+            return client
+        except Exception as exc:
+            _log.error("[GeminiGateway] Client(vertexai) failed: %s", exc)
             return None
 
     @staticmethod
@@ -146,7 +155,8 @@ class GeminiLlmGateway:
             )
             text = getattr(response, "text", None)
             return text.strip() if isinstance(text, str) else ""
-        except Exception:
+        except Exception as exc:
+            _log.error("[GeminiGateway] generate_content failed model=%s: %s", model, exc)
             return ""
 
     @staticmethod
