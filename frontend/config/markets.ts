@@ -77,6 +77,8 @@ export const FOREX_TICKERS = [
 // ============================================================================
 
 export const TICKER_NAMES: Record<string, string> = {
+    XU100: 'BIST 100',
+    XU030: 'BIST 30',
     // BIST
     AEFES: 'Anadolu Efes',
     AGHOL: 'Anadolu Grubu Holding',

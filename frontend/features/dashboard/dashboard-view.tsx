@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { MainChart } from '@/features/dashboard/main-chart'
 import { LiveWatchlist } from '@/features/dashboard/live-watchlist'
 import { MarketMovers } from '@/features/dashboard/top-movers'
@@ -9,33 +9,45 @@ import { MarketStatus } from '@/features/dashboard/market-status'
 import { MarketNews } from '@/features/dashboard/market-news'
 
 const DASHBOARD_LAST_SELECTION_KEY = 'dashboard:last-selection'
+const DEFAULT_SELECTION = {
+    ticker: 'XU100',
+    name: 'BIST 100',
+}
 
-export function DashboardView() {
-    const [selectedTicker, setSelectedTicker] = useState('THYAO')
-    const [selectedName, setSelectedName] = useState('Turkish Airlines')
+function readInitialSelection() {
+    if (typeof window === 'undefined') {
+        return DEFAULT_SELECTION
+    }
 
-    useEffect(() => {
-        try {
-            const saved = window.localStorage.getItem(DASHBOARD_LAST_SELECTION_KEY)
-            if (!saved) return
+    try {
+        const saved = window.localStorage.getItem(DASHBOARD_LAST_SELECTION_KEY)
+        if (!saved) return DEFAULT_SELECTION
 
-            const parsed = JSON.parse(saved) as {
-                ticker?: string
-                name?: string
-            }
+        const parsed = JSON.parse(saved) as {
+            ticker?: string
+            name?: string
+        }
 
-            if (typeof parsed.ticker === 'string' && parsed.ticker.trim().length > 0) {
-                setSelectedTicker(parsed.ticker)
-                setSelectedName(
+        if (typeof parsed.ticker === 'string' && parsed.ticker.trim().length > 0) {
+            const ticker = parsed.ticker.trim().toUpperCase()
+            return {
+                ticker,
+                name:
                     typeof parsed.name === 'string' && parsed.name.trim().length > 0
                         ? parsed.name
-                        : parsed.ticker
-                )
+                        : ticker,
             }
-        } catch {
-            // Ignore invalid localStorage payloads and keep defaults.
         }
-    }, [])
+    } catch {
+        // Ignore invalid localStorage payloads and keep defaults.
+    }
+
+    return DEFAULT_SELECTION
+}
+
+export function DashboardView() {
+    const [selectedTicker, setSelectedTicker] = useState(() => readInitialSelection().ticker)
+    const [selectedName, setSelectedName] = useState(() => readInitialSelection().name)
 
     const handleSelectTicker = (ticker: string, name: string) => {
         setSelectedTicker(ticker)

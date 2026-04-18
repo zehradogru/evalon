@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   AreaChart,
   Area,
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { MarketDataStatusChip } from '@/components/market-data-status-chip'
 import { cn } from '@/lib/utils'
 import { usePrices } from '@/hooks/use-prices'
+import { toGraphWebTimeframe } from '@/lib/evalon'
 import type { Timeframe } from '@/types'
 
 type Period = '1D' | '1W' | '1M' | '3M'
@@ -42,7 +44,9 @@ interface ChartDataPoint {
 type ChartYDomain = [number, number] | ['auto', 'auto']
 
 export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainChartProps) {
+  const router = useRouter()
   const [period, setPeriod] = useState<Period>('1D')
+  const retryGuardRef = useRef<string | null>(null)
 
   const config = PERIOD_CONFIG[period]
   const {
@@ -52,7 +56,11 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
   } = usePrices(ticker, config.timeframe, config.limit)
 
   // Always fetch daily data for consistent header price/change
-  const { data: dailyPriceData } = usePrices(ticker, '1d', 2)
+  const {
+    data: dailyPriceData,
+    retryNow: retryDailyNow,
+    isFetching: isDailyFetching,
+  } = usePrices(ticker, '1d', 2)
 
   const chartData: ChartDataPoint[] = useMemo(() => {
     return (priceData?.data ?? []).map((bar) => {
@@ -115,6 +123,53 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
       ? 'No price series is available for this period yet.'
       : 'No chart data is available right now.'
 
+  useEffect(() => {
+    const retryKey = `${ticker}:${period}`
+
+    if (showChart || showHardFailure) {
+      retryGuardRef.current = null
+      return
+    }
+
+    if (!marketStatus.isInitialLoading && !marketStatus.isWarming) {
+      return
+    }
+
+    if (retryGuardRef.current === retryKey) {
+      return
+    }
+
+    const timerId = window.setTimeout(() => {
+      retryGuardRef.current = retryKey
+      void retryNow()
+    }, 4500)
+
+    return () => {
+      window.clearTimeout(timerId)
+    }
+  }, [
+    marketStatus.isInitialLoading,
+    marketStatus.isWarming,
+    period,
+    retryNow,
+    showChart,
+    showHardFailure,
+    ticker,
+  ])
+
+  const handleRefresh = () => {
+    void retryNow()
+    void retryDailyNow()
+  }
+
+  const handleOpenFullscreen = () => {
+    router.push(
+      `/markets/${ticker}/chart?tf=${encodeURIComponent(
+        toGraphWebTimeframe(config.timeframe)
+      )}`
+    )
+  }
+
   return (
     <div className="rounded-xl bg-card border border-border overflow-hidden h-full flex flex-col">
       {/* Chart Header */}
@@ -175,7 +230,18 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
           <button className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
             <Minus className="h-4 w-4" />
           </button>
-          <button className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
+          <button
+            onClick={handleRefresh}
+            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+            title="Grafik verisini yenile"
+          >
+            <RefreshCw className={cn('h-4 w-4', (marketStatus.isBackgroundRefreshing || isDailyFetching) && 'animate-spin')} />
+          </button>
+          <button
+            onClick={handleOpenFullscreen}
+            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+            title="Tam ekran grafiği aç"
+          >
             <Maximize2 className="h-4 w-4" />
           </button>
         </div>
