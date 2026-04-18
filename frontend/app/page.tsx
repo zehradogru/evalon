@@ -4,19 +4,26 @@ import { useAuthStore } from '@/store/use-auth-store';
 import { DashboardView } from '@/features/dashboard/dashboard-view';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { LandingPage } from '@/features/landing/landing-page';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const { isAuthenticated, loading } = useAuthStore();
-  const [mounted, setMounted] = useState(false);
+  const router = useRouter();
+  const { isAuthenticated, loading, requiresEmailVerification } = useAuthStore();
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (loading) {
+      return;
+    }
+
+    if (isAuthenticated && requiresEmailVerification) {
+      router.replace('/verify-email');
+    }
+  }, [isAuthenticated, loading, requiresEmailVerification, router]);
 
   // Prevent hydration mismatch or flash of content
-  if (!mounted || loading) {
+  if (loading || requiresEmailVerification) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

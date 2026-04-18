@@ -37,6 +37,7 @@ function useProfileCacheSync() {
                 name: profile.displayName,
                 email: profile.email,
             }),
+            authSecurity: profile.authSecurity,
         })
     }
 

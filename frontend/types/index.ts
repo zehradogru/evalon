@@ -26,6 +26,16 @@ export interface User {
     name?: string
     photoURL?: string
     createdAt: string
+    emailVerified: boolean
+    authSecurity: AuthSecurityState | null
+}
+
+export type AuthSecurityProvider = 'password' | 'google'
+
+export interface AuthSecurityState {
+    verificationRequired: boolean
+    rolloutVersion: number
+    createdWithProvider: AuthSecurityProvider
 }
 
 export type AppLanguage = 'en' | 'tr' | 'de'
@@ -54,6 +64,7 @@ export interface UserProfile {
     createdAt: string
     updatedAt: string
     preferences: UserPreferences
+    authSecurity: AuthSecurityState | null
 }
 
 export interface PriceHistory {

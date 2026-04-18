@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,6 +10,13 @@ import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { authService } from '@/services/auth.service'
 import { useAuthStore } from '@/store'
+import {
+    getPasswordPolicyState,
+    isPasswordPolicySatisfied,
+    normalizeDisplayName,
+    PASSWORD_MIN_LENGTH,
+} from '@/lib/auth-utils'
+import { CheckCircle2, Circle } from 'lucide-react'
 
 export default function SignupPage() {
     const router = useRouter()
@@ -22,12 +28,19 @@ export default function SignupPage() {
     const [agreedToPrivacy, setAgreedToPrivacy] = useState(false)
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
+    const passwordPolicy = getPasswordPolicyState(password)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError('')
 
-        // Validation
+        const normalizedName = normalizeDisplayName(name)
+
+        if (!normalizedName) {
+            setError('Enter your full name to continue')
+            return
+        }
+
         if (!agreedToTerms) {
             setError('You must agree to the Terms of Service')
             return
@@ -38,17 +51,23 @@ export default function SignupPage() {
             return
         }
 
-        if (password.length < 8) {
-            setError('Password must be at least 8 characters')
+        if (!isPasswordPolicySatisfied(password)) {
+            setError(
+                `Password must be at least ${PASSWORD_MIN_LENGTH} characters and include uppercase, lowercase, and a number`
+            )
             return
         }
 
         setLoading(true)
 
         try {
-            const { user } = await authService.signup({ email, password, name })
+            const { user, requiresEmailVerification } = await authService.signup({
+                email,
+                password,
+                name: normalizedName,
+            })
             login(user)
-            router.push('/')
+            router.push(requiresEmailVerification ? '/verify-email' : '/')
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Signup failed')
         } finally {
@@ -61,9 +80,10 @@ export default function SignupPage() {
         setLoading(true)
 
         try {
-            const { user } = await authService.loginWithGoogle()
+            const { user, requiresEmailVerification } =
+                await authService.loginWithGoogle()
             login(user)
-            router.push('/')
+            router.push(requiresEmailVerification ? '/verify-email' : '/')
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Google signup failed')
         } finally {
@@ -76,9 +96,10 @@ export default function SignupPage() {
         setLoading(true)
 
         try {
-            const { user } = await authService.loginWithApple()
+            const { user, requiresEmailVerification } =
+                await authService.loginWithApple()
             login(user)
-            router.push('/')
+            router.push(requiresEmailVerification ? '/verify-email' : '/')
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Apple signup failed')
         } finally {
@@ -159,17 +180,32 @@ export default function SignupPage() {
                                 <Input
                                     id="password"
                                     type="password"
-                                    placeholder="Minimum 8 characters"
+                                    placeholder={`Minimum ${PASSWORD_MIN_LENGTH} characters`}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     autoComplete="new-password"
                                     required
-                                    minLength={8}
+                                    minLength={PASSWORD_MIN_LENGTH}
                                     className="border-slate-500/30 bg-slate-800/30 backdrop-blur-sm text-white placeholder:text-slate-400 focus:border-blue-500/50 transition-colors"
                                 />
-                                <p className="text-xs text-slate-500">
-                                    Must be at least 8 characters
-                                </p>
+                                <div className="space-y-1.5 rounded-lg border border-slate-700/80 bg-slate-950/40 p-3">
+                                    <PasswordChecklistItem
+                                        complete={passwordPolicy.hasMinimumLength}
+                                        label={`At least ${PASSWORD_MIN_LENGTH} characters`}
+                                    />
+                                    <PasswordChecklistItem
+                                        complete={passwordPolicy.hasUppercase}
+                                        label="At least one uppercase letter"
+                                    />
+                                    <PasswordChecklistItem
+                                        complete={passwordPolicy.hasLowercase}
+                                        label="At least one lowercase letter"
+                                    />
+                                    <PasswordChecklistItem
+                                        complete={passwordPolicy.hasNumeric}
+                                        label="At least one number"
+                                    />
+                                </div>
                             </div>
 
                             {/* IMPROVED: Separate Terms Checkboxes */}
@@ -315,9 +351,32 @@ export default function SignupPage() {
 
                 {/* Footer */}
                 <div className="text-center text-xs text-slate-500">
-                    <p>🔒 SECURE SSL</p>
+                    <p>Secure sign-up with Firebase Authentication</p>
                 </div>
             </div>
+        </div>
+    )
+}
+
+function PasswordChecklistItem({
+    complete,
+    label,
+}: {
+    complete: boolean
+    label: string
+}) {
+    return (
+        <div
+            className={`flex items-center gap-2 text-xs ${
+                complete ? 'text-emerald-300' : 'text-slate-400'
+            }`}
+        >
+            {complete ? (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+            ) : (
+                <Circle className="h-3.5 w-3.5" />
+            )}
+            <span>{label}</span>
         </div>
     )
 }

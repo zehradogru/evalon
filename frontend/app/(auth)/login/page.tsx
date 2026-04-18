@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,9 +24,12 @@ export default function LoginPage() {
         setLoading(true)
 
         try {
-            const { user } = await authService.login({ email, password })
+            const { user, requiresEmailVerification } = await authService.login({
+                email,
+                password,
+            })
             login(user)
-            router.push('/')
+            router.push(requiresEmailVerification ? '/verify-email' : '/')
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Login failed')
         } finally {
@@ -40,9 +42,10 @@ export default function LoginPage() {
         setLoading(true)
 
         try {
-            const { user } = await authService.loginWithGoogle()
+            const { user, requiresEmailVerification } =
+                await authService.loginWithGoogle()
             login(user)
-            router.push('/')
+            router.push(requiresEmailVerification ? '/verify-email' : '/')
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Google login failed')
         } finally {
@@ -55,9 +58,10 @@ export default function LoginPage() {
         setLoading(true)
 
         try {
-            const { user } = await authService.loginWithApple()
+            const { user, requiresEmailVerification } =
+                await authService.loginWithApple()
             login(user)
-            router.push('/')
+            router.push(requiresEmailVerification ? '/verify-email' : '/')
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Apple login failed')
         } finally {
@@ -213,7 +217,9 @@ export default function LoginPage() {
 
                         {/* Signup Link */}
                         <div className="text-center text-sm">
-                            <span className="text-slate-400">Don't have an account? </span>
+                            <span className="text-slate-400">
+                                Don&apos;t have an account?{' '}
+                            </span>
                             <Link
                                 href="/signup"
                                 className="font-semibold text-blue-500 hover:text-blue-400"

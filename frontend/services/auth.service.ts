@@ -1,14 +1,25 @@
-import { User } from '@/types'
 import type { FirebaseError } from 'firebase/app'
 import {
-    signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
-    signOut,
+    reload,
+    sendEmailVerification,
+    sendPasswordResetEmail,
+    signInWithEmailAndPassword,
     signInWithPopup,
+    signOut,
     updateProfile,
     User as FirebaseUser,
 } from 'firebase/auth'
-import { auth, googleProvider, appleProvider } from '@/lib/firebase'
+import { appleProvider, auth, googleProvider } from '@/lib/firebase'
+import {
+    mapFirebaseUserToAppUser,
+    normalizeAuthEmail,
+    normalizeDisplayName,
+    shouldRequireEmailVerification,
+    waitAtLeast,
+} from '@/lib/auth-utils'
+import { profileService } from '@/services/profile.service'
+import type { User } from '@/types'
 
 interface LoginCredentials {
     email: string
@@ -23,6 +34,7 @@ interface SignupData {
 
 interface AuthResponse {
     user: User
+    requiresEmailVerification: boolean
 }
 
 function isFirebaseError(error: unknown): error is FirebaseError {
@@ -34,137 +46,252 @@ function isFirebaseError(error: unknown): error is FirebaseError {
     )
 }
 
-// Convert Firebase User to App User
-const mapFirebaseUserToAppUser = (firebaseUser: FirebaseUser): User => {
+async function buildAuthResponse(firebaseUser: FirebaseUser): Promise<AuthResponse> {
+    let authSecurity = null
+
+    try {
+        authSecurity = await profileService.getAuthSecurityByUserId(firebaseUser.uid)
+    } catch {
+        authSecurity = null
+    }
+
+    const user = mapFirebaseUserToAppUser(firebaseUser, authSecurity)
+
     return {
-        id: firebaseUser.uid,
-        email: firebaseUser.email || '',
-        name: firebaseUser.displayName || undefined,
-        photoURL: firebaseUser.photoURL || undefined,
-        createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
+        user,
+        requiresEmailVerification: shouldRequireEmailVerification(user),
     }
 }
 
-// Firebase error messages to user-friendly messages
-const getErrorMessage = (error: unknown): string => {
+function getLoginErrorMessage(error: unknown): string {
     const errorCode = isFirebaseError(error) ? error.code : undefined
+
     switch (errorCode) {
-        case 'auth/email-already-in-use':
-            return 'Email already exists'
-        case 'auth/invalid-email':
-            return 'Invalid email address'
-        case 'auth/user-not-found':
-            return 'Invalid email or password'
-        case 'auth/wrong-password':
-            return 'Invalid email or password'
-        case 'auth/weak-password':
-            return 'Password must be at least 6 characters'
         case 'auth/too-many-requests':
-            return 'Too many attempts. Please try again later'
-        case 'auth/popup-closed-by-user':
-            return 'Sign-in popup was closed'
-        case 'auth/cancelled-popup-request':
-            return 'Sign-in cancelled'
+            return 'Too many attempts. Please wait and try again.'
         case 'auth/network-request-failed':
-            return 'Network error. Please check your connection'
+            return 'Network error. Please check your connection and try again.'
         default:
-            return error instanceof Error ? error.message : 'An error occurred'
+            return 'Sign in failed. Check your credentials and try again.'
     }
 }
 
+function getSignupErrorMessage(error: unknown): string {
+    const errorCode = isFirebaseError(error) ? error.code : undefined
+
+    switch (errorCode) {
+        case 'auth/too-many-requests':
+            return 'Too many attempts. Please wait and try again.'
+        case 'auth/network-request-failed':
+            return 'Network error. Please check your connection and try again.'
+        default:
+            return 'Could not create your account. Review your details and try again.'
+    }
+}
+
+function getOAuthErrorMessage(error: unknown): string {
+    const errorCode = isFirebaseError(error) ? error.code : undefined
+
+    switch (errorCode) {
+        case 'auth/popup-closed-by-user':
+            return 'Sign-in was cancelled before it could complete.'
+        case 'auth/cancelled-popup-request':
+            return 'Another sign-in request is already in progress.'
+        case 'auth/network-request-failed':
+            return 'Network error. Please check your connection and try again.'
+        default:
+            return 'Could not complete sign-in. Please try again.'
+    }
+}
+
+function getVerificationEmailErrorMessage(error: unknown): string {
+    const errorCode = isFirebaseError(error) ? error.code : undefined
+
+    switch (errorCode) {
+        case 'auth/too-many-requests':
+            return 'Too many requests. Please wait before sending another email.'
+        case 'auth/network-request-failed':
+            return 'Network error. Please check your connection and try again.'
+        default:
+            return 'Could not send a verification email right now. Please try again.'
+    }
+}
+
+function getPasswordResetErrorMessage(error: unknown): string {
+    const errorCode = isFirebaseError(error) ? error.code : undefined
+
+    switch (errorCode) {
+        case 'auth/invalid-email':
+            return 'Enter a valid email address.'
+        case 'auth/too-many-requests':
+            return 'Too many requests. Please wait before trying again.'
+        case 'auth/network-request-failed':
+            return 'Network error. Please check your connection and try again.'
+        default:
+            return 'Could not process your request right now. Please try again.'
+    }
+}
 
 export const authService = {
-    /**
-     * Login with email and password
-     */
     async login(credentials: LoginCredentials): Promise<AuthResponse> {
+        const startedAt = Date.now()
+
         try {
             const userCredential = await signInWithEmailAndPassword(
                 auth,
-                credentials.email,
+                normalizeAuthEmail(credentials.email),
                 credentials.password
             )
-            return { user: mapFirebaseUserToAppUser(userCredential.user) }
+
+            return buildAuthResponse(userCredential.user)
         } catch (error: unknown) {
-            throw new Error(getErrorMessage(error))
+            throw new Error(getLoginErrorMessage(error))
+        } finally {
+            await waitAtLeast(startedAt)
         }
     },
 
-    /**
-     * Signup with email, password, and name
-     */
     async signup(data: SignupData): Promise<AuthResponse> {
+        const startedAt = Date.now()
+        const normalizedEmail = normalizeAuthEmail(data.email)
+        const normalizedName = normalizeDisplayName(data.name)
+
         try {
-            // Create user account
             const userCredential = await createUserWithEmailAndPassword(
                 auth,
-                data.email,
+                normalizedEmail,
                 data.password
             )
 
-            // Update profile with name
             await updateProfile(userCredential.user, {
-                displayName: data.name,
+                displayName: normalizedName,
             })
 
-            // Return updated user
-            return {
-                user: {
-                    ...mapFirebaseUserToAppUser(userCredential.user),
-                    name: data.name,
-                },
-            }
+            await profileService.upsertAuthSecurity(userCredential.user, {
+                verificationRequired: true,
+                createdWithProvider: 'password',
+                displayName: normalizedName,
+            })
+
+            await sendEmailVerification(userCredential.user)
+
+            return buildAuthResponse(userCredential.user)
         } catch (error: unknown) {
-            throw new Error(getErrorMessage(error))
+            throw new Error(getSignupErrorMessage(error))
+        } finally {
+            await waitAtLeast(startedAt)
         }
     },
 
-    /**
-     * Login with Google
-     */
     async loginWithGoogle(): Promise<AuthResponse> {
+        const startedAt = Date.now()
+
         try {
             const result = await signInWithPopup(auth, googleProvider)
-            return { user: mapFirebaseUserToAppUser(result.user) }
+            try {
+                const existingAuthSecurity =
+                    await profileService.getAuthSecurityByUserId(result.user.uid)
+
+                if (!existingAuthSecurity) {
+                    await profileService.upsertAuthSecurity(result.user, {
+                        verificationRequired: false,
+                        createdWithProvider: 'google',
+                        displayName: result.user.displayName || undefined,
+                    })
+                }
+            } catch {
+                // Google sign-in should keep working even if profile metadata cannot be written.
+            }
+
+            return buildAuthResponse(result.user)
         } catch (error: unknown) {
-            throw new Error(getErrorMessage(error))
+            throw new Error(getOAuthErrorMessage(error))
+        } finally {
+            await waitAtLeast(startedAt)
         }
     },
 
-    /**
-     * Login with Apple
-     */
     async loginWithApple(): Promise<AuthResponse> {
+        const startedAt = Date.now()
+
         try {
             const result = await signInWithPopup(auth, appleProvider)
-            return { user: mapFirebaseUserToAppUser(result.user) }
+            return buildAuthResponse(result.user)
         } catch (error: unknown) {
-            throw new Error(getErrorMessage(error))
+            throw new Error(getOAuthErrorMessage(error))
+        } finally {
+            await waitAtLeast(startedAt)
         }
     },
 
-    /**
-     * Logout current user
-     */
     async logout(): Promise<void> {
         try {
             await signOut(auth)
         } catch (error: unknown) {
-            throw new Error(getErrorMessage(error))
+            throw new Error(
+                error instanceof Error ? error.message : 'Could not sign out right now.'
+            )
         }
     },
 
-    /**
-     * Get current user
-     */
+    async sendPasswordReset(email: string): Promise<void> {
+        const startedAt = Date.now()
+
+        try {
+            await sendPasswordResetEmail(auth, normalizeAuthEmail(email))
+        } catch (error: unknown) {
+            const errorCode = isFirebaseError(error) ? error.code : undefined
+
+            if (
+                errorCode !== 'auth/user-not-found' &&
+                errorCode !== 'auth/invalid-credential'
+            ) {
+                throw new Error(getPasswordResetErrorMessage(error))
+            }
+        } finally {
+            await waitAtLeast(startedAt)
+        }
+    },
+
+    async resendVerificationEmail(): Promise<void> {
+        const startedAt = Date.now()
+        const firebaseUser = auth.currentUser
+
+        if (!firebaseUser) {
+            throw new Error('Please sign in again to continue.')
+        }
+
+        try {
+            await sendEmailVerification(firebaseUser)
+        } catch (error: unknown) {
+            throw new Error(getVerificationEmailErrorMessage(error))
+        } finally {
+            await waitAtLeast(startedAt)
+        }
+    },
+
+    async refreshCurrentUser(): Promise<AuthResponse | null> {
+        const startedAt = Date.now()
+        const firebaseUser = auth.currentUser
+
+        if (!firebaseUser) {
+            return null
+        }
+
+        try {
+            await reload(firebaseUser)
+            const nextUser = auth.currentUser || firebaseUser
+            return buildAuthResponse(nextUser)
+        } finally {
+            await waitAtLeast(startedAt)
+        }
+    },
+
     getCurrentUser(): User | null {
         const firebaseUser = auth.currentUser
         return firebaseUser ? mapFirebaseUserToAppUser(firebaseUser) : null
     },
 
-    /**
-     * Check if user is authenticated
-     */
     isAuthenticated(): boolean {
         return !!auth.currentUser
     },

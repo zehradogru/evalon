@@ -2,12 +2,11 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { sendPasswordResetEmail } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { authService } from '@/services/auth.service'
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('')
@@ -21,16 +20,14 @@ export default function ForgotPasswordPage() {
         setLoading(true)
 
         try {
-            await sendPasswordResetEmail(auth, email)
+            await authService.sendPasswordReset(email)
             setSuccess(true)
-        } catch (err: any) {
-            if (err.code === 'auth/user-not-found') {
-                setError('No account found with this email')
-            } else if (err.code === 'auth/invalid-email') {
-                setError('Invalid email address')
-            } else {
-                setError('Failed to send reset email. Please try again.')
-            }
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : 'Failed to send reset email. Please try again.'
+            )
         } finally {
             setLoading(false)
         }
@@ -64,7 +61,7 @@ export default function ForgotPasswordPage() {
                             <div className="rounded-lg bg-green-900/20 p-4 text-green-400">
                                 <p className="font-medium">Check your email!</p>
                                 <p className="mt-2 text-sm">
-                                    We've sent a password reset link to <strong>{email}</strong>
+                                    If an account exists for this email, a password reset link has been sent.
                                 </p>
                             </div>
                             <Link href="/login">

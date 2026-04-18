@@ -1,8 +1,18 @@
 'use client'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '@/store'
+
+const USER_SCOPED_QUERY_KEYS = new Set([
+    'user-profile',
+    'user-watchlist',
+    'dashboard-watchlist',
+    'user-alerts',
+    'user-screener-presets',
+    'ai-assets',
+    'ai-session',
+])
 
 export function Providers({ children }: { children: React.ReactNode }) {
     const [queryClient] = useState(
@@ -18,11 +28,25 @@ export function Providers({ children }: { children: React.ReactNode }) {
     )
 
     const initializeAuth = useAuthStore((state) => state.initializeAuth)
+    const userId = useAuthStore((state) => state.user?.id ?? null)
+    const previousUserIdRef = useRef<string | null>(null)
 
     useEffect(() => {
-        // Initialize Firebase auth listener on app startup
         initializeAuth()
     }, [initializeAuth])
+
+    useEffect(() => {
+        const previousUserId = previousUserIdRef.current
+
+        if (previousUserId && previousUserId !== userId) {
+            queryClient.removeQueries({
+                predicate: (query) =>
+                    USER_SCOPED_QUERY_KEYS.has(String(query.queryKey[0])),
+            })
+        }
+
+        previousUserIdRef.current = userId
+    }, [queryClient, userId])
 
     return (
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>

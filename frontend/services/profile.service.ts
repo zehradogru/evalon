@@ -7,10 +7,13 @@ import {
     uploadBytes,
 } from 'firebase/storage'
 import { auth, db, storage } from '@/lib/firebase'
+import { AUTH_SECURITY_ROLLOUT_VERSION } from '@/lib/auth-utils'
 import type {
     AppCurrency,
     AppLanguage,
     AppTheme,
+    AuthSecurityProvider,
+    AuthSecurityState,
     NotificationPreferences,
     UserPlan,
     UserPreferences,
@@ -52,6 +55,12 @@ export interface UpdatePreferencesPayload {
     notifications?: Partial<NotificationPreferences>
 }
 
+export interface UpsertAuthSecurityPayload {
+    verificationRequired: boolean
+    createdWithProvider: AuthSecurityProvider
+    displayName?: string
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null
 }
@@ -70,6 +79,30 @@ function isTheme(value: unknown): value is AppTheme {
 
 function isPlan(value: unknown): value is UserPlan {
     return typeof value === 'string' && PLAN_VALUES.includes(value as UserPlan)
+}
+
+function isAuthSecurityProvider(value: unknown): value is AuthSecurityProvider {
+    return value === 'password' || value === 'google'
+}
+
+function normalizeAuthSecurity(value: unknown): AuthSecurityState | null {
+    if (!isRecord(value)) {
+        return null
+    }
+
+    if (
+        typeof value.verificationRequired !== 'boolean' ||
+        typeof value.rolloutVersion !== 'number' ||
+        !isAuthSecurityProvider(value.createdWithProvider)
+    ) {
+        return null
+    }
+
+    return {
+        verificationRequired: value.verificationRequired,
+        rolloutVersion: value.rolloutVersion,
+        createdWithProvider: value.createdWithProvider,
+    }
 }
 
 function normalizePreferences(value: unknown): UserPreferences {
@@ -104,6 +137,7 @@ function buildProfileFromAuth(firebaseUser: FirebaseUser): UserProfile {
         createdAt: firebaseUser.metadata.creationTime || now,
         updatedAt: now,
         preferences: DEFAULT_PREFERENCES,
+        authSecurity: null,
     }
 }
 
@@ -136,6 +170,7 @@ function normalizeProfileFromDoc(rawData: unknown, firebaseUser: FirebaseUser): 
                 ? rawData.updatedAt
                 : fallback.updatedAt,
         preferences: normalizePreferences(rawData.preferences),
+        authSecurity: normalizeAuthSecurity(rawData.authSecurity),
     }
 }
 
@@ -196,6 +231,53 @@ function isManagedProfilePhotoURL(photoURL: string, userId: string): boolean {
 }
 
 export const profileService = {
+    async getAuthSecurityByUserId(userId: string): Promise<AuthSecurityState | null> {
+        const userRef = doc(db, USERS_COLLECTION, userId)
+        const snapshot = await getDoc(userRef)
+        if (!snapshot.exists()) {
+            return null
+        }
+
+        return normalizeAuthSecurity(snapshot.data().authSecurity)
+    },
+
+    async upsertAuthSecurity(
+        firebaseUser: FirebaseUser,
+        payload: UpsertAuthSecurityPayload
+    ): Promise<AuthSecurityState> {
+        const now = new Date().toISOString()
+        const userRef = doc(db, USERS_COLLECTION, firebaseUser.uid)
+        const snapshot = await getDoc(userRef)
+
+        const authSecurity: AuthSecurityState = {
+            verificationRequired: payload.verificationRequired,
+            rolloutVersion: AUTH_SECURITY_ROLLOUT_VERSION,
+            createdWithProvider: payload.createdWithProvider,
+        }
+
+        const nextData: Record<string, unknown> = {
+            email: firebaseUser.email || '',
+            displayName:
+                payload.displayName ??
+                firebaseUser.displayName ??
+                '',
+            photoURL: firebaseUser.photoURL || null,
+            updatedAt: now,
+            authSecurity,
+        }
+
+        if (!snapshot.exists()) {
+            nextData.uid = firebaseUser.uid
+            nextData.plan = DEFAULT_PLAN
+            nextData.createdAt = firebaseUser.metadata.creationTime || now
+            nextData.preferences = DEFAULT_PREFERENCES
+        }
+
+        await setDoc(userRef, nextData, { merge: true })
+
+        return authSecurity
+    },
+
     async getOrCreateProfile(): Promise<UserProfile> {
         const firebaseUser = ensureCurrentUser()
         const userRef = doc(db, USERS_COLLECTION, firebaseUser.uid)
