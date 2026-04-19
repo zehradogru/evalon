@@ -1,10 +1,12 @@
 'use client'
 
 import Link from 'next/link'
+import { useRef, useState } from 'react'
 import {
     Bookmark,
     Flag,
     Heart,
+    MessageCircle,
     MoreHorizontal,
     Pencil,
     Share2,
@@ -43,6 +45,21 @@ interface CommunityPostCardProps {
     onReport?: (post: CommunityPost, reason: CommunityReportReason) => void
 }
 
+/* ---------- Avatar gradient palette ---------- */
+const AVATAR_GRADIENTS = [
+    'from-blue-500 to-cyan-400',
+    'from-violet-500 to-fuchsia-400',
+    'from-emerald-500 to-teal-400',
+    'from-amber-500 to-orange-400',
+    'from-rose-500 to-pink-400',
+    'from-indigo-500 to-blue-400',
+]
+
+function avatarGradient(name: string) {
+    const charCode = name.charCodeAt(0) || 0
+    return AVATAR_GRADIENTS[charCode % AVATAR_GRADIENTS.length]
+}
+
 function renderMedia(
     post: CommunityPost,
     context: CommunityPostCardProps['context'],
@@ -53,12 +70,12 @@ function renderMedia(
     const imageMarkup = (
         <div
             className={cn(
-                'overflow-hidden border border-white/10 bg-black',
+                'group/media relative overflow-hidden border border-white/[0.06] bg-black',
                 context === 'detail'
-                    ? 'rounded-[2rem]'
+                    ? 'rounded-2xl'
                     : context === 'related'
-                      ? 'rounded-[1.5rem]'
-                      : 'rounded-[1.75rem]'
+                      ? 'rounded-xl'
+                      : 'rounded-2xl'
             )}
         >
             {/* Community media comes from Firebase-managed public URLs and should render without image optimizer coupling. */}
@@ -67,14 +84,18 @@ function renderMedia(
                 src={post.imageUrl}
                 alt={`Visual for ${post.authorName}'s post`}
                 className={cn(
-                    'w-full object-cover transition-transform duration-500',
+                    'w-full object-cover transition-all duration-700 ease-out',
                     context === 'detail'
                         ? 'max-h-[38rem]'
                         : context === 'related'
-                          ? 'aspect-[16/9] hover:scale-[1.02]'
-                          : 'aspect-[16/10] hover:scale-[1.015]'
+                          ? 'aspect-[16/9] group-hover/media:scale-[1.04]'
+                          : 'aspect-[16/10] group-hover/media:scale-[1.03]'
                 )}
             />
+            {/* Hover gradient overlay */}
+            {context !== 'detail' && (
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover/media:opacity-100" />
+            )}
         </div>
     )
 
@@ -101,155 +122,237 @@ export function CommunityPostCard({
 }: CommunityPostCardProps) {
     const isDetail = context === 'detail'
     const postHref = buildCommunityPostUrl(post.id)
+    const [likeAnimating, setLikeAnimating] = useState(false)
+    const [saveAnimating, setSaveAnimating] = useState(false)
+    const likeTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null)
+    const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null)
+
+    function handleLikeClick() {
+        onLike(post)
+        setLikeAnimating(true)
+        if (likeTimeoutRef.current) clearTimeout(likeTimeoutRef.current)
+        likeTimeoutRef.current = setTimeout(() => setLikeAnimating(false), 450)
+    }
+
+    function handleSaveClick() {
+        onSave(post)
+        setSaveAnimating(true)
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = setTimeout(() => setSaveAnimating(false), 450)
+    }
 
     return (
-        <Card className="gap-5 rounded-[2rem] border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-5 shadow-[0_28px_80px_-52px_rgba(0,0,0,0.9)]">
-            <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 space-y-3">
+        <Card
+            className={cn(
+                'group/card relative gap-0 overflow-hidden rounded-2xl border-white/[0.06] p-0 shadow-[0_2px_24px_-8px_rgba(0,0,0,0.6)] transition-all duration-500 ease-out',
+                'bg-gradient-to-b from-white/[0.04] to-white/[0.01]',
+                context !== 'detail' && 'hover:-translate-y-1 hover:border-white/[0.1] hover:shadow-[0_20px_60px_-20px_rgba(40,98,255,0.15)]'
+            )}
+        >
+            {/* Subtle top accent line */}
+            <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+
+            <div className="space-y-4 p-5">
+                {/* Author header */}
+                <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="flex size-11 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-sm font-semibold text-primary shadow-[0_0_0_6px_rgba(40,98,255,0.08)]">
-                            {post.authorName.slice(0, 1).toUpperCase()}
+                        {/* Gradient avatar */}
+                        <div className="relative">
+                            <div className={cn(
+                                'flex size-10 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white shadow-lg',
+                                avatarGradient(post.authorName)
+                            )}>
+                                {post.authorName.slice(0, 1).toUpperCase()}
+                            </div>
+                            {/* Online indicator dot */}
+                            <div className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-black bg-emerald-400" />
                         </div>
+
                         <div className="min-w-0">
                             <p className="truncate text-sm font-semibold tracking-tight text-foreground">
                                 {post.authorName}
                             </p>
-                            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                                {formatCommunityTimestamp(post.createdAt)}
-                                {post.editedAt ? ' · edited' : ''}
-                            </p>
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                <span>{formatCommunityTimestamp(post.createdAt)}</span>
+                                {post.editedAt ? (
+                                    <>
+                                        <span className="text-muted-foreground/50">·</span>
+                                        <span className="italic text-muted-foreground/70">edited</span>
+                                    </>
+                                ) : null}
+                            </div>
                         </div>
                     </div>
-                    {context !== 'related' ? (
-                        <p className="text-xs uppercase tracking-[0.28em] text-primary/80">
-                            Market note
-                        </p>
-                    ) : null}
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="rounded-full opacity-0 transition-opacity duration-300 group-hover/card:opacity-100 data-[state=open]:opacity-100"
+                            >
+                                <MoreHorizontal />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                            {post.isMine ? (
+                                <>
+                                    <DropdownMenuItem onClick={() => onEdit?.(post)}>
+                                        <Pencil />
+                                        Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => onDelete?.(post)}>
+                                        <Trash2 />
+                                        Delete
+                                    </DropdownMenuItem>
+                                </>
+                            ) : (
+                                <DropdownMenuSub>
+                                    <DropdownMenuSubTrigger>
+                                        <Flag />
+                                        Report
+                                    </DropdownMenuSubTrigger>
+                                    <DropdownMenuSubContent>
+                                        {COMMUNITY_REPORT_REASONS.map((reason) => (
+                                            <DropdownMenuItem
+                                                key={reason}
+                                                onClick={() => onReport?.(post, reason)}
+                                            >
+                                                {reason}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuSubContent>
+                                </DropdownMenuSub>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => onShare(post)}>
+                                <Share2 />
+                                Share
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
 
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm" className="rounded-full">
-                            <MoreHorizontal />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44">
-                        {post.isMine ? (
-                            <>
-                                <DropdownMenuItem onClick={() => onEdit?.(post)}>
-                                    <Pencil />
-                                    Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => onDelete?.(post)}>
-                                    <Trash2 />
-                                    Delete
-                                </DropdownMenuItem>
-                            </>
-                        ) : (
-                            <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>
-                                    <Flag />
-                                    Report
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuSubContent>
-                                    {COMMUNITY_REPORT_REASONS.map((reason) => (
-                                        <DropdownMenuItem
-                                            key={reason}
-                                            onClick={() => onReport?.(post, reason)}
-                                        >
-                                            {reason}
-                                        </DropdownMenuItem>
-                                    ))}
-                                </DropdownMenuSubContent>
-                            </DropdownMenuSub>
+                {/* Media */}
+                {renderMedia(post, context, postHref)}
+
+                {/* Content */}
+                {isDetail ? (
+                    <div className="whitespace-pre-wrap text-[15px] leading-[1.85] text-foreground/90">
+                        {post.content}
+                    </div>
+                ) : (
+                    <Link
+                        href={postHref}
+                        className={cn(
+                            'block whitespace-pre-wrap text-[15px] leading-[1.8] text-foreground/85 transition-colors duration-300 hover:text-foreground',
+                            context === 'related' && 'line-clamp-3 text-sm leading-7'
                         )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onShare(post)}>
-                            <Share2 />
-                            Share
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                    >
+                        {post.content}
+                    </Link>
+                )}
+
+                {/* Tags & Tickers */}
+                {post.tickers.length > 0 || post.tags.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        {post.tickers.map((ticker) => (
+                            <Link
+                                key={ticker}
+                                href={`/community?ticker=${encodeURIComponent(ticker)}`}
+                            >
+                                <Badge
+                                    className="cursor-pointer rounded-lg border-0 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition-all duration-300 hover:bg-primary/20 hover:shadow-[0_0_12px_rgba(40,98,255,0.25)]"
+                                >
+                                    ${ticker}
+                                </Badge>
+                            </Link>
+                        ))}
+                        {post.tags.map((tag) => (
+                            <Badge
+                                key={tag}
+                                variant="outline"
+                                className="rounded-lg border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors duration-300 hover:border-white/[0.15] hover:text-foreground"
+                            >
+                                #{tag}
+                            </Badge>
+                        ))}
+                    </div>
+                ) : null}
             </div>
 
-            {renderMedia(post, context, postHref)}
-
-            {isDetail ? (
-                <div className="whitespace-pre-wrap text-[15px] leading-8 text-foreground/92">
-                    {post.content}
-                </div>
-            ) : (
-                <Link
-                    href={postHref}
-                    className={cn(
-                        'whitespace-pre-wrap text-[15px] leading-8 text-foreground/90 transition-colors hover:text-foreground',
-                        context === 'related' && 'line-clamp-3 leading-7'
-                    )}
-                >
-                    {post.content}
-                </Link>
-            )}
-
-            {post.tickers.length > 0 || post.tags.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-2">
-                    {post.tickers.map((ticker) => (
-                        <Badge
-                            key={ticker}
-                            className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-primary"
-                        >
-                            <Link href={`/community?ticker=${encodeURIComponent(ticker)}`}>
-                                ${ticker}
-                            </Link>
-                        </Badge>
-                    ))}
-                    {post.tags.map((tag) => (
-                        <Badge
-                            key={tag}
-                            variant="outline"
-                            className="rounded-full px-3 py-1"
-                        >
-                            #{tag}
-                        </Badge>
-                    ))}
-                </div>
-            ) : null}
-
-            <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
+            {/* Action bar */}
+            <div className="flex items-center gap-1 border-t border-white/[0.06] px-3 py-2">
+                {/* Like */}
                 <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     className={cn(
-                        'rounded-full px-3',
-                        post.viewerHasLiked && 'text-rose-500 hover:text-rose-500'
+                        'gap-1.5 rounded-xl px-3 text-xs transition-all duration-300',
+                        post.viewerHasLiked
+                            ? 'text-rose-400 hover:text-rose-400 hover:bg-rose-500/10'
+                            : 'text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10'
                     )}
-                    onClick={() => onLike(post)}
+                    onClick={handleLikeClick}
                 >
-                    <Heart fill={post.viewerHasLiked ? 'currentColor' : 'none'} />
-                    {post.likeCount}
+                    <Heart
+                        className={cn(
+                            'size-4 transition-transform',
+                            likeAnimating && 'animate-like-bounce'
+                        )}
+                        fill={post.viewerHasLiked ? 'currentColor' : 'none'}
+                    />
+                    <span className="tabular-nums">{post.likeCount}</span>
                 </Button>
+
+                {/* Comment indicator (read-only) */}
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 rounded-xl px-3 text-xs text-muted-foreground"
+                    asChild
+                >
+                    <Link href={postHref}>
+                        <MessageCircle className="size-4" />
+                        <span className="hidden sm:inline">Discuss</span>
+                    </Link>
+                </Button>
+
+                {/* Save */}
                 <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     className={cn(
-                        'rounded-full px-3',
-                        post.viewerHasSaved && 'text-amber-500 hover:text-amber-500'
+                        'gap-1.5 rounded-xl px-3 text-xs transition-all duration-300',
+                        post.viewerHasSaved
+                            ? 'text-amber-400 hover:text-amber-400 hover:bg-amber-500/10'
+                            : 'text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10'
                     )}
-                    onClick={() => onSave(post)}
+                    onClick={handleSaveClick}
                 >
-                    <Bookmark fill={post.viewerHasSaved ? 'currentColor' : 'none'} />
-                    {post.viewerHasSaved ? 'Saved' : 'Save'}
+                    <Bookmark
+                        className={cn(
+                            'size-4 transition-transform',
+                            saveAnimating && 'animate-like-bounce'
+                        )}
+                        fill={post.viewerHasSaved ? 'currentColor' : 'none'}
+                    />
+                    <span className="hidden sm:inline">{post.viewerHasSaved ? 'Saved' : 'Save'}</span>
                 </Button>
+
+                {/* Share — pushed right */}
                 <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="rounded-full px-3"
+                    className="ml-auto gap-1.5 rounded-xl px-3 text-xs text-muted-foreground transition-all duration-300 hover:text-foreground"
                     onClick={() => onShare(post)}
                 >
-                    <Share2 />
-                    Share
+                    <Share2 className="size-4" />
+                    <span className="hidden sm:inline">Share</span>
                 </Button>
             </div>
         </Card>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ImagePlus, RotateCcw, Trash2, X } from 'lucide-react'
+import { ImagePlus, RotateCcw, Trash2, Upload, X } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -30,6 +30,7 @@ export function CommunityComposer({
     const [tickerInput, setTickerInput] = useState('')
     const [tagInput, setTagInput] = useState('')
     const [fileInputKey, setFileInputKey] = useState(0)
+    const [isDragging, setIsDragging] = useState(false)
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault()
@@ -71,6 +72,14 @@ export function CommunityComposer({
         setFileInputKey((current) => current + 1)
     }
 
+    /* Character counter progress */
+    const charProgress = Math.min(
+        100,
+        ((composer.content.length) / COMMUNITY_CONTENT_MAX) * 100
+    )
+    const isNearLimit = charProgress > 85
+    const isOverLimit = composer.remainingChars < 0
+
     return (
         <form
             className="flex h-full flex-col"
@@ -90,41 +99,54 @@ export function CommunityComposer({
                 handleFileSelection(file)
             }}
         >
-            <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
-                <section className="rounded-3xl border border-border/60 bg-white/[0.02] p-4 shadow-[0_24px_80px_-48px_rgba(40,98,255,0.8)]">
-                    <div className="space-y-2">
-                        <p className="text-xs font-medium uppercase tracking-[0.28em] text-primary/80">
+            <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
+                {/* -------- Thesis section -------- */}
+                <section className="group/section rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 transition-all duration-500 hover:border-white/[0.1] hover:shadow-[0_4px_24px_-8px_rgba(40,98,255,0.1)]">
+                    <div className="mb-3 flex items-center justify-between">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80">
                             Thesis
                         </p>
-                        <Textarea
-                            value={composer.content}
-                            onChange={(event) => composer.setContent(event.target.value)}
-                            placeholder="What is moving, what matters, and where are you positioned?"
-                            className="min-h-40 resize-none rounded-3xl border-white/10 bg-black/40 px-4 py-4 text-base leading-7 shadow-none"
-                            maxLength={COMMUNITY_CONTENT_MAX}
-                        />
-                        <div className="flex items-center justify-between text-xs">
-                            <span className="text-destructive">
-                                {composer.errors.content || ''}
-                            </span>
-                            <span
-                                className={cn(
-                                    'text-muted-foreground',
-                                    composer.remainingChars < 0 && 'text-destructive'
-                                )}
-                            >
-                                {composer.remainingChars} characters left
+                        {/* Circular progress indicator */}
+                        <div className="flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 20 20" className="rotate-[-90deg]">
+                                <circle cx="10" cy="10" r="8" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
+                                <circle
+                                    cx="10" cy="10" r="8" fill="none"
+                                    stroke={isOverLimit ? '#f23645' : isNearLimit ? '#ef9005' : '#2862ff'}
+                                    strokeWidth="2"
+                                    strokeDasharray={`${2 * Math.PI * 8}`}
+                                    strokeDashoffset={`${2 * Math.PI * 8 * (1 - charProgress / 100)}`}
+                                    strokeLinecap="round"
+                                    className="transition-all duration-300"
+                                />
+                            </svg>
+                            <span className={cn(
+                                'text-[11px] tabular-nums',
+                                isOverLimit ? 'text-destructive' : isNearLimit ? 'text-amber-400' : 'text-muted-foreground'
+                            )}>
+                                {composer.remainingChars}
                             </span>
                         </div>
                     </div>
+                    <Textarea
+                        value={composer.content}
+                        onChange={(event) => composer.setContent(event.target.value)}
+                        placeholder="What is moving, what matters, and where are you positioned?"
+                        className="min-h-36 resize-none rounded-xl border-white/[0.06] bg-black/40 px-4 py-4 text-[15px] leading-7 shadow-none transition-colors duration-300 focus:border-primary/30 focus:bg-black/60"
+                        maxLength={COMMUNITY_CONTENT_MAX}
+                    />
+                    {composer.errors.content ? (
+                        <p className="mt-2 text-xs text-destructive">{composer.errors.content}</p>
+                    ) : null}
                 </section>
 
-                <section className="rounded-3xl border border-border/60 bg-white/[0.02] p-4">
+                {/* -------- Hero image section -------- */}
+                <section className="group/section rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 transition-all duration-500 hover:border-white/[0.1]">
                     <div className="mb-3 flex items-center justify-between gap-4">
                         <div className="space-y-1">
                             <p className="text-sm font-semibold">Hero image</p>
-                            <p className="text-xs text-muted-foreground">
-                                Add one chart, screenshot, or setup image. Paste from clipboard or upload a file.
+                            <p className="text-[11px] text-muted-foreground">
+                                Chart, screenshot, or setup image. Paste or upload.
                             </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -138,13 +160,13 @@ export function CommunityComposer({
                                     handleFileSelection(event.target.files?.[0] ?? null)
                                 }
                             />
-                            <Button asChild type="button" variant="outline" size="sm">
+                            <Button asChild type="button" variant="outline" size="sm" className="rounded-xl">
                                 <label
                                     htmlFor={`community-image-${mode}`}
                                     className="cursor-pointer"
                                 >
                                     <ImagePlus className="size-4" />
-                                    {composer.hasImage ? 'Replace image' : 'Add image'}
+                                    {composer.hasImage ? 'Replace' : 'Upload'}
                                 </label>
                             </Button>
                             {composer.hasImage ? (
@@ -152,6 +174,7 @@ export function CommunityComposer({
                                     type="button"
                                     variant="ghost"
                                     size="sm"
+                                    className="rounded-xl text-muted-foreground hover:text-destructive"
                                     onClick={handleClearImage}
                                 >
                                     <Trash2 className="size-4" />
@@ -163,6 +186,7 @@ export function CommunityComposer({
                                     type="button"
                                     variant="ghost"
                                     size="sm"
+                                    className="rounded-xl"
                                     onClick={composer.restoreExistingImage}
                                 >
                                     <RotateCcw className="size-4" />
@@ -173,7 +197,7 @@ export function CommunityComposer({
                     </div>
 
                     {composer.hasImage && composer.activeImageUrl ? (
-                        <div className="overflow-hidden rounded-[1.75rem] border border-border/60 bg-black">
+                        <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-black">
                             {/* Preview uses blob URLs and direct Firebase URLs, so keep a plain img element here. */}
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
@@ -183,15 +207,42 @@ export function CommunityComposer({
                             />
                         </div>
                     ) : (
-                        <div className="flex min-h-52 flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-border/60 bg-black/30 px-6 text-center">
-                            <div className="mb-4 flex size-14 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
-                                <ImagePlus className="size-6" />
+                        <div
+                            className={cn(
+                                'relative flex min-h-48 flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 text-center transition-all duration-300',
+                                isDragging
+                                    ? 'border-primary bg-primary/[0.06] shadow-[0_0_24px_-4px_rgba(40,98,255,0.2)]'
+                                    : 'border-white/[0.08] bg-black/20 hover:border-white/[0.12] hover:bg-black/30'
+                            )}
+                            onDragOver={(e) => {
+                                e.preventDefault()
+                                setIsDragging(true)
+                            }}
+                            onDragLeave={() => setIsDragging(false)}
+                            onDrop={(e) => {
+                                e.preventDefault()
+                                setIsDragging(false)
+                                const file = e.dataTransfer.files?.[0]
+                                if (file) handleFileSelection(file)
+                            }}
+                        >
+                            <div className={cn(
+                                'mb-3 flex size-12 items-center justify-center rounded-xl transition-all duration-500',
+                                isDragging
+                                    ? 'scale-110 bg-primary/20 text-primary'
+                                    : 'bg-white/[0.04] text-muted-foreground'
+                            )}>
+                                {isDragging ? (
+                                    <Upload className="size-5" />
+                                ) : (
+                                    <ImagePlus className="size-5" />
+                                )}
                             </div>
-                            <p className="text-base font-semibold">
-                                Drop in a visual anchor
+                            <p className="text-sm font-medium">
+                                {isDragging ? 'Drop your image here' : 'Add a visual anchor'}
                             </p>
-                            <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                                Use one strong chart, markup, or screenshot to make your post easier to scan. JPEG, PNG, and WEBP are supported.
+                            <p className="mt-1.5 max-w-sm text-[11px] leading-5 text-muted-foreground">
+                                Drag & drop, paste from clipboard, or click Upload. JPEG, PNG, WEBP supported.
                             </p>
                         </div>
                     )}
@@ -209,12 +260,13 @@ export function CommunityComposer({
                     ) : null}
                 </section>
 
+                {/* -------- Tickers & Tags -------- */}
                 <section className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-3xl border border-border/60 bg-white/[0.02] p-4">
+                    <div className="group/section rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 transition-all duration-500 hover:border-white/[0.1]">
                         <div className="mb-3 space-y-1">
                             <p className="text-sm font-semibold">Tickers</p>
-                            <p className="text-xs text-muted-foreground">
-                                Up to 3 symbols. They will be normalized to uppercase.
+                            <p className="text-[11px] text-muted-foreground">
+                                Up to 3 symbols. Normalized to uppercase.
                             </p>
                         </div>
                         <Input
@@ -228,17 +280,18 @@ export function CommunityComposer({
                                 }
                             }}
                             placeholder="THYAO, ASELS, BIMAS"
-                            className="rounded-2xl"
+                            className="rounded-xl border-white/[0.06] bg-black/40 transition-colors focus:border-primary/30"
                         />
-                        <div className="mt-3 flex min-h-8 flex-wrap gap-2">
+                        <div className="mt-3 flex min-h-8 flex-wrap gap-1.5">
                             {composer.tickers.map((ticker) => (
                                 <Badge
                                     key={ticker}
-                                    className="gap-1 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-primary"
+                                    className="gap-1 rounded-lg border-0 bg-primary/10 px-2.5 py-1 text-primary transition-all hover:bg-primary/20"
                                 >
                                     ${ticker}
                                     <button
                                         type="button"
+                                        className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-primary/20"
                                         onClick={() => composer.removeTicker(ticker)}
                                     >
                                         <X className="size-3" />
@@ -253,11 +306,11 @@ export function CommunityComposer({
                         ) : null}
                     </div>
 
-                    <div className="rounded-3xl border border-border/60 bg-white/[0.02] p-4">
+                    <div className="group/section rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 transition-all duration-500 hover:border-white/[0.1]">
                         <div className="mb-3 space-y-1">
                             <p className="text-sm font-semibold">Tags</p>
-                            <p className="text-xs text-muted-foreground">
-                                Up to 3 descriptors. They will be normalized to lowercase.
+                            <p className="text-[11px] text-muted-foreground">
+                                Up to 3 descriptors. Normalized to lowercase.
                             </p>
                         </div>
                         <Input
@@ -271,18 +324,19 @@ export function CommunityComposer({
                                 }
                             }}
                             placeholder="breakout, swing, reaction"
-                            className="rounded-2xl"
+                            className="rounded-xl border-white/[0.06] bg-black/40 transition-colors focus:border-primary/30"
                         />
-                        <div className="mt-3 flex min-h-8 flex-wrap gap-2">
+                        <div className="mt-3 flex min-h-8 flex-wrap gap-1.5">
                             {composer.tags.map((tag) => (
                                 <Badge
                                     key={tag}
                                     variant="outline"
-                                    className="gap-1 rounded-full px-3 py-1"
+                                    className="gap-1 rounded-lg border-white/[0.08] bg-white/[0.03] px-2.5 py-1 transition-all hover:border-white/[0.15]"
                                 >
                                     #{tag}
                                     <button
                                         type="button"
+                                        className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-white/10"
                                         onClick={() => composer.removeTag(tag)}
                                     >
                                         <X className="size-3" />
@@ -299,9 +353,10 @@ export function CommunityComposer({
                 </section>
             </div>
 
-            <div className="border-t border-border/60 bg-background/95 px-6 py-5">
+            {/* -------- Footer -------- */}
+            <div className="border-t border-white/[0.06] bg-background/95 px-6 py-4 backdrop-blur-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[11px] text-muted-foreground">
                         {mode === 'create'
                             ? 'Publishing creates a new community post immediately.'
                             : 'Saving updates the existing post in place.'}
@@ -311,13 +366,18 @@ export function CommunityComposer({
                             <Button
                                 type="button"
                                 variant="ghost"
+                                className="rounded-xl"
                                 onClick={onCancel}
                                 disabled={isSubmitting}
                             >
                                 Cancel
                             </Button>
                         ) : null}
-                        <Button type="submit" disabled={composer.submitDisabled || isSubmitting}>
+                        <Button
+                            type="submit"
+                            className="rounded-xl shadow-[0_4px_16px_-4px_rgba(40,98,255,0.5)]"
+                            disabled={composer.submitDisabled || isSubmitting}
+                        >
                             {isSubmitting
                                 ? mode === 'create'
                                     ? 'Publishing...'

@@ -19,6 +19,63 @@ interface CommunityFeedListProps {
     requiresAuth?: boolean
 }
 
+function SkeletonCard({ delay }: { delay: string }) {
+    return (
+        <div
+            className={`animate-fade-in-up overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.04] to-white/[0.01] ${delay}`}
+        >
+            {/* Top accent line */}
+            <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+            {/* Header skeleton */}
+            <div className="flex items-center gap-3 p-5 pb-0">
+                <div className="size-10 animate-pulse rounded-full bg-white/[0.06]" />
+                <div className="space-y-2">
+                    <div className="h-3.5 w-28 rounded-md bg-white/[0.06]">
+                        <div className="animate-shimmer h-full w-full rounded-md" />
+                    </div>
+                    <div className="h-2.5 w-20 rounded-md bg-white/[0.06]">
+                        <div className="animate-shimmer h-full w-full rounded-md" />
+                    </div>
+                </div>
+            </div>
+
+            {/* Image skeleton */}
+            <div className="mx-5 mt-4 overflow-hidden rounded-2xl">
+                <div className="relative h-48 bg-white/[0.04]">
+                    <div className="animate-shimmer h-full w-full" />
+                </div>
+            </div>
+
+            {/* Text skeleton */}
+            <div className="space-y-2.5 p-5">
+                <div className="h-3.5 w-full rounded-md bg-white/[0.06]">
+                    <div className="animate-shimmer h-full w-full rounded-md" />
+                </div>
+                <div className="h-3.5 w-4/5 rounded-md bg-white/[0.06]">
+                    <div className="animate-shimmer h-full w-full rounded-md" />
+                </div>
+                <div className="h-3.5 w-3/5 rounded-md bg-white/[0.06]">
+                    <div className="animate-shimmer h-full w-full rounded-md" />
+                </div>
+            </div>
+
+            {/* Tags skeleton */}
+            <div className="flex gap-2 px-5 pb-4">
+                <div className="h-6 w-16 rounded-lg bg-white/[0.06]" />
+                <div className="h-6 w-20 rounded-lg bg-white/[0.06]" />
+            </div>
+
+            {/* Action bar skeleton */}
+            <div className="flex gap-2 border-t border-white/[0.06] px-3 py-3">
+                <div className="h-7 w-16 rounded-xl bg-white/[0.04]" />
+                <div className="h-7 w-16 rounded-xl bg-white/[0.04]" />
+                <div className="h-7 w-16 rounded-xl bg-white/[0.04]" />
+            </div>
+        </div>
+    )
+}
+
 export function CommunityFeedList({
     posts,
     hasMore,
@@ -33,20 +90,10 @@ export function CommunityFeedList({
 }: CommunityFeedListProps) {
     if (isLoading) {
         return (
-            <div className="space-y-6">
-                {Array.from({ length: 3 }).map((_, index) => (
-                    <div
-                        key={index}
-                        className="overflow-hidden rounded-[2rem] border border-white/10 bg-card/40"
-                    >
-                        <div className="h-52 animate-pulse bg-white/[0.05]" />
-                        <div className="space-y-4 p-5">
-                            <div className="h-4 w-40 animate-pulse rounded-full bg-white/[0.06]" />
-                            <div className="h-4 w-full animate-pulse rounded-full bg-white/[0.06]" />
-                            <div className="h-4 w-3/4 animate-pulse rounded-full bg-white/[0.06]" />
-                        </div>
-                    </div>
-                ))}
+            <div className="space-y-5">
+                <SkeletonCard delay="animation-delay-100" />
+                <SkeletonCard delay="animation-delay-200" />
+                <SkeletonCard delay="animation-delay-300" />
             </div>
         )
     }
@@ -63,13 +110,24 @@ export function CommunityFeedList({
     }
 
     return (
-        <div className="space-y-6">
-            {posts.map((post) => renderPost(post))}
+        <div className="space-y-5">
+            {posts.map((post, index) => (
+                <div
+                    key={post.id}
+                    className="animate-fade-in-up"
+                    style={{ animationDelay: `${Math.min(index * 80, 400)}ms` }}
+                >
+                    {renderPost(post)}
+                </div>
+            ))}
             {hasMore ? <div ref={sentinelRef} className="h-6 w-full" /> : null}
             {isFetchingMore ? (
-                <p className="text-center text-sm text-muted-foreground">
-                    Loading more community notes...
-                </p>
+                <div className="flex items-center justify-center gap-3 py-4">
+                    <div className="size-5 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+                    <p className="text-sm text-muted-foreground">
+                        Loading more notes...
+                    </p>
+                </div>
             ) : null}
         </div>
     )

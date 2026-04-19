@@ -113,13 +113,13 @@ export function LandingNavbar() {
       {/* Mobile Menu Dropdown */}
       {isMenuOpen && (
         <div className="lg:hidden absolute top-20 left-4 right-4 bg-[#131722]/95 backdrop-blur-xl border border-[#2a2e39] rounded-2xl p-4 flex flex-col gap-4 shadow-2xl">
-          <Link href="#products" className="text-[#d1d4dc] hover:text-white font-medium py-2 px-2 hover:bg-white/5 rounded-lg transition-colors">Products</Link>
-          <Link href="#community" className="text-[#d1d4dc] hover:text-white font-medium py-2 px-2 hover:bg-white/5 rounded-lg transition-colors">Community</Link>
-          <Link href="#pricing" className="text-[#d1d4dc] hover:text-white font-medium py-2 px-2 hover:bg-white/5 rounded-lg transition-colors">Pricing</Link>
-          <Link href="#features" className="text-[#d1d4dc] hover:text-white font-medium py-2 px-2 hover:bg-white/5 rounded-lg transition-colors">Features</Link>
-          <Link href="#learn" className="text-[#d1d4dc] hover:text-white font-medium py-2 px-2 hover:bg-white/5 rounded-lg transition-colors">Learn</Link>
+          <Link href="#products" onClick={() => setIsMenuOpen(false)} className="text-[#d1d4dc] hover:text-white font-medium py-2 px-2 hover:bg-white/5 rounded-lg transition-colors">Products</Link>
+          <Link href="#community" onClick={() => setIsMenuOpen(false)} className="text-[#d1d4dc] hover:text-white font-medium py-2 px-2 hover:bg-white/5 rounded-lg transition-colors">Community</Link>
+          <Link href="#pricing" onClick={() => setIsMenuOpen(false)} className="text-[#d1d4dc] hover:text-white font-medium py-2 px-2 hover:bg-white/5 rounded-lg transition-colors">Pricing</Link>
+          <Link href="#features" onClick={() => setIsMenuOpen(false)} className="text-[#d1d4dc] hover:text-white font-medium py-2 px-2 hover:bg-white/5 rounded-lg transition-colors">Features</Link>
+          <Link href="#learn" onClick={() => setIsMenuOpen(false)} className="text-[#d1d4dc] hover:text-white font-medium py-2 px-2 hover:bg-white/5 rounded-lg transition-colors">Learn</Link>
           <div className="h-px bg-[#2a2e39] my-1" />
-          <Link href="/login" className="text-white font-semibold py-2 px-2 hover:bg-white/5 rounded-lg transition-colors">Log In</Link>
+          <Link href="/login" onClick={() => setIsMenuOpen(false)} className="text-white font-semibold py-2 px-2 hover:bg-white/5 rounded-lg transition-colors">Log In</Link>
         </div>
       )}
     </nav>

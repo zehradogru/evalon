@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, PenSquare } from 'lucide-react'
+import { ArrowLeft, ChevronRight, PenSquare } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -212,11 +212,29 @@ export function PostDetailView({ postId }: PostDetailViewProps) {
         }
     }
 
+    /* ---------- Loading skeleton ---------- */
     if (postQuery.isLoading) {
         return (
-            <div className="mx-auto max-w-5xl space-y-4 px-4 py-6 sm:px-6">
-                <div className="h-40 animate-pulse rounded-[2rem] border border-white/10 bg-card/40" />
-                <div className="h-32 animate-pulse rounded-[2rem] border border-white/10 bg-card/40" />
+            <div className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6">
+                {/* Breadcrumb skeleton */}
+                <div className="h-8 w-40 animate-pulse rounded-xl bg-white/[0.04]" />
+
+                {/* Card skeleton */}
+                <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.04] to-white/[0.01]">
+                    <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                    <div className="flex items-center gap-3 p-5">
+                        <div className="size-10 animate-pulse rounded-full bg-white/[0.06]" />
+                        <div className="space-y-2">
+                            <div className="h-3.5 w-28 rounded-md bg-white/[0.06]"><div className="animate-shimmer h-full w-full rounded-md" /></div>
+                            <div className="h-2.5 w-20 rounded-md bg-white/[0.06]"><div className="animate-shimmer h-full w-full rounded-md" /></div>
+                        </div>
+                    </div>
+                    <div className="mx-5 h-64 rounded-xl bg-white/[0.04]"><div className="animate-shimmer h-full w-full" /></div>
+                    <div className="space-y-2.5 p-5">
+                        <div className="h-4 w-full rounded-md bg-white/[0.06]"><div className="animate-shimmer h-full w-full rounded-md" /></div>
+                        <div className="h-4 w-3/4 rounded-md bg-white/[0.06]"><div className="animate-shimmer h-full w-full rounded-md" /></div>
+                    </div>
+                </div>
             </div>
         )
     }
@@ -233,79 +251,97 @@ export function PostDetailView({ postId }: PostDetailViewProps) {
 
     return (
         <div className="relative overflow-hidden">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top_left,rgba(40,98,255,0.24),transparent_34%),radial-gradient(circle_at_top_right,rgba(36,166,147,0.16),transparent_24%)]" />
+            {/* Animated background mesh */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] overflow-hidden">
+                <div className="animate-aurora absolute -left-32 top-0 h-72 w-[36rem] rounded-full bg-[radial-gradient(ellipse,rgba(40,98,255,0.15),transparent_60%)] blur-3xl" />
+                <div className="animate-aurora animation-delay-2000 absolute -right-20 top-8 h-60 w-[28rem] rounded-full bg-[radial-gradient(ellipse,rgba(36,166,147,0.12),transparent_60%)] blur-3xl" />
+            </div>
 
-            <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-6 pb-24 sm:px-6">
-                <section className="space-y-4">
-                    <Button asChild variant="ghost" size="sm" className="-ml-3 w-fit rounded-full">
+            <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 pb-24 sm:px-6">
+
+                {/* Breadcrumb navigation */}
+                <nav className="animate-fade-in-up flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Button asChild variant="ghost" size="sm" className="-ml-2 gap-1.5 rounded-xl text-muted-foreground hover:text-foreground">
                         <Link href="/community">
-                            <ArrowLeft />
-                            Back to community
+                            <ArrowLeft className="size-4" />
+                            Community
                         </Link>
                     </Button>
+                    <ChevronRight className="size-3.5 text-muted-foreground/50" />
+                    <span className="truncate text-foreground/70">
+                        {currentPost.authorName}&apos;s note
+                    </span>
+                </nav>
 
-                    <div className="flex flex-col gap-4 rounded-[2.5rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] p-6 shadow-[0_36px_120px_-72px_rgba(0,0,0,0.95)] md:flex-row md:items-end md:justify-between">
-                        <div className="space-y-3">
-                            <p className="text-xs font-medium uppercase tracking-[0.28em] text-primary/80">
-                                Full context
-                            </p>
-                            <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-                                One post, with the nearby market flow.
-                            </h1>
-                            <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-                                Read the full note, save it if the setup matters, then compare it with other recent posts around the same tickers.
-                            </p>
-                        </div>
-
-                        {postQuery.data.isMine ? (
-                            <Button size="lg" onClick={() => setIsEditing(true)}>
-                                <PenSquare className="size-4" />
-                                Edit this post
-                            </Button>
-                        ) : null}
+                {/* Header bar */}
+                <section className="animate-fade-in-up animation-delay-100 flex flex-col gap-4 rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.05] via-white/[0.02] to-transparent p-6 shadow-[0_16px_48px_-16px_rgba(0,0,0,0.6)] md:flex-row md:items-center md:justify-between">
+                    <div className="space-y-2">
+                        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                            Full context view
+                        </h1>
+                        <p className="max-w-lg text-sm leading-6 text-muted-foreground">
+                            Read the full note, then compare with related posts around the same tickers.
+                        </p>
                     </div>
+
+                    {currentPost.isMine ? (
+                        <Button
+                            size="lg"
+                            className="w-fit rounded-xl shadow-[0_4px_16px_-4px_rgba(40,98,255,0.5)]"
+                            onClick={() => setIsEditing(true)}
+                        >
+                            <PenSquare className="size-4" />
+                            Edit post
+                        </Button>
+                    ) : null}
                 </section>
 
-                <CommunityPostCard
-                    post={currentPost}
-                    context="detail"
-                    onLike={handleLike}
-                    onSave={handleSave}
-                    onShare={(post) => {
-                        void sharePost(post, toast)
-                    }}
-                    onEdit={() => setIsEditing(true)}
-                    onDelete={(post) => {
-                        void handleDelete(post)
-                    }}
-                    onReport={(post, reason) => {
-                        void handleReport(post, reason)
-                    }}
-                />
+                {/* Main post */}
+                <div className="animate-fade-in-up animation-delay-200">
+                    <CommunityPostCard
+                        post={currentPost}
+                        context="detail"
+                        onLike={handleLike}
+                        onSave={handleSave}
+                        onShare={(post) => {
+                            void sharePost(post, toast)
+                        }}
+                        onEdit={() => setIsEditing(true)}
+                        onDelete={(post) => {
+                            void handleDelete(post)
+                        }}
+                        onReport={(post, reason) => {
+                            void handleReport(post, reason)
+                        }}
+                    />
+                </div>
 
-                <CommunityRelatedPostGroups
-                    groups={relatedQuery.data ?? []}
-                    isLoading={relatedQuery.isLoading}
-                    onLike={handleLike}
-                    onSave={handleSave}
-                    onShare={(post) => {
-                        void sharePost(post, toast)
-                    }}
-                    onEdit={(post) => {
-                        if (post.id === currentPost.id) {
-                            setIsEditing(true)
-                            return
-                        }
+                {/* Related posts */}
+                <div className="animate-fade-in-up animation-delay-300">
+                    <CommunityRelatedPostGroups
+                        groups={relatedQuery.data ?? []}
+                        isLoading={relatedQuery.isLoading}
+                        onLike={handleLike}
+                        onSave={handleSave}
+                        onShare={(post) => {
+                            void sharePost(post, toast)
+                        }}
+                        onEdit={(post) => {
+                            if (post.id === currentPost.id) {
+                                setIsEditing(true)
+                                return
+                            }
 
-                        router.push(buildCommunityPostUrl(post.id))
-                    }}
-                    onDelete={(post) => {
-                        void handleDelete(post)
-                    }}
-                    onReport={(post, reason) => {
-                        void handleReport(post, reason)
-                    }}
-                />
+                            router.push(buildCommunityPostUrl(post.id))
+                        }}
+                        onDelete={(post) => {
+                            void handleDelete(post)
+                        }}
+                        onReport={(post, reason) => {
+                            void handleReport(post, reason)
+                        }}
+                    />
+                </div>
             </div>
 
             {isEditing ? (

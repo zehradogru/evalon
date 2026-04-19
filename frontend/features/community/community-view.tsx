@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { Bookmark, Compass, Plus, Sparkles } from 'lucide-react'
+import { Bookmark, Compass, Flame, Plus, Sparkles, TrendingUp, Users } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { Button } from '@/components/ui/button'
@@ -271,34 +271,51 @@ export function CommunityView() {
 
     return (
         <div className="relative overflow-hidden">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top_left,rgba(40,98,255,0.24),transparent_34%),radial-gradient(circle_at_top_right,rgba(36,166,147,0.16),transparent_24%)]" />
+            {/* -------- Animated background mesh -------- */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-[32rem] overflow-hidden">
+                <div className="animate-aurora absolute -left-32 top-0 h-80 w-[40rem] rounded-full bg-[radial-gradient(ellipse,rgba(40,98,255,0.18),transparent_60%)] blur-3xl" />
+                <div className="animate-aurora animation-delay-2000 absolute -right-20 top-12 h-72 w-[32rem] rounded-full bg-[radial-gradient(ellipse,rgba(36,166,147,0.14),transparent_60%)] blur-3xl" />
+                <div className="animate-aurora animation-delay-4000 absolute left-1/3 top-20 h-60 w-[28rem] rounded-full bg-[radial-gradient(ellipse,rgba(124,58,237,0.1),transparent_60%)] blur-3xl" />
+            </div>
 
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 pb-24 sm:px-6">
-                <section className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] p-6 shadow-[0_36px_120px_-72px_rgba(0,0,0,0.95)]">
-                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(16rem,0.8fr)]">
+
+                {/* ===================== HERO SECTION ===================== */}
+                <section className="animate-fade-in-up relative overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.05] via-white/[0.02] to-transparent p-6 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.7)] sm:p-8">
+                    {/* Decorative grid pattern */}
+                    <div className="pointer-events-none absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+
+                    <div className="relative grid gap-8 lg:grid-cols-[1fr_auto]">
                         <div className="space-y-5">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.26em] text-primary">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
                                 <Sparkles className="size-3.5" />
-                                Community editorial feed
+                                Community
                             </div>
 
                             <div className="space-y-3">
-                                <h1 className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
-                                    Leave a sharper trail than a comment thread.
+                                <h1 className="max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+                                    Share setups.{' '}
+                                    <span className="bg-gradient-to-r from-primary via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                                        Shape conviction.
+                                    </span>
                                 </h1>
-                                <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-                                    Publish concise setups, screenshots, and conviction notes with enough structure to make the next read faster.
+                                <p className="max-w-lg text-sm leading-7 text-muted-foreground sm:text-[15px]">
+                                    Publish concise market notes with charts, tickers, and your thesis — structured for fast scanning.
                                 </p>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-3">
                                 {isAuthenticated ? (
-                                    <Button size="lg" onClick={() => setComposerState({ mode: 'create' })}>
+                                    <Button
+                                        size="lg"
+                                        className="animate-glow-ring rounded-xl shadow-[0_8px_32px_-8px_rgba(40,98,255,0.5)]"
+                                        onClick={() => setComposerState({ mode: 'create' })}
+                                    >
                                         <Plus className="size-4" />
                                         Create post
                                     </Button>
                                 ) : (
-                                    <Button asChild size="lg">
+                                    <Button asChild size="lg" className="rounded-xl shadow-[0_8px_32px_-8px_rgba(40,98,255,0.5)]">
                                         <Link href="/login">
                                             <Plus className="size-4" />
                                             Sign in to create
@@ -306,40 +323,45 @@ export function CommunityView() {
                                     </Button>
                                 )}
 
-                                <Button variant="outline" size="lg" onClick={() => setFilter('saved')}>
+                                <Button variant="outline" size="lg" className="rounded-xl" onClick={() => setFilter('saved')}>
                                     <Bookmark className="size-4" />
-                                    Review saved
+                                    Saved posts
                                 </Button>
 
                                 {activeTicker ? (
-                                    <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-sm text-primary">
-                                        Focus: ${activeTicker}
+                                    <span className="inline-flex items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
+                                        <TrendingUp className="size-3.5" />
+                                        ${activeTicker}
                                     </span>
                                 ) : null}
                             </div>
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                            <div className="rounded-[1.75rem] border border-white/10 bg-black/30 p-4">
-                                <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
-                                    Best format
-                                </p>
-                                <p className="mt-3 text-sm leading-6 text-foreground/90">
-                                    One thesis, one visual anchor, and up to three symbols. Enough structure to scan, not enough to bury the point.
+                        {/* Stat cards */}
+                        <div className="hidden gap-3 lg:grid lg:grid-cols-1 lg:w-56">
+                            <div className="group rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 transition-all duration-500 hover:border-white/[0.1] hover:bg-white/[0.05]">
+                                <div className="mb-2.5 flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary transition-transform duration-500 group-hover:scale-110">
+                                    <Flame className="size-4" />
+                                </div>
+                                <p className="text-xs font-medium text-muted-foreground">Best format</p>
+                                <p className="mt-1.5 text-[13px] leading-[1.6] text-foreground/80">
+                                    One thesis, one chart, up to three tickers.
                                 </p>
                             </div>
-                            <div className="rounded-[1.75rem] border border-white/10 bg-black/30 p-4">
-                                <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
-                                    Reader mode
-                                </p>
-                                <p className="mt-3 text-sm leading-6 text-foreground/90">
-                                    Save what matters, filter by ticker, then revisit your own archive under <span className="font-semibold text-foreground">Mine</span>.
+                            <div className="group rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 transition-all duration-500 hover:border-white/[0.1] hover:bg-white/[0.05]">
+                                <div className="mb-2.5 flex size-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 transition-transform duration-500 group-hover:scale-110">
+                                    <Users className="size-4" />
+                                </div>
+                                <p className="text-xs font-medium text-muted-foreground">Reader mode</p>
+                                <p className="mt-1.5 text-[13px] leading-[1.6] text-foreground/80">
+                                    Save, filter by ticker, revisit under <span className="font-semibold text-foreground">Mine</span>.
                                 </p>
                             </div>
                         </div>
                     </div>
                 </section>
 
+                {/* ===================== FILTER BAR ===================== */}
                 <CommunityFilterBar
                     filter={filter}
                     activeTicker={activeTicker}
@@ -348,13 +370,11 @@ export function CommunityView() {
                     requiresAuth={requiresAuth}
                 />
 
+                {/* ===================== FEED ===================== */}
                 <section className="space-y-4">
                     <div className="flex items-center justify-between gap-4">
                         <div className="space-y-1">
-                            <p className="text-xs font-medium uppercase tracking-[0.26em] text-muted-foreground">
-                                Live feed
-                            </p>
-                            <h2 className="text-2xl font-semibold tracking-tight">
+                            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
                                 {filter === 'saved'
                                     ? 'Saved notes'
                                     : filter === 'mine'
@@ -362,9 +382,9 @@ export function CommunityView() {
                                       : 'Latest notes'}
                             </h2>
                         </div>
-                        <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
-                            <Compass className="size-4" />
-                            Latest first. Ticker chips jump into filtered views.
+                        <div className="hidden items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.03] px-3 py-1.5 text-[11px] text-muted-foreground sm:flex">
+                            <Compass className="size-3.5" />
+                            Latest first
                         </div>
                     </div>
 
@@ -405,11 +425,12 @@ export function CommunityView() {
                 </section>
             </div>
 
+            {/* ===================== MOBILE FAB ===================== */}
             {isAuthenticated ? (
                 <Button
                     type="button"
                     size="icon-lg"
-                    className="fixed right-5 bottom-5 z-30 rounded-full shadow-[0_24px_60px_-30px_rgba(40,98,255,0.9)] sm:hidden"
+                    className="fixed right-5 bottom-5 z-30 animate-glow-ring rounded-full shadow-[0_12px_40px_-8px_rgba(40,98,255,0.7)] sm:hidden"
                     onClick={() => setComposerState({ mode: 'create' })}
                 >
                     <Plus className="size-5" />
@@ -417,6 +438,7 @@ export function CommunityView() {
                 </Button>
             ) : null}
 
+            {/* ===================== COMPOSER PANEL ===================== */}
             {composerState ? (
                 <CommunityComposerPanel
                     key={

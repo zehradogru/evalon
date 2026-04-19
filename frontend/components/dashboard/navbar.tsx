@@ -120,7 +120,7 @@ function TickerSearch() {
   }, [])
 
   return (
-    <div ref={containerRef} className="relative w-[260px] hidden md:block">
+    <div ref={containerRef} className="relative flex-1 max-w-[260px] hidden md:block">
       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
         <Search className="h-4 w-4" />
       </div>
@@ -180,11 +180,18 @@ export function Navbar() {
   const router = useRouter()
   const { user } = useAuthStore()
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const avatarUrl = resolveAvatarUrl({
     photoURL: user?.photoURL,
     name: user?.name,
     email: user?.email,
   })
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false)
+    setActiveDropdown(null)
+  }, [pathname])
 
   const handleLogout = async () => {
     await authService.logout()
@@ -192,18 +199,24 @@ export function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border bg-background shadow-sm h-16" onMouseLeave={() => setActiveDropdown(null)}>
-      <div className="w-full px-4 h-full flex items-center justify-between gap-4">
+    <nav className="sticky top-0 z-50 border-b border-border bg-background shadow-sm" onMouseLeave={() => setActiveDropdown(null)}>
+      <div className="w-full px-4 h-16 flex items-center justify-between gap-4">
 
         {/* Left Section: Logo + Search + Nav */}
-        <div className="flex items-center gap-6 flex-1">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
           {/* Logo */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <Button variant="ghost" size="icon" className="md:hidden">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Mobile hamburger */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setMobileOpen((v) => !v)}
+            >
               <Menu className="h-5 w-5" />
             </Button>
             <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-              <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
+              <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold flex-shrink-0">
                 E
               </div>
               <span className="hidden xl:inline-block">EVALON</span>
@@ -214,19 +227,27 @@ export function Navbar() {
           <TickerSearch />
 
           {/* Navigation Links - Desktop */}
-          <div className="hidden lg:flex items-center gap-1 h-full">
+          <div className="hidden lg:flex items-center gap-1 h-16">
             {menuItems.map((item) => {
               const isActive = item.items
                 ? item.items.some(sub => pathname === sub.href)
                 : pathname === item.href;
+              const hasDropdown = Boolean(item.items)
 
               return (
                 <div
                   key={item.label}
                   className="relative h-full flex items-center"
-                  onMouseEnter={() => item.items && setActiveDropdown(item.label)}
+                  onMouseEnter={() => {
+                    if (hasDropdown) {
+                      setActiveDropdown(item.label)
+                    } else {
+                      // Close any open dropdown when hovering a non-dropdown item
+                      setActiveDropdown(null)
+                    }
+                  }}
                   onClick={() => {
-                    if (!item.items && item.href) router.push(item.href);
+                    if (!hasDropdown && item.href) router.push(item.href);
                   }}
                 >
                   <button
@@ -240,14 +261,14 @@ export function Navbar() {
                   >
                     {item.highlight && <Sparkles size={13} className="text-blue-400 flex-shrink-0" />}
                     {item.label}
-                    {item.items && <ChevronDown size={14} className="mt-0.5 opacity-50" />}
+                    {hasDropdown && <ChevronDown size={14} className="mt-0.5 opacity-50" />}
                   </button>
 
                   {/* Dropdown */}
-                  {item.items && activeDropdown === item.label && (
+                  {hasDropdown && activeDropdown === item.label && (
                     <div className="absolute top-[calc(100%-10px)] left-0 w-64 bg-card border border-border shadow-2xl rounded-xl p-2 animate-in fade-in slide-in-from-top-2 z-50">
                       <div className="grid gap-1">
-                        {item.items.map((subItem) => (
+                        {item.items!.map((subItem) => (
                           <Link
                             key={subItem.href}
                             href={subItem.href}
@@ -281,12 +302,12 @@ export function Navbar() {
         <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0 ml-auto">
 
           {/* Upgrade Button (CTA) */}
-          <Button className="hidden sm:flex bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 h-9 rounded-full px-6 font-semibold shadow-lg hover:shadow-xl transition-all">
+          <Button className="hidden md:flex bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 h-9 rounded-full px-6 font-semibold shadow-lg hover:shadow-xl transition-all">
             Upgrade Plan
           </Button>
 
           {/* Divider */}
-          <div className="h-6 w-[1px] bg-border hidden sm:block"></div>
+          <div className="h-6 w-[1px] bg-border hidden md:block"></div>
 
           {/* Notifications */}
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground rounded-full relative">
@@ -403,6 +424,76 @@ export function Navbar() {
           </div>
         </div>
       </div>
+
+      {/* ── Mobile / Tablet menu ──────────────────────────────── */}
+      {mobileOpen && (
+        <div className="lg:hidden border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3 space-y-1 shadow-xl animate-in slide-in-from-top-2">
+          {menuItems.map((item) => {
+            const hasDropdown = Boolean(item.items)
+            const isGroupOpen = activeDropdown === item.label
+
+            if (!hasDropdown) {
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href!}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    item.highlight
+                      ? 'text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400'
+                      : isActive
+                        ? 'bg-secondary/60 text-foreground'
+                        : 'text-muted-foreground hover:bg-secondary/40 hover:text-foreground'
+                  )}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {item.highlight && <Sparkles size={13} className="text-blue-400 flex-shrink-0" />}
+                  {item.label}
+                </Link>
+              )
+            }
+
+            return (
+              <div key={item.label}>
+                <button
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-secondary/40 hover:text-foreground transition-colors"
+                  onClick={() => setActiveDropdown(isGroupOpen ? null : item.label)}
+                >
+                  {item.label}
+                  <ChevronDown
+                    size={14}
+                    className={cn('transition-transform duration-200', isGroupOpen && 'rotate-180')}
+                  />
+                </button>
+                {isGroupOpen && (
+                  <div className="mt-1 ml-3 space-y-1 border-l-2 border-border/50 pl-3">
+                    {item.items!.map((subItem) => {
+                      const Icon = subItem.icon
+                      return (
+                        <Link
+                          key={subItem.href}
+                          href={subItem.href}
+                          className={cn(
+                            'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
+                            pathname === subItem.href
+                              ? 'bg-secondary/60 text-foreground'
+                              : 'text-muted-foreground hover:bg-secondary/40 hover:text-foreground'
+                          )}
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          {Icon && <Icon size={15} className="flex-shrink-0" />}
+                          {subItem.label}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </nav>
   )
 }
