@@ -1,3 +1,9 @@
+import type {
+    DocumentData,
+    QueryDocumentSnapshot,
+    Timestamp,
+} from 'firebase/firestore'
+
 // Global TypeScript types
 
 export interface Market {
@@ -66,6 +72,89 @@ export interface UserProfile {
     preferences: UserPreferences
     authSecurity: AuthSecurityState | null
 }
+
+export interface CommunityPostRecord {
+    content: string
+    tickers: string[]
+    tags: string[]
+    authorId: string
+    authorName: string
+    createdAt: Timestamp
+    editedAt: Timestamp | null
+    likeCount: number
+    reportCount: number
+    imageUrl: string | null
+    imagePath: string | null
+    imageWidth: number | null
+    imageHeight: number | null
+}
+
+export interface CommunityReportRecord {
+    reason: string
+    createdAt: Timestamp
+}
+
+export interface CommunityMarkerRecord {
+    createdAt: Timestamp
+}
+
+export type CommunityFeedFilter = 'all' | 'saved' | 'mine'
+
+export interface CommunityPostDraftImage {
+    file: File | null
+    existingUrl: string | null
+    existingPath: string | null
+    existingWidth: number | null
+    existingHeight: number | null
+    remove: boolean
+}
+
+export interface CommunityPostDraft {
+    content: string
+    tickers: string[]
+    tags: string[]
+    image: CommunityPostDraftImage | null
+}
+
+export interface CommunityPost {
+    id: string
+    content: string
+    tickers: string[]
+    tags: string[]
+    authorId: string
+    authorName: string
+    createdAt: string
+    editedAt: string | null
+    likeCount: number
+    reportCount: number
+    imageUrl: string | null
+    imagePath: string | null
+    imageWidth: number | null
+    imageHeight: number | null
+    viewerHasLiked: boolean
+    viewerHasSaved: boolean
+    isMine: boolean
+}
+
+export type CommunityFeedCursor = QueryDocumentSnapshot<DocumentData>
+
+export interface CommunityFeedPage {
+    items: CommunityPost[]
+    nextCursor: CommunityFeedCursor | null
+    hasMore: boolean
+}
+
+export interface CommunityRelatedGroup {
+    ticker: string
+    posts: CommunityPost[]
+}
+
+export type CommunityReportReason =
+    | 'Spam'
+    | 'Harassment'
+    | 'Misinformation'
+    | 'Off-topic'
+    | 'Other'
 
 export interface PriceHistory {
     timestamp: number

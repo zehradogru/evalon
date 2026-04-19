@@ -10,6 +10,152 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isStringArray(list, maxSize) {
+      return list is list &&
+        list.size() <= maxSize &&
+        (list.size() < 1 || (list[0] is string && list[0].size() > 0 && list[0].size() <= 32)) &&
+        (list.size() < 2 || (list[1] is string && list[1].size() > 0 && list[1].size() <= 32)) &&
+        (list.size() < 3 || (list[2] is string && list[2].size() > 0 && list[2].size() <= 32));
+    }
+
+    function hasNoImageFields(data) {
+      return data.imageUrl == null &&
+        data.imagePath == null &&
+        data.imageWidth == null &&
+        data.imageHeight == null;
+    }
+
+    function isValidImageFields(data) {
+      return hasNoImageFields(data) || (
+        data.imageUrl is string &&
+        data.imageUrl.size() > 0 &&
+        data.imageUrl.size() <= 2048 &&
+        data.imagePath is string &&
+        data.imagePath.size() > 0 &&
+        data.imagePath.size() <= 256 &&
+        data.imagePath.matches('^community/' + data.authorId + '/.*$') &&
+        data.imageWidth is int &&
+        data.imageWidth > 0 &&
+        data.imageWidth <= 10000 &&
+        data.imageHeight is int &&
+        data.imageHeight > 0 &&
+        data.imageHeight <= 10000
+      );
+    }
+
+    function isValidPostBody(data) {
+      return data.content is string &&
+        data.content.size() > 0 &&
+        data.content.size() <= 500 &&
+        data.authorName is string &&
+        data.authorName.size() > 0 &&
+        data.authorName.size() <= 80 &&
+        isStringArray(data.get('tickers', []), 3) &&
+        isStringArray(data.get('tags', []), 3) &&
+        isValidImageFields(data);
+    }
+
+    function isAuthorEdit() {
+      return isSignedIn() &&
+        request.auth.uid == resource.data.authorId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'content',
+          'tickers',
+          'tags',
+          'editedAt',
+          'imageUrl',
+          'imagePath',
+          'imageWidth',
+          'imageHeight'
+        ]) &&
+        isValidPostBody(request.resource.data) &&
+        request.resource.data.authorId == resource.data.authorId &&
+        request.resource.data.authorName == resource.data.authorName &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.likeCount == resource.data.likeCount &&
+        request.resource.data.reportCount == resource.data.reportCount &&
+        request.resource.data.editedAt is timestamp;
+    }
+
+    function isLikeCountDelta() {
+      return isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likeCount']) &&
+        request.resource.data.likeCount is int &&
+        resource.data.likeCount is int &&
+        request.resource.data.likeCount >= 0 &&
+        (
+          request.resource.data.likeCount == resource.data.likeCount + 1 ||
+          (resource.data.likeCount > 0 && request.resource.data.likeCount == resource.data.likeCount - 1)
+        );
+    }
+
+    function isReportCountDelta() {
+      return isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reportCount']) &&
+        request.resource.data.reportCount is int &&
+        resource.data.reportCount is int &&
+        request.resource.data.reportCount == resource.data.reportCount + 1;
+    }
+
+    function canCreatePost(uid) {
+      let userPath = /databases/$(database)/documents/users/$(uid);
+      let before = get(userPath);
+      let after = getAfter(userPath);
+
+      return existsAfter(userPath) &&
+        after.data.lastPostAt is timestamp &&
+        after.data.lastPostAt == request.time &&
+        (
+          !exists(userPath) ||
+          !before.data.keys().hasAny(['lastPostAt']) ||
+          before.data.lastPostAt == null ||
+          !(before.data.lastPostAt is timestamp) ||
+          request.time.toMillis() >= before.data.lastPostAt.toMillis() + 30000
+        );
+    }
+
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn() &&
+        request.resource.data.keys().hasOnly([
+          'content',
+          'tickers',
+          'tags',
+          'authorId',
+          'authorName',
+          'createdAt',
+          'editedAt',
+          'likeCount',
+          'reportCount',
+          'imageUrl',
+          'imagePath',
+          'imageWidth',
+          'imageHeight'
+        ]) &&
+        request.resource.data.authorId == request.auth.uid &&
+        request.resource.data.createdAt is timestamp &&
+        request.resource.data.editedAt == null &&
+        request.resource.data.likeCount == 0 &&
+        request.resource.data.reportCount == 0 &&
+        isValidPostBody(request.resource.data) &&
+        canCreatePost(request.auth.uid);
+
+      allow update: if isAuthorEdit() || isLikeCountDelta() || isReportCountDelta();
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.authorId;
+
+      match /reports/{reporterUid} {
+        allow read: if isSignedIn() && request.auth.uid == reporterUid;
+        allow create: if isSignedIn() &&
+          reporterUid == request.auth.uid &&
+          request.resource.data.keys().hasOnly(['reason', 'createdAt']) &&
+          request.resource.data.reason is string &&
+          request.resource.data.reason.size() > 0 &&
+          request.resource.data.reason.size() <= 120 &&
+          request.resource.data.createdAt is timestamp;
+        allow update, delete: if false;
+      }
+    }
+
     match /users/{userId} {
       allow read, write: if isOwner(userId);
 

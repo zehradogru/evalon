@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, useEffect, useRef } from 'react'
+import { Toaster } from '@/components/ui/toaster'
 import { useAuthStore } from '@/store'
 
 const USER_SCOPED_QUERY_KEYS = new Set([
@@ -12,6 +13,9 @@ const USER_SCOPED_QUERY_KEYS = new Set([
     'user-screener-presets',
     'ai-assets',
     'ai-session',
+    'community-feed',
+    'community-post',
+    'community-related-posts',
 ])
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -49,6 +53,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }, [queryClient, userId])
 
     return (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        <QueryClientProvider client={queryClient}>
+            {children}
+            <Toaster />
+        </QueryClientProvider>
     )
 }
