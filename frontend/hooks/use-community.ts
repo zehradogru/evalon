@@ -433,21 +433,24 @@ export function useCommunityComposer(initialDraft?: Partial<CommunityPostDraft>)
     const [imageFile, setImageFile] = useState<File | null>(initial.image?.file ?? null)
     const [removeImage, setRemoveImage] = useState(Boolean(initial.image?.remove))
     const [imageError, setImageError] = useState<string | undefined>(undefined)
-    const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
+
+    const imagePreviewUrl = useMemo(() => {
+        if (!imageFile) {
+            return null
+        }
+
+        return URL.createObjectURL(imageFile)
+    }, [imageFile])
 
     useEffect(() => {
-        if (!imageFile) {
-            setImagePreviewUrl(null)
+        if (!imagePreviewUrl) {
             return
         }
 
-        const objectUrl = URL.createObjectURL(imageFile)
-        setImagePreviewUrl(objectUrl)
-
         return () => {
-            URL.revokeObjectURL(objectUrl)
+            URL.revokeObjectURL(imagePreviewUrl)
         }
-    }, [imageFile])
+    }, [imagePreviewUrl])
 
     const normalizedDraft = useMemo(
         () =>

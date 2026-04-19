@@ -30,13 +30,13 @@ export default function HelpPage() {
                             <div>
                                 <h3 className="font-semibold text-white">How do I create an account?</h3>
                                 <p className="text-sm">
-                                    Click "Sign Up" and choose between email/password or social login (Google, Apple).
+                                    Click &quot;Sign Up&quot; and choose between email/password or social login (Google, Apple).
                                 </p>
                             </div>
                             <div>
                                 <h3 className="font-semibold text-white">How do I reset my password?</h3>
                                 <p className="text-sm">
-                                    On the login page, click "Forgot Password?" and follow the instructions sent to your email.
+                                    On the login page, click &quot;Forgot Password?&quot; and follow the instructions sent to your email.
                                 </p>
                             </div>
                             <div>
@@ -112,13 +112,13 @@ export default function HelpPage() {
                         </CardHeader>
                         <CardContent className="space-y-4 text-slate-300">
                             <div>
-                                <h3 className="font-semibold text-white">The page won't load</h3>
+                                <h3 className="font-semibold text-white">The page won&apos;t load</h3>
                                 <p className="text-sm">
                                     Try refreshing the page (Cmd/Ctrl + R) or clearing your browser cache.
                                 </p>
                             </div>
                             <div>
-                                <h3 className="font-semibold text-white">I'm getting authentication errors</h3>
+                                <h3 className="font-semibold text-white">I&apos;m getting authentication errors</h3>
                                 <p className="text-sm">
                                     Log out completely and log back in. If the issue persists, reset your password.
                                 </p>
@@ -137,11 +137,11 @@ export default function HelpPage() {
                 <Card className="mt-8 border-slate-800 bg-gradient-to-br from-blue-900/20 to-slate-900">
                     <CardHeader>
                         <CardTitle className="text-white">Still need help?</CardTitle>
-                        <CardDescription>We're here to assist you</CardDescription>
+                        <CardDescription>We&apos;re here to assist you</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <p className="text-slate-300">
-                            If you couldn't find the answer you're looking for, please reach out to our support team.
+                            If you couldn&apos;t find the answer you&apos;re looking for, please reach out to our support team.
                         </p>
                         <div className="flex gap-4">
                             <Button variant="default">

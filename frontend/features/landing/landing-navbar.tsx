@@ -83,7 +83,7 @@ export function LandingNavbar() {
                   Help Center
                 </DropdownMenuItem>
                 <DropdownMenuItem className="focus:bg-[#2a2e39] focus:text-white cursor-pointer py-3 px-3 rounded-lg outline-none text-[15px]">
-                  What's new
+                  What&apos;s new
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator className="bg-[#2a2e39] my-1" />
@@ -128,4 +128,3 @@ export function LandingNavbar() {
     </nav>
   )
 }
-

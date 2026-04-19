@@ -182,15 +182,6 @@ function buildEmptyImageFields(): CommunityImageFields {
     }
 }
 
-function getImageFieldsFromRecord(record: CommunityPostRecord): CommunityImageFields {
-    return {
-        imageUrl: record.imageUrl ?? null,
-        imagePath: record.imagePath ?? null,
-        imageWidth: record.imageWidth ?? null,
-        imageHeight: record.imageHeight ?? null,
-    }
-}
-
 function validateDraft(draft: CommunityPostDraft) {
     const normalized = normalizeCommunityDraft(draft)
 

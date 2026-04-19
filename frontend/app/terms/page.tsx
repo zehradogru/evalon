@@ -20,7 +20,7 @@ export default function TermsPage() {
                     <section className="space-y-4">
                         <h2 className="text-2xl font-semibold text-white">1. Acceptance of Terms</h2>
                         <p>
-                            By accessing and using EVALON Web ("the Service"), you accept and agree to be bound by
+                            By accessing and using EVALON Web (&quot;the Service&quot;), you accept and agree to be bound by
                             the terms and provisions of this agreement.
                         </p>
                     </section>
@@ -64,7 +64,7 @@ export default function TermsPage() {
                     <section className="space-y-4">
                         <h2 className="text-2xl font-semibold text-white">5. Disclaimer</h2>
                         <p>
-                            The materials on EVALON Web are provided "as is". We make no warranties, expressed or
+                            The materials on EVALON Web are provided &quot;as is&quot;. We make no warranties, expressed or
                             implied, and hereby disclaim and negate all other warranties. We do not warrant or make
                             any representations concerning the accuracy or reliability of the materials.
                         </p>
