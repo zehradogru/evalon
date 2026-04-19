@@ -106,19 +106,10 @@ export function PortfolioChart() {
             }
         })
 
-        // Get display date from filtered data
-        const chartDate = filtered[0]?.t
-            ? new Date(filtered[0].t).toLocaleDateString('tr-TR', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-            })
-            : ''
-
-        return { chartData, chartDate }
+        return { chartData }
     })()
 
-    const { chartData, chartDate } = processedData
+    const { chartData } = processedData
 
 
     // Calculate change

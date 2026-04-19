@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import Link from 'next/link'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { marketIndices, generateIntradayData } from '@/data/dashboard.mock'
-import { TrendingUp, TrendingDown, ChevronRight } from 'lucide-react'
+import { TrendingUp, ChevronRight } from 'lucide-react'
 
 export function MarketOverviewSection() {
   const chartData = useMemo(() => generateIntradayData(), [])

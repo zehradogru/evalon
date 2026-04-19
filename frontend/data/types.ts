@@ -1,5 +1,3 @@
-import { User } from '@/types'; // Import User if needed or define locally if strictly data types
-
 export interface Strategy {
     id: string;
     name: string;

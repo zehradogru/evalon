@@ -1,8 +1,7 @@
 'use client';
 
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bell, ArrowUpRight, ArrowDownRight, Info, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Bell, Info, CheckCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils'; // Assuming cn utility is available
 
 interface NotificationsViewProps {

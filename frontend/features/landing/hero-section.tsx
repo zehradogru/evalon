@@ -2,22 +2,6 @@
 
 import Link from 'next/link'
 
-// Pre-computed star positions to avoid hydration mismatch
-const stars = [
-  { x: 5, y: 8, s: 1, d: 0 }, { x: 12, y: 15, s: 1.5, d: 0.5 }, { x: 25, y: 5, s: 1, d: 1.2 },
-  { x: 35, y: 20, s: 2, d: 0.3 }, { x: 45, y: 8, s: 1, d: 1.8 }, { x: 55, y: 18, s: 1.5, d: 0.7 },
-  { x: 65, y: 3, s: 1, d: 2.1 }, { x: 75, y: 12, s: 2, d: 0.1 }, { x: 85, y: 6, s: 1, d: 1.5 },
-  { x: 92, y: 22, s: 1.5, d: 0.9 }, { x: 8, y: 35, s: 1, d: 2.5 }, { x: 18, y: 42, s: 1.5, d: 0.4 },
-  { x: 30, y: 38, s: 1, d: 1.1 }, { x: 42, y: 30, s: 2, d: 1.7 }, { x: 58, y: 35, s: 1, d: 0.2 },
-  { x: 68, y: 28, s: 1.5, d: 2.3 }, { x: 78, y: 40, s: 1, d: 0.6 }, { x: 88, y: 32, s: 2, d: 1.4 },
-  { x: 3, y: 55, s: 1, d: 1.9 }, { x: 15, y: 60, s: 1.5, d: 0.8 }, { x: 22, y: 48, s: 1, d: 2.7 },
-  { x: 38, y: 52, s: 2, d: 0.2 }, { x: 48, y: 58, s: 1, d: 1.6 }, { x: 60, y: 50, s: 1.5, d: 2.0 },
-  { x: 72, y: 55, s: 1, d: 0.5 }, { x: 82, y: 48, s: 2, d: 1.3 }, { x: 95, y: 52, s: 1, d: 2.8 },
-  { x: 10, y: 70, s: 1.5, d: 0.3 }, { x: 28, y: 65, s: 1, d: 1.0 }, { x: 50, y: 72, s: 2, d: 2.2 },
-  { x: 70, y: 68, s: 1, d: 0.7 }, { x: 90, y: 75, s: 1.5, d: 1.8 }, { x: 40, y: 78, s: 1, d: 2.4 },
-  { x: 16, y: 82, s: 2, d: 0.1 }, { x: 62, y: 80, s: 1, d: 1.5 }, { x: 80, y: 85, s: 1.5, d: 2.6 },
-]
-
 export function HeroSection() {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">

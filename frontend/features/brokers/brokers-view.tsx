@@ -3,8 +3,7 @@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Star, ExternalLink, CheckCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Star, ExternalLink } from 'lucide-react';
 
 const brokers = [
     {

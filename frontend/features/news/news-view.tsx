@@ -1,12 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Newspaper, Search, Share2, Bookmark, Clock, ExternalLink, Zap, TrendingUp, Filter } from 'lucide-react';
+import { Search, Share2, Bookmark, Clock, ExternalLink, Zap, TrendingUp, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select } from '@/components/ui/select-native';
 

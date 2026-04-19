@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select-native';
-import { Calendar as CalendarIcon, Filter, Clock, Globe, AlertCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Filter, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 

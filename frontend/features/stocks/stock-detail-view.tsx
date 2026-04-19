@@ -4,7 +4,7 @@ import { mockStocks } from '@/data/mocks';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowUpRight, ArrowDownRight, Globe, DollarSign, Activity } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Activity } from 'lucide-react';
 
 export function StockDetailView({ ticker }: { ticker: string }) {
     const stock = mockStocks.find(s => s.ticker === ticker) || mockStocks[0];

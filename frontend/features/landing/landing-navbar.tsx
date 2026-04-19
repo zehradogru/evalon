@@ -3,12 +3,10 @@
 import Link from 'next/link'
 import { Search, Menu, X, User } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -16,7 +14,6 @@ import { Switch } from '@/components/ui/switch'
 
 export function LandingNavbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-transparent py-2">

@@ -80,15 +80,19 @@ export function BacktestView() {
       return status === 'completed' || status === 'failed' ? false : 2000
     },
   })
+  const ruleCatalog = useMemo(
+    () => rulesQuery.data?.rules ?? [],
+    [rulesQuery.data?.rules]
+  )
 
   const groupedRules = useMemo(() => {
-    const map = new Map<BacktestStageKey, NonNullable<typeof rulesQuery.data>['rules']>()
+    const map = new Map<BacktestStageKey, typeof ruleCatalog>()
     BACKTEST_STAGE_KEYS.forEach((stage) => map.set(stage, []))
-    ;(rulesQuery.data?.rules || []).forEach((rule) => rule.stages.forEach((stage) => {
+    ruleCatalog.forEach((rule) => rule.stages.forEach((stage) => {
       if (BACKTEST_STAGE_KEYS.includes(stage as BacktestStageKey)) map.get(stage as BacktestStageKey)?.push(rule)
     }))
     return map
-  }, [rulesQuery.data?.rules, rulesQuery.data])
+  }, [ruleCatalog])
 
   const updateBlueprint = (updater: (current: BacktestBlueprint) => BacktestBlueprint) => setBlueprint((current) => updater(current))
   const isBusy = runSyncMutation.isPending || startAsyncMutation.isPending
@@ -118,8 +122,8 @@ export function BacktestView() {
   const applyPreset = (presetId: string) => {
     setSelectedPresetId(presetId)
     const preset = presetsQuery.data?.presets.find((item) => item.id === presetId)
-    if (!preset || !rulesQuery.data) return
-    setBlueprint(applyPresetToBlueprint(preset, rulesQuery.data.rules, blueprint.symbol || 'THYAO'))
+    if (!preset || ruleCatalog.length === 0) return
+    setBlueprint(applyPresetToBlueprint(preset, ruleCatalog, blueprint.symbol || 'THYAO'))
     setSyncResult(null)
     setActiveRunId(null)
   }

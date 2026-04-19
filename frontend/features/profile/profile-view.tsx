@@ -126,7 +126,10 @@ export function ProfileView() {
                     <div className="relative">
                         <div className="h-24 w-24 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground overflow-hidden">
                             {avatarUrl ? (
+                                <>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" />
+                                </>
                             ) : (
                                 <User size={40} />
                             )}

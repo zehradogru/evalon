@@ -51,7 +51,6 @@ export function PricingSection() {
                         title="Essential"
                         price={isAnnual ? 12.95 : 14.95}
                         prevPrice={isAnnual ? 155.40 : undefined}
-                        description="Distraction-free trading and investing, with more charts, intervals and indicators."
                         features={[
                             "2 charts per tab",
                             "5 indicators per chart",
@@ -67,7 +66,6 @@ export function PricingSection() {
                         title="Plus"
                         price={isAnnual ? 24.95 : 29.95}
                         prevPrice={isAnnual ? 299.40 : undefined}
-                        description="Intraday technical analysis for day traders looking to take things to the next level."
                         features={[
                             "4 charts per tab",
                             "10 indicators per chart",
@@ -86,7 +84,6 @@ export function PricingSection() {
                         title="Premium"
                         price={isAnnual ? 49.95 : 59.95}
                         prevPrice={isAnnual ? 599.40 : undefined}
-                        description="Highest precision and maximum data to capture every possible opportunity."
                         features={[
                             "8 charts per tab",
                             "25 indicators per chart",
@@ -109,12 +106,11 @@ interface PricingCardProps {
     title: string;
     price: number;
     prevPrice?: number;
-    description: string;
     features: string[];
     isPopular?: boolean;
 }
 
-function PricingCard({ title, price, prevPrice, description, features, isPopular }: PricingCardProps) {
+function PricingCard({ title, price, prevPrice, features, isPopular }: PricingCardProps) {
     return (
         <div className={cn(
             "relative flex flex-col rounded-2xl bg-card p-8 shadow-sm transition-all hover:translate-y-[-4px]",

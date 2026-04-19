@@ -132,13 +132,9 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
 
     const {
         data,
-        isLoading,
-        isError,
-        error,
         hasNextPage,
         isFetchingNextPage,
         fetchNextPage,
-        refetch,
         isFetching,
         marketStatus,
         retryNow,
