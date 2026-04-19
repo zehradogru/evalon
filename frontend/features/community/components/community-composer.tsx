@@ -174,6 +174,8 @@ export function CommunityComposer({
 
                     {composer.hasImage && composer.activeImageUrl ? (
                         <div className="overflow-hidden rounded-[1.75rem] border border-border/60 bg-black">
+                            {/* Preview uses blob URLs and direct Firebase URLs, so keep a plain img element here. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={composer.activeImageUrl}
                                 alt="Post preview"

@@ -61,6 +61,8 @@ function renderMedia(
                       : 'rounded-[1.75rem]'
             )}
         >
+            {/* Community media comes from Firebase-managed public URLs and should render without image optimizer coupling. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
                 src={post.imageUrl}
                 alt={`Visual for ${post.authorName}'s post`}
