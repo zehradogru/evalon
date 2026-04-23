@@ -14,6 +14,7 @@ import {
     orderBy,
     getDocs,
     writeBatch,
+    limit as firestoreLimit,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import type {
@@ -46,6 +47,9 @@ const paths = {
     trade: (uid: string, tradeId: string) => doc(db, 'users', uid, 'paper_trades', tradeId),
     snapshots: (uid: string) => collection(db, 'users', uid, 'paper_snapshots'),
     snapshot: (uid: string, date: string) => doc(db, 'users', uid, 'paper_snapshots', date),
+    // Leaderboard — top-level public collection
+    leaderboardCollection: () => collection(db, 'paper_leaderboard'),
+    leaderboardEntry: (uid: string) => doc(db, 'paper_leaderboard', uid),
 }
 
 // ─── Helpers ───
@@ -112,6 +116,9 @@ export const paperTradeService = {
             snapsSnap.docs.forEach((d) => batch.delete(d.ref))
             await batch.commit()
         }
+
+        // Update leaderboard (reset entry)
+        await this.updateLeaderboard(userId, portfolio)
 
         return portfolio
     },
@@ -216,6 +223,9 @@ export const paperTradeService = {
                 await this.savePortfolio(result.portfolio)
             }
 
+            // Update leaderboard
+            await this.updateLeaderboard(userId, result.portfolio)
+
             return result
         } else {
             const { order, portfolio: updatedPortfolio } = createPendingOrder(req, portfolio)
@@ -318,14 +328,49 @@ export const paperTradeService = {
     },
 
     // ─────────────────────────────────────────────
-    //  Leaderboard (placeholder)
+    //  Leaderboard
     // ─────────────────────────────────────────────
 
-    async getLeaderboard(): Promise<LeaderboardResponse> {
+    async updateLeaderboard(userId: string, portfolio: PaperPortfolio): Promise<void> {
+        const entry = {
+            userId,
+            displayName: portfolio.displayName || 'Anonim',
+            photoURL: null,
+            totalValue: portfolio.totalValue,
+            totalPnL: portfolio.totalPnL,
+            totalPnLPercent: portfolio.totalPnLPercent,
+            totalTrades: portfolio.totalTrades,
+            winRate: portfolio.winRate,
+            sharpeRatio: portfolio.sharpeRatio,
+            updatedAt: new Date().toISOString(),
+        }
+        await setDoc(paths.leaderboardEntry(userId), toPlain(entry))
+    },
+
+    async getLeaderboard(sortBy: string = 'pnl', max: number = 50): Promise<LeaderboardResponse> {
+        const sortField = sortBy === 'winRate' ? 'winRate'
+            : sortBy === 'sharpe' ? 'sharpeRatio'
+            : sortBy === 'trades' ? 'totalTrades'
+            : sortBy === 'totalValue' ? 'totalValue'
+            : 'totalPnL'
+
+        const q = query(
+            paths.leaderboardCollection(),
+            orderBy(sortField, 'desc'),
+            firestoreLimit(max)
+        )
+
+        const snap = await getDocs(q)
+        const entries = snap.docs.map((d, i) => ({
+            ...d.data(),
+            rank: i + 1,
+            streak: 0,
+        })) as import('@/types/paper-trade').LeaderboardEntry[]
+
         return {
-            entries: [],
-            userRank: null,
-            total: 0,
+            entries,
+            userRank: null, // Can be resolved client-side
+            total: entries.length,
         }
     },
 }

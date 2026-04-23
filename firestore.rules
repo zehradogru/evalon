@@ -164,6 +164,12 @@ service cloud.firestore {
       }
     }
 
+    // ─── Paper Trading Leaderboard ───
+    match /paper_leaderboard/{userId} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

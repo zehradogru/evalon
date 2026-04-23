@@ -39,6 +39,7 @@ export function executeMarketOrder(
 
     if (req.side === 'buy') {
         // ─── BUY ───
+        updatedPortfolio.totalTrades += 1
         updatedPortfolio.cashBalance = round2(updatedPortfolio.cashBalance - total)
 
         const existing = updatedPortfolio.positions[req.ticker]

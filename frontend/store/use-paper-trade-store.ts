@@ -96,20 +96,33 @@ export const usePaperTradeStore = create<PaperTradeState>((set, get) => ({
     initialize: async (userId: string, displayName: string) => {
         try {
             set({ portfolioLoading: true, portfolioError: null })
-            // Portfolio is a single doc read — always works, no index needed
             const portfolio = await paperTradeService.getPortfolio(userId, displayName)
+
+            // Recount totalTrades from actual trade history (fixes stale counters)
+            try {
+                const allTrades = await paperTradeService.getTrades(userId)
+                if (allTrades.length !== portfolio.totalTrades) {
+                    portfolio.totalTrades = allTrades.length
+                    await paperTradeService.savePortfolio(portfolio)
+                }
+            } catch { /* non-critical */ }
+
             set({
                 portfolio,
                 portfolioLoading: false,
             })
 
-            // Load orders lazily (composite queries may need indexes)
+            // Sync to leaderboard (backfill for existing users)
+            try {
+                await paperTradeService.updateLeaderboard(userId, portfolio)
+            } catch { /* non-critical */ }
+
+            // Load orders lazily
             try {
                 const openOrders = await paperTradeService.getOpenOrders(userId)
                 const orderHistory = await paperTradeService.getOrderHistory(userId)
                 set({ openOrders, orderHistory })
             } catch {
-                // Orders will load when user navigates to the orders tab
                 set({ openOrders: [], orderHistory: [] })
             }
         } catch (err) {

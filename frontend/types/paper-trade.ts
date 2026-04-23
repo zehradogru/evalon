@@ -196,7 +196,7 @@ export interface LeaderboardResponse {
 }
 
 // ─── UI State ───
-export type PaperTradeTab = 'positions' | 'orders' | 'history' | 'performance'
-export type LeaderboardSortBy = 'pnl' | 'winRate' | 'sharpe' | 'trades'
+export type PaperTradeTab = 'positions' | 'orders' | 'history' | 'performance' | 'timemachine'
+export type LeaderboardSortBy = 'pnl' | 'winRate' | 'sharpe' | 'trades' | 'totalValue'
 export type LeaderboardTimeFilter = 'weekly' | 'monthly' | 'all'
 export type PortfolioChartRange = '1W' | '1M' | '3M' | '6M' | '1Y' | 'ALL'

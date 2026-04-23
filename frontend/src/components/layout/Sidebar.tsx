@@ -9,7 +9,8 @@ import {
     Bell,
     HelpCircle,
     Settings,
-    Wallet
+    Wallet,
+    Sparkles
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -22,6 +23,7 @@ import { Search } from 'lucide-react';
 const tools = [
     { name: 'Watchlist', icon: List, path: '/watchlist', isWidget: true },
     { name: 'Paper Trade', icon: Wallet, path: '/paper-trade', isWidget: false },
+    { name: 'Tarihsel Simülasyon', icon: Sparkles, path: '/paper-trade/time-machine', isWidget: false },
     { name: 'Alerts', icon: Bell, path: '/alerts', isWidget: true },
     { name: 'News', icon: Newspaper, path: '/news', isWidget: true },
     { name: 'Screeners', icon: Search, path: '/screener', isWidget: true },

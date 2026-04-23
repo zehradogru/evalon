@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import Link from 'next/link'
 import { useAuthStore } from '@/store/use-auth-store'
 import { usePaperTradeStore } from '@/store/use-paper-trade-store'
 import { fetchPrices, getLatestPrice } from '@/services/price.service'
@@ -13,8 +14,9 @@ import { PortfolioChart } from './portfolio-chart'
 import { OrderBookWidget } from './order-book-widget'
 import { ResetPortfolioDialog } from './reset-portfolio-dialog'
 import { cn } from '@/lib/utils'
-import { BarChart3, Clock, LineChart, TrendingUp, AlertCircle, CheckCircle2, ClipboardList } from 'lucide-react'
+import { BarChart3, Clock, TrendingUp, AlertCircle, CheckCircle2, ClipboardList, Sparkles, ArrowRight, Trophy } from 'lucide-react'
 import type { CreateOrderRequest, PaperTradeTab } from '@/types/paper-trade'
+import { AssetAllocationChart } from './asset-allocation-chart'
 
 const TABS: { id: PaperTradeTab; label: string; icon: typeof BarChart3 }[] = [
     { id: 'positions', label: 'Pozisyonlar', icon: BarChart3 },
@@ -236,6 +238,38 @@ export function PaperTradeDashboard() {
                     onReset={() => setResetDialogOpen(true)}
                 />
 
+                {/* Time Machine Link */}
+                <Link href="/paper-trade/time-machine" className="block">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 border border-violet-500/20 hover:border-violet-500/40 transition-all group cursor-pointer">
+                        <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                                <Sparkles size={16} className="text-violet-400" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold text-foreground">Tarihsel Simülasyon</p>
+                                <p className="text-[10px] text-muted-foreground">Geçmişte alsaydınız ne olurdu?</p>
+                            </div>
+                        </div>
+                        <ArrowRight size={14} className="text-muted-foreground group-hover:text-violet-400 group-hover:translate-x-0.5 transition-all" />
+                    </div>
+                </Link>
+
+                {/* Leaderboard Link */}
+                <Link href="/paper-trade/leaderboard" className="block">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all group cursor-pointer">
+                        <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                                <Trophy size={16} className="text-amber-400" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold text-foreground">Liderlik Tablosu</p>
+                                <p className="text-[10px] text-muted-foreground">Topluluk sıralamasını gör</p>
+                            </div>
+                        </div>
+                        <ArrowRight size={14} className="text-muted-foreground group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all" />
+                    </div>
+                </Link>
+
                 {/* Tab Navigation */}
                 <div className="flex items-center gap-1 bg-secondary/20 p-1 rounded-xl overflow-x-auto">
                     {TABS.map((tab) => (
@@ -283,6 +317,7 @@ export function PaperTradeDashboard() {
                 {activeTab === 'performance' && (
                     <div className="space-y-5">
                         {metrics && <PerformanceMetrics metrics={metrics} />}
+                        <AssetAllocationChart portfolio={portfolio} />
                         <PortfolioChart snapshots={snapshots} initialBalance={portfolio.initialBalance} />
                     </div>
                 )}

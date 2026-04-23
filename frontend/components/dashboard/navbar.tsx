@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Search, Bell, Menu, ChevronDown, Monitor, BarChart2, GitBranch, Globe, List, Activity, Users, Newspaper, Sparkles, Wallet } from 'lucide-react'
+import { Search, Bell, Menu, ChevronDown, Monitor, BarChart2, GitBranch, Globe, List, Activity, Users, Newspaper, Sparkles, Wallet, Trophy } from 'lucide-react'
 import { useAuthStore } from '@/store/use-auth-store'
 import { authService } from '@/services/auth.service'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,8 @@ const menuItems = [
       { href: '/backtest', label: 'Backtest', icon: Activity },
       { href: '/strategy', label: 'Strategy', icon: GitBranch },
       { href: '/paper-trade', label: 'Paper Trade', icon: Wallet },
+      { href: '/paper-trade/time-machine', label: 'Tarihsel Simülasyon', icon: Sparkles },
+      { href: '/paper-trade/leaderboard', label: 'Liderlik Tablosu', icon: Trophy },
     ]
   },
   {
