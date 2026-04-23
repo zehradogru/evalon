@@ -8,7 +8,8 @@ import {
     MessageSquare,
     Bell,
     HelpCircle,
-    Settings
+    Settings,
+    Wallet
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -20,6 +21,7 @@ import { Search } from 'lucide-react';
 // TradingView Right Toolbar Icons
 const tools = [
     { name: 'Watchlist', icon: List, path: '/watchlist', isWidget: true },
+    { name: 'Paper Trade', icon: Wallet, path: '/paper-trade', isWidget: false },
     { name: 'Alerts', icon: Bell, path: '/alerts', isWidget: true },
     { name: 'News', icon: Newspaper, path: '/news', isWidget: true },
     { name: 'Screeners', icon: Search, path: '/screener', isWidget: true },
