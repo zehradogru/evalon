@@ -344,7 +344,12 @@ export const paperTradeService = {
             sharpeRatio: portfolio.sharpeRatio,
             updatedAt: new Date().toISOString(),
         }
-        await setDoc(paths.leaderboardEntry(userId), toPlain(entry))
+        try {
+            await setDoc(paths.leaderboardEntry(userId), toPlain(entry))
+        } catch (error) {
+            console.warn('Leaderboard update skipped: ', error)
+            // Silently fail so it doesn't block the actual trade order execution
+        }
     },
 
     async getLeaderboard(sortBy: string = 'pnl', max: number = 50): Promise<LeaderboardResponse> {

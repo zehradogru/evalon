@@ -38,12 +38,17 @@ export function LeaderboardTable() {
     const [loading, setLoading] = useState(true)
     const [sortBy, setSortBy] = useState<LeaderboardSortBy>('pnl')
 
+    const [error, setError] = useState<string | null>(null)
+
     const load = useCallback(async () => {
         setLoading(true)
+        setError(null)
         try {
             const res = await paperTradeService.getLeaderboard(sortBy, 50)
             setEntries(res.entries)
-        } catch {
+        } catch (err: any) {
+            console.error(err)
+            setError(err.message)
             setEntries([])
         } finally {
             setLoading(false)
@@ -97,6 +102,11 @@ export function LeaderboardTable() {
             {loading ? (
                 <div className="flex items-center justify-center py-16">
                     <Loader2 size={20} className="animate-spin text-muted-foreground" />
+                </div>
+            ) : error ? (
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center border border-red-500/20 bg-red-500/5 rounded-xl">
+                    <p className="text-sm font-semibold text-red-500 mb-1">Veri Çekilemedi</p>
+                    <p className="text-xs text-red-400 max-w-md">{error}</p>
                 </div>
             ) : entries.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
