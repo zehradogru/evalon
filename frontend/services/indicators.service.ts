@@ -40,7 +40,9 @@ export const indicatorsService = {
             )
         }
 
-        const payload = (await response.json()) as Partial<IndicatorResponse>
+        // Backend returns {name, data: [{time, value}]} — normalize to {id, series: [{t, v}]}
+        type RawSeries = { name?: string; id?: string; data?: { time?: string; value?: number }[]; series?: { t: string; v?: number }[] }
+        const payload = (await response.json()) as { ticker?: string; timeframe?: string; strategy?: string; indicators?: RawSeries[] }
 
         return {
             ticker: payload.ticker || params.ticker,
@@ -48,8 +50,10 @@ export const indicatorsService = {
             strategy: payload.strategy || params.strategy,
             indicators: Array.isArray(payload.indicators)
                 ? payload.indicators.map((series) => ({
-                      ...series,
-                      series: Array.isArray(series?.series) ? series.series : [],
+                      id: String(series?.name ?? series?.id ?? ''),
+                      series: Array.isArray(series?.data)
+                          ? series.data.map((pt) => ({ t: pt.time ?? '', v: pt.value }))
+                          : Array.isArray(series?.series) ? series.series : [],
                   }))
                 : [],
         }

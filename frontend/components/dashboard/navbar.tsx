@@ -58,7 +58,7 @@ const menuItems = [
 const SEARCH_INDEX = BIST_AVAILABLE.map(ticker => ({
   ticker,
   name: TICKER_NAMES[ticker] || ticker,
-  searchStr: `${ticker} ${(TICKER_NAMES[ticker] || '').toLowerCase()}`,
+  searchStr: `${ticker.toLowerCase()} ${(TICKER_NAMES[ticker] || '').toLowerCase()}`,
 }))
 
 function TickerSearch() {

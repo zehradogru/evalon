@@ -35,10 +35,9 @@ const DEFAULT_TICKERS = BIST_POPULAR.slice(0, 12)
 // Math helpers
 // ---------------------------------------------------------------------------
 
-/** Extract close prices from candle array */
-function getCloses(candles: number[][]): number[] {
-  // candles: [time, open, high, low, close, volume] or [time, close]
-  return candles.map((c) => (c.length >= 5 ? c[4] : c[1]))
+/** Extract close prices from PriceBar array */
+function getCloses(candles: { c: number }[]): number[] {
+  return candles.map((c) => c.c)
 }
 
 /** Log returns: ln(p_t / p_{t-1}) */
@@ -116,9 +115,8 @@ export function CorrelationView() {
   const returnsMap = useMemo<Map<string, number[]>>(() => {
     const map = new Map<string, number[]>()
     if (!priceQuery.data) return map
-    const data = priceQuery.data as Record<string, number[][]>
     for (const ticker of selectedTickers) {
-      const candles = data[ticker]
+      const candles = priceQuery.data.get(ticker)
       if (Array.isArray(candles) && candles.length > 1) {
         map.set(ticker, logReturns(getCloses(candles)))
       }

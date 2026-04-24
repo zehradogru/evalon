@@ -12,8 +12,7 @@ import {
     XAxis,
     YAxis,
 } from 'recharts'
-import { Loader2, RefreshCw, Waves } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { AlertCircle, Loader2, RefreshCw, TrendingUp, Waves } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select-native'
@@ -40,14 +39,14 @@ function buildIndicatorComment(
     latestValues: Array<{ label: string; value: number }>
 ) {
     if (latestValues.length === 0) {
-        return 'Secili kombinasyon icin gosterilecek son veri yok.'
+        return 'No recent data to display for the selected combination.'
     }
 
     if (indicator === 'rsi') {
         const rsi = latestValues[0].value
-        if (rsi >= 70) return 'RSI asiri alim bolgesine yakin. Momentum guclu ama soguma riski var.'
-        if (rsi <= 30) return 'RSI asiri satim bolgesine yakin. Tepki potansiyeli izlenebilir.'
-        return 'RSI dengeli bolgede. Ek bir trend teyidi faydali olur.'
+        if (rsi >= 70) return 'RSI is near overbought territory. Momentum is strong but a cooldown may be approaching.'
+        if (rsi <= 30) return 'RSI is near oversold territory. A bounce or reversal could be forming.'
+        return 'RSI is in neutral territory. An additional trend confirmation signal would be useful.'
     }
 
     if (indicator === 'macd') {
@@ -55,12 +54,12 @@ function buildIndicatorComment(
         const signal = latestValues.find((item) => item.label.includes('signal'))
         if (macd && signal) {
             return macd.value >= signal.value
-                ? 'MACD cizgisi signal ustunde. Kisa vadeli momentum olumlu.'
-                : 'MACD cizgisi signal altinda. Zayiflama riski devam ediyor.'
+                ? 'MACD line is above the signal line. Short-term momentum is bullish.'
+                : 'MACD line is below the signal line. Weakness or a downtrend may be continuing.'
         }
     }
 
-    return 'Indikator serisi guncel fiyat akisiyla birlikte okunmali. Tek basina karar araci olarak kullanmayin.'
+    return 'Read the indicator series alongside current price action. Do not use it as a standalone decision tool.'
 }
 
 export function AnalysisView() {
@@ -89,7 +88,7 @@ export function AnalysisView() {
                 fast: Number(fast),
                 slow: Number(slow),
                 signal: Number(signal),
-                limit: 180,
+                limit: 200,
             }),
         enabled: Boolean(ticker && indicatorId),
         staleTime: 60 * 1000,
@@ -114,8 +113,7 @@ export function AnalysisView() {
 
         return {
             data: Array.from(rows.values()).sort(
-                (a, b) =>
-                    new Date(String(a.t)).getTime() - new Date(String(b.t)).getTime()
+                (a, b) => new Date(String(a.t)).getTime() - new Date(String(b.t)).getTime()
             ),
             keys: seriesKeys,
         }
@@ -134,210 +132,205 @@ export function AnalysisView() {
     const comment = buildIndicatorComment(indicatorId, latestValues)
 
     return (
-        <div className="flex flex-col gap-6 p-6">
-            <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold tracking-tight">Indicator Lab</h1>
-                <p className="text-muted-foreground">
-                    PDF’deki gercek indikator endpointleri ile calisan teknik analiz workspace.
-                </p>
+        <div className="w-full flex flex-col gap-4 p-5">
+
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            {/* ROW 1 — Header + Refresh                                        */}
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            <div className="flex items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Indicator Lab</h1>
+                    <p className="text-sm text-muted-foreground">
+                        Technical analysis workspace powered by real indicator endpoints.
+                    </p>
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void indicatorsQuery.refetch()}
+                    disabled={indicatorsQuery.isFetching}
+                    className="gap-2 shrink-0"
+                >
+                    <RefreshCw className={cn('h-3.5 w-3.5', indicatorsQuery.isFetching && 'animate-spin')} />
+                    Refresh
+                </Button>
             </div>
 
-            <Card className="border-border bg-card">
-                <CardHeader className="border-b border-border/60">
-                    <CardTitle className="text-base">Calisma Alani</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 pt-6 md:grid-cols-2 xl:grid-cols-4">
-                    <label className="flex flex-col gap-2 text-sm">
-                        <span className="text-muted-foreground">Ticker</span>
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            {/* ROW 2 — Config bar                                               */}
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            <div className="rounded-xl border border-border/50 bg-card p-4 space-y-3">
+                {/* Main controls */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
+                    <label className="flex flex-col gap-1">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Ticker</span>
                         <Input
                             value={ticker}
-                            onChange={(event) =>
-                                setTicker(event.target.value.toUpperCase().trim())
-                            }
+                            onChange={(e) => setTicker(e.target.value.toUpperCase().trim())}
                             placeholder="THYAO"
+                            className="h-8 text-xs"
                         />
                     </label>
-                    <label className="flex flex-col gap-2 text-sm">
-                        <span className="text-muted-foreground">Timeframe</span>
-                        <Select
-                            value={timeframe}
-                            onChange={(event) =>
-                                setTimeframe(event.target.value as Timeframe)
-                            }
-                        >
-                            {TIMEFRAMES.map((item) => (
-                                <option key={item} value={item}>
-                                    {formatTimeframeLabel(item)}
-                                </option>
+                    <label className="flex flex-col gap-1">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Timeframe</span>
+                        <Select value={timeframe} onChange={(e) => setTimeframe(e.target.value as Timeframe)} className="h-8 text-xs">
+                            {TIMEFRAMES.map((tf) => (
+                                <option key={tf} value={tf}>{formatTimeframeLabel(tf)}</option>
                             ))}
                         </Select>
                     </label>
-                    <label className="flex flex-col gap-2 text-sm">
-                        <span className="text-muted-foreground">Indicator</span>
-                        <Select
-                            value={indicatorId}
-                            onChange={(event) => setIndicatorId(event.target.value)}
-                        >
-                            {(catalogQuery.data?.indicators || []).map((indicator) => (
-                                <option key={indicator.id} value={indicator.id}>
-                                    {indicator.label}
-                                </option>
+                    <label className="flex flex-col gap-1 sm:col-span-1">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Indicator</span>
+                        <Select value={indicatorId} onChange={(e) => setIndicatorId(e.target.value)} className="h-8 text-xs">
+                            {(catalogQuery.data?.indicators ?? []).map((ind) => (
+                                <option key={ind.id} value={ind.id}>{ind.label}</option>
                             ))}
                         </Select>
                     </label>
-                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-                        <label className="flex flex-col gap-2 text-sm">
-                            <span className="text-muted-foreground">Period</span>
-                            <Input value={period} onChange={(event) => setPeriod(event.target.value)} />
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm">
-                            <span className="text-muted-foreground">Fast</span>
-                            <Input value={fast} onChange={(event) => setFast(event.target.value)} />
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm">
-                            <span className="text-muted-foreground">Slow</span>
-                            <Input value={slow} onChange={(event) => setSlow(event.target.value)} />
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm">
-                            <span className="text-muted-foreground">Signal</span>
-                            <Input
-                                value={signal}
-                                onChange={(event) => setSignal(event.target.value)}
-                            />
-                        </label>
-                    </div>
-                    <div className="md:col-span-2 xl:col-span-4 flex flex-wrap items-center gap-2">
-                        {BIST_POPULAR.slice(0, 8).map((popularTicker) => (
-                            <Button
-                                key={popularTicker}
-                                type="button"
-                                variant={popularTicker === ticker ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => setTicker(popularTicker)}
-                            >
-                                {popularTicker}
-                            </Button>
-                        ))}
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void indicatorsQuery.refetch()}
-                            disabled={indicatorsQuery.isFetching}
-                        >
-                            <RefreshCw
-                                className={cn(
-                                    'mr-2 h-3.5 w-3.5',
-                                    indicatorsQuery.isFetching && 'animate-spin'
-                                )}
-                            />
-                            Yenile
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                    <label className="flex flex-col gap-1">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Period</span>
+                        <Input type="number" value={period} onChange={(e) => setPeriod(e.target.value)} className="h-8 text-xs" />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Fast</span>
+                        <Input type="number" value={fast} onChange={(e) => setFast(e.target.value)} className="h-8 text-xs" />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Slow</span>
+                        <Input type="number" value={slow} onChange={(e) => setSlow(e.target.value)} className="h-8 text-xs" />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Signal</span>
+                        <Input type="number" value={signal} onChange={(e) => setSignal(e.target.value)} className="h-8 text-xs" />
+                    </label>
+                </div>
 
-            <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-                <Card className="border-border bg-card">
-                    <CardHeader className="border-b border-border/60">
-                        <CardTitle className="text-base">
+                {/* Ticker quick-picks */}
+                <div className="border-t border-border/30 pt-3 flex flex-wrap gap-1.5">
+                    {BIST_POPULAR.slice(0, 12).map((t) => (
+                        <button
+                            key={t}
+                            onClick={() => setTicker(t)}
+                            className={cn(
+                                'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                                t === ticker
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                            )}
+                        >
+                            {t}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            {/* ROW 3 — Chart + side panels                                      */}
+            {/* ═══════════════════════════════════════════════════════════════ */}
+            <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+
+                {/* Chart */}
+                <div className="rounded-xl border border-border/50 bg-card p-5 min-w-0">
+                    <div className="flex items-center gap-2 mb-4">
+                        <TrendingUp className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-semibold">
                             {ticker} · {indicatorId.toUpperCase()} · {formatTimeframeLabel(timeframe)}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                        {catalogQuery.isLoading || indicatorsQuery.isLoading ? (
-                            <div className="flex h-[360px] items-center justify-center">
-                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            </div>
-                        ) : indicatorsQuery.error ? (
-                            <div className="flex h-[360px] items-center justify-center text-sm text-destructive">
+                        </span>
+                        {indicatorsQuery.isFetching && (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground ml-auto" />
+                        )}
+                    </div>
+
+                    {indicatorsQuery.isLoading ? (
+                        <div className="flex h-[360px] items-center justify-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        </div>
+                    ) : indicatorsQuery.error ? (
+                        <div className="flex h-[360px] flex-col items-center justify-center gap-2 text-destructive">
+                            <AlertCircle className="h-6 w-6" />
+                            <span className="text-sm">
                                 {indicatorsQuery.error instanceof Error
                                     ? indicatorsQuery.error.message
-                                    : 'Indicator verisi yuklenemedi.'}
-                            </div>
-                        ) : chartData.data.length === 0 ? (
-                            <div className="flex h-[360px] items-center justify-center text-sm text-muted-foreground">
-                                Secili kombinasyon icin gosterilecek seri yok.
-                            </div>
-                        ) : (
-                            <ResponsiveContainer width="100%" height={360}>
-                                <LineChart data={chartData.data}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-                                    <XAxis
-                                        dataKey="t"
-                                        minTickGap={40}
-                                        tickFormatter={(value) =>
-                                            new Date(String(value)).toLocaleDateString('en-US', {
-                                                day: '2-digit',
-                                                month: 'short',
-                                            })
-                                        }
+                                    : 'Failed to load indicator data.'}
+                            </span>
+                        </div>
+                    ) : chartData.data.length === 0 ? (
+                        <div className="flex h-[360px] items-center justify-center text-sm text-muted-foreground">
+                            No data available for the selected combination.
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={360}>
+                            <LineChart data={chartData.data}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                <XAxis
+                                    dataKey="t"
+                                    minTickGap={40}
+                                    tick={{ fontSize: 11 }}
+                                    tickFormatter={(value) =>
+                                        new Date(String(value)).toLocaleDateString('en-US', {
+                                            day: '2-digit',
+                                            month: 'short',
+                                        })
+                                    }
+                                />
+                                <YAxis tick={{ fontSize: 11 }} />
+                                <Tooltip
+                                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                                    labelFormatter={(value) => new Date(String(value)).toLocaleString('en-US')}
+                                />
+                                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                                {chartData.keys.map((key, index) => (
+                                    <Line
+                                        key={key}
+                                        type="monotone"
+                                        dataKey={key}
+                                        stroke={SERIES_COLORS[index % SERIES_COLORS.length]}
+                                        dot={false}
+                                        strokeWidth={2}
+                                        isAnimationActive={false}
                                     />
-                                    <YAxis />
-                                    <Tooltip
-                                        labelFormatter={(value) =>
-                                            new Date(String(value)).toLocaleString('en-US')
-                                        }
-                                    />
-                                    <Legend />
-                                    {chartData.keys.map((key, index) => (
-                                        <Line
-                                            key={key}
-                                            type="monotone"
-                                            dataKey={key}
-                                            stroke={SERIES_COLORS[index % SERIES_COLORS.length]}
-                                            dot={false}
-                                            strokeWidth={2}
-                                            isAnimationActive={false}
-                                        />
-                                    ))}
-                                </LineChart>
-                            </ResponsiveContainer>
-                        )}
-                    </CardContent>
-                </Card>
+                                ))}
+                            </LineChart>
+                        </ResponsiveContainer>
+                    )}
+                </div>
 
-                <div className="flex flex-col gap-6">
-                    <Card className="border-border bg-card">
-                        <CardHeader className="border-b border-border/60">
-                            <CardTitle className="text-base">Son Degerler</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 pt-6">
-                            {latestValues.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">
-                                    Henuz indikator degeri yok.
-                                </p>
-                            ) : (
-                                latestValues.map((item) => (
+                {/* Side: Latest values + Quick commentary */}
+                <div className="flex flex-col gap-4">
+                    {/* Latest values */}
+                    <div className="rounded-xl border border-border/50 bg-card p-4">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-3">Latest Values</p>
+                        {latestValues.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No indicator values yet.</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {latestValues.map((item, index) => (
                                     <div
                                         key={item.label}
-                                        className="flex items-center justify-between rounded-lg border border-border/70 bg-background/60 px-3 py-2"
+                                        className="flex items-center justify-between rounded-lg border border-border/50 bg-background/40 px-3 py-2"
                                     >
-                                        <span className="text-sm text-muted-foreground">
-                                            {item.label}
-                                        </span>
-                                        <span className="font-mono text-sm font-semibold">
-                                            {item.value.toFixed(2)}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <div
+                                                className="h-2 w-2 rounded-full shrink-0"
+                                                style={{ background: SERIES_COLORS[index % SERIES_COLORS.length] }}
+                                            />
+                                            <span className="text-xs text-muted-foreground">{item.label}</span>
+                                        </div>
+                                        <span className="font-mono text-sm font-semibold">{item.value.toFixed(2)}</span>
                                     </div>
-                                ))
-                            )}
-                        </CardContent>
-                    </Card>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
-                    <Card className="border-border bg-card">
-                        <CardHeader className="border-b border-border/60">
-                            <CardTitle className="flex items-center gap-2 text-base">
-                                <Waves className="h-4 w-4 text-primary" />
-                                Hizli Yorum
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6">
-                            <p className="text-sm leading-6 text-muted-foreground">
-                                {comment}
-                            </p>
-                        </CardContent>
-                    </Card>
+                    {/* Quick commentary */}
+                    <div className="rounded-xl border border-border/50 bg-card p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Waves className="h-3.5 w-3.5 text-primary" />
+                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Quick Read</p>
+                        </div>
+                        <p className="text-sm leading-relaxed text-muted-foreground">{comment}</p>
+                    </div>
                 </div>
             </div>
         </div>

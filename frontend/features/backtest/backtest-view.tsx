@@ -73,11 +73,16 @@ function curveToChartData(points?: PortfolioCurvePoint[]) {
       const value = ['equity', 'value', 'portfolio', 'balance', 'close']
         .map((k) => row[k])
         .find((v) => typeof v === 'number')
-      const x = row.time ?? row.t ?? row.timestamp ?? index + 1
-      return {
-        x: typeof x === 'number' ? x : String(x).slice(0, 10),
-        value: typeof value === 'number' ? value : NaN,
+      const rawX = row.time ?? row.t ?? row.timestamp ?? index + 1
+      let x: string | number
+      if (typeof rawX === 'number' && rawX > 1_000_000_000) {
+        x = new Date(rawX * 1000).toISOString().slice(0, 10)
+      } else if (typeof rawX === 'number') {
+        x = rawX
+      } else {
+        x = String(rawX).slice(0, 10)
       }
+      return { x, value: typeof value === 'number' ? value : NaN }
     })
     .filter((item) => Number.isFinite(item.value))
 }
@@ -394,7 +399,7 @@ export function BacktestView() {
   const currentSummary =
     statusQuery.data?.summary ?? curveQuery.data?.summary ?? syncResult?.summary ?? null
 
-  const curveData = curveToChartData(curveQuery.data?.curve)
+  const curveData = curveToChartData(curveQuery.data?.curve?.points)
 
   const progress = statusQuery.data?.progress
 

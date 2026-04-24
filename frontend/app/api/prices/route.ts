@@ -22,6 +22,20 @@ const BENCHMARK_YAHOO_SYMBOLS: Record<string, string> = {
     XU030: 'XU030.IS',
 }
 
+// Crypto tickers mapped to Yahoo Finance symbols
+const CRYPTO_YAHOO_SYMBOLS: Record<string, string> = {
+    BTCUSDT_C: 'BTC-USD',
+    ETHUSDT_C: 'ETH-USD',
+    SOLUSDT_C: 'SOL-USD',
+    BNBUSDT_C: 'BNB-USD',
+    XRPUSDT_C: 'XRP-USD',
+    LINKUSDT_C: 'LINK-USD',
+}
+
+function isCryptoTicker(ticker: string): boolean {
+    return Boolean(CRYPTO_YAHOO_SYMBOLS[ticker.toUpperCase()])
+}
+
 async function readPayload(response: Response): Promise<unknown> {
     const contentType = response.headers.get('content-type') || ''
     if (contentType.includes('application/json')) {
@@ -567,6 +581,28 @@ export async function GET(request: NextRequest) {
                 }
 
                 return benchmarkResult
+            }
+
+            // Crypto — fetch from Yahoo Finance directly
+            if (isCryptoTicker(ticker)) {
+                const yahooSymbol = CRYPTO_YAHOO_SYMBOLS[ticker.toUpperCase()]
+                const bars = await fetchYahooBarsForSymbolCached(yahooSymbol, timeframe, requestedLimit)
+                const cryptoResult: PriceApiResponse = {
+                    ticker,
+                    timeframe,
+                    rows: bars.length,
+                    data: bars,
+                    meta: buildMeta({
+                        hasUsableData: bars.length > 0,
+                        source: 'live',
+                        emptyReason: bars.length > 0 ? undefined : 'no-data',
+                        message: bars.length > 0 ? undefined : 'Kripto fiyat verisi bulunamadi.',
+                    }),
+                }
+                if (cryptoResult.meta.hasUsableData) {
+                    setCache(cacheKey, cryptoResult)
+                }
+                return cryptoResult
             }
 
             const response = await fetchWithTimeout(

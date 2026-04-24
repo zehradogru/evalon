@@ -518,6 +518,16 @@ export interface BacktestEventsResponse {
 
 export type PortfolioCurvePoint = Record<string, unknown> | number
 
+export interface PortfolioCurveData {
+    mode: string
+    initialBalance: number
+    finalBalance: number
+    peakBalance: number
+    lowBalance: number
+    maxDrawdownPct: number
+    points: PortfolioCurvePoint[]
+}
+
 export interface PortfolioCurveResponse {
     runId: string
     status: string
@@ -527,7 +537,7 @@ export interface PortfolioCurveResponse {
     progress: BacktestProgress
     error?: string
     summary?: BacktestSummary
-    curve?: PortfolioCurvePoint[]
+    curve?: PortfolioCurveData
 }
 
 export type AiChatRole = 'user' | 'assistant' | 'tool'
