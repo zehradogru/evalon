@@ -16,9 +16,11 @@
     "firebase": "^12.9.0",
     "lucide-react": "^0.563.0",
     "next": "^16.2.4",
+    "oracledb": "^6.10.0",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-is": "^19.2.5",
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.11"

@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { TrendingUp, TrendingDown, Flame, Snowflake, Loader2, Activity, RefreshCw } from 'lucide-react'
+import Link from 'next/link'
+import { TrendingUp, TrendingDown, Flame, Snowflake, Loader2, Activity, RefreshCw, ArrowRight } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { MarketDataStatusChip } from '@/components/market-data-status-chip'
@@ -246,6 +247,17 @@ export function MarketMovers() {
                         ))}
                     </div>
                 )}
+            </div>
+
+            {/* Footer – tam liste linki */}
+            <div className="px-3 py-2 border-t border-border/50 shrink-0">
+                <Link
+                    href="/markets/movers"
+                    className="flex items-center justify-center gap-1.5 w-full py-1.5 text-[11px] font-medium text-muted-foreground hover:text-primary transition-colors rounded-lg hover:bg-muted/30"
+                >
+                    Tümünü Gör
+                    <ArrowRight className="h-3 w-3" />
+                </Link>
             </div>
         </div>
     )

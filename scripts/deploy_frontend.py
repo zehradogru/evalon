@@ -5,6 +5,7 @@ sonra Cloud Run'a 'evalon-web' servisi olarak deploy et.
 import subprocess
 import sys
 import re
+from datetime import datetime
 from pathlib import Path
 from google.oauth2 import service_account
 import google.auth.transport.requests
@@ -13,7 +14,9 @@ KEY_FILE = r'C:\Users\zehra\Masaüstü\evalonn\backend\evalon-490523-cb27db47fd0
 PROJECT_ID = 'evalon-490523'
 REGION = 'europe-west1'
 SERVICE = 'evalon-web'
-IMAGE = f'{REGION}-docker.pkg.dev/{PROJECT_ID}/cloud-run-source-deploy/{SERVICE}'
+TAG = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+IMAGE_BASE = f'{REGION}-docker.pkg.dev/{PROJECT_ID}/cloud-run-source-deploy/{SERVICE}'
+IMAGE = f'{IMAGE_BASE}:{TAG}'
 FRONTEND_DIR = r'C:\Users\zehra\Masaüstü\evalonn\frontend'
 
 # Load env vars from .env.local
@@ -58,7 +61,7 @@ print('[OK] Docker auth')
 
 # --- Build ---
 print(f'[2] Building frontend image: {IMAGE}...')
-build_cmd = ['docker', 'build', '-t', IMAGE]
+build_cmd = ['docker', 'build', '--no-cache', '-t', IMAGE]
 for key in BUILD_ARGS:
     val = env_vars.get(key, '')
     build_cmd += ['--build-arg', f'{key}={val}']
@@ -110,3 +113,17 @@ except Exception:
 result = operation.result(timeout=300)
 print(f'[OK] Deployed: {result.uri}')
 print(f'\nFrontend URL: {result.uri}')
+
+# --- Cleanup local Docker images (keep only latest tag) ---
+print('[5] Cleaning up local Docker images...')
+subprocess.run(['docker', 'image', 'prune', '-f'], capture_output=True)
+# Remove old tagged images for this service (keep current)
+ls_result = subprocess.run(
+    ['docker', 'images', IMAGE_BASE, '--format', '{{.Tag}}\t{{.ID}}'],
+    capture_output=True, text=True
+)
+for line in ls_result.stdout.strip().splitlines():
+    parts = line.split('\t')
+    if len(parts) == 2 and parts[0] != TAG and parts[0] != '<none>':
+        subprocess.run(['docker', 'rmi', f'{IMAGE_BASE}:{parts[0]}'], capture_output=True)
+print('[OK] Cleanup done')

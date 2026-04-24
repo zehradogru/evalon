@@ -1,7 +1,7 @@
 'use client'
 
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BIST_AVAILABLE, TICKER_NAMES } from '@/config/markets'
+import { BIST_100, TICKER_NAMES } from '@/config/markets'
 import { useUserWatchlist } from '@/hooks/use-user-watchlist'
 import type { MarketDataMeta, MarketListItem, PaginatedListResponse } from '@/types'
 import { buildMarketQueryStatus, isRetriableMarketError } from '@/lib/market-data'
@@ -132,7 +132,7 @@ async function fetchDashboardData(tickers: string[]): Promise<DashboardTickerPay
 async function fetchMarketSnapshotData(): Promise<DashboardTickerPayload> {
     const params = new URLSearchParams({
         view: 'markets',
-        limit: String(BIST_AVAILABLE.length),
+        limit: String(BIST_100.length),
         sortBy: 'changePct',
         sortDir: 'desc',
     })
@@ -202,7 +202,10 @@ export function useDashboardWatchlist() {
         placeholderData: keepPreviousData,
         retry: (failureCount, error) =>
             isRetriableMarketError(error) && failureCount < 2,
-        refetchInterval: () => isMarketCurrentlyOpen() ? 1000 * 60 : false, // 1 min when open, stop when closed
+        refetchInterval: (query) => {
+            if (query.state.data?.meta?.warming) return 8_000 // keep retrying while warming
+            return isMarketCurrentlyOpen() ? 1000 * 60 : false
+        },
     })
 
     const marketStatus = buildMarketQueryStatus({
@@ -255,7 +258,10 @@ export function useMarketMovers() {
         placeholderData: keepPreviousData,
         retry: (failureCount, error) =>
             isRetriableMarketError(error) && failureCount < 2,
-        refetchInterval: () => isMarketCurrentlyOpen() ? 1000 * 60 * 2 : false, // 2 min when open, stop when closed
+        refetchInterval: (query) => {
+            if (query.state.data?.meta?.warming) return 8_000 // keep retrying while warming
+            return isMarketCurrentlyOpen() ? 1000 * 60 * 2 : false
+        },
     })
 
     const marketStatus = buildMarketQueryStatus({
