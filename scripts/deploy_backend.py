@@ -5,6 +5,7 @@ sonra Cloud Run'ı yeni image ile güncelle.
 import subprocess
 import sys
 import json
+from datetime import datetime
 from google.oauth2 import service_account
 import google.auth.transport.requests
 
@@ -12,7 +13,9 @@ KEY_FILE = r'C:\Users\zehra\Masaüstü\evalonn\backend\evalon-490523-cb27db47fd0
 PROJECT_ID = 'evalon-490523'
 REGION = 'europe-west1'
 SERVICE = 'evalon-backtest-api'
-IMAGE = f'{REGION}-docker.pkg.dev/{PROJECT_ID}/cloud-run-source-deploy/{SERVICE}'
+TAG = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+IMAGE_BASE = f'{REGION}-docker.pkg.dev/{PROJECT_ID}/cloud-run-source-deploy/{SERVICE}'
+IMAGE = f'{IMAGE_BASE}:{TAG}'
 
 credentials = service_account.Credentials.from_service_account_file(
     KEY_FILE, scopes=['https://www.googleapis.com/auth/cloud-platform']
@@ -37,7 +40,7 @@ print('[OK] Docker auth')
 
 print(f'[2] Building image: {IMAGE}...')
 build_result = subprocess.run(
-    ['docker', 'build', '-t', IMAGE, '.'],
+    ['docker', 'build', '--no-cache', '-t', IMAGE, '.'],
     cwd=r'C:\Users\zehra\Masaüstü\evalonn\backend\backtest',
     capture_output=False  # show live output
 )
@@ -74,3 +77,16 @@ for container in service.template.containers:
 operation = client.update_service(service=service)
 result = operation.result(timeout=180)
 print(f'[OK] Deployed: {result.uri}')
+
+# --- Cleanup local Docker images (keep only latest tag) ---
+print('[5] Cleaning up local Docker images...')
+subprocess.run(['docker', 'image', 'prune', '-f'], capture_output=True)
+ls_result = subprocess.run(
+    ['docker', 'images', IMAGE_BASE, '--format', '{{.Tag}}\t{{.ID}}'],
+    capture_output=True, text=True
+)
+for line in ls_result.stdout.strip().splitlines():
+    parts = line.split('\t')
+    if len(parts) == 2 and parts[0] != TAG and parts[0] != '<none>':
+        subprocess.run(['docker', 'rmi', f'{IMAGE_BASE}:{parts[0]}'], capture_output=True)
+print('[OK] Cleanup done')
