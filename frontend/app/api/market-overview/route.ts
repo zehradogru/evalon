@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import type { MarketOverviewCard } from '@/types'
 
 type CardId = MarketOverviewCard['id']
@@ -102,25 +103,83 @@ function parseYahooSeries(payload: unknown): Array<{ t: string; close: number }>
     return out
 }
 
+// ─── Yahoo crumb/cookie cache ────────────────────────────────────────────────
+
+let yahooCrumbCache: { crumb: string; cookie: string; expiresAt: number } | null = null
+
+async function getYahooCrumb(): Promise<{ crumb: string; cookie: string }> {
+    const now = Date.now()
+    if (yahooCrumbCache && yahooCrumbCache.expiresAt > now) {
+        return { crumb: yahooCrumbCache.crumb, cookie: yahooCrumbCache.cookie }
+    }
+    const fcRes = await fetchWithTimeout('https://fc.yahoo.com', 10_000, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            Accept: 'text/html',
+        },
+        redirect: 'follow',
+    })
+    const rawCookies = fcRes.headers.get('set-cookie') || ''
+    const cookieHeader = rawCookies
+        .split(/,(?=[^;]+=[^;]+)/)
+        .map((c) => c.split(';')[0].trim())
+        .filter(Boolean)
+        .join('; ')
+    const crumbRes = await fetchWithTimeout(
+        'https://query1.finance.yahoo.com/v1/test/getcrumb',
+        10_000,
+        {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+                Accept: 'text/plain',
+                Cookie: cookieHeader,
+            },
+        }
+    )
+    if (!crumbRes.ok) throw new Error(`Yahoo crumb fetch failed: ${crumbRes.status}`)
+    const crumb = await crumbRes.text()
+    if (!crumb || crumb.length < 3) throw new Error('Empty crumb')
+    yahooCrumbCache = { crumb, cookie: cookieHeader, expiresAt: now + 50 * 60 * 1000 }
+    return { crumb, cookie: cookieHeader }
+}
+
+async function fetchYahooChart(symbol: string, interval: string, range: string): Promise<unknown> {
+    let crumb = ''
+    let cookie = ''
+    try {
+        const auth = await getYahooCrumb()
+        crumb = auth.crumb
+        cookie = auth.cookie
+    } catch { /* proceed without crumb */ }
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}${crumb ? `&crumb=${encodeURIComponent(crumb)}` : ''}`
+    const response = await fetchWithTimeout(url, 12_000, {
+        headers: {
+            Accept: 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            ...(cookie ? { Cookie: cookie } : {}),
+        },
+    })
+    if (!response.ok) {
+        if (response.status === 401 || response.status === 403) yahooCrumbCache = null
+        throw new Error(`Yahoo request failed: ${response.status}`)
+    }
+    return response.json()
+}
+
 async function fetchYahooIndexCard(
     id: 'bist100' | 'bist30',
     label: string,
     symbol: 'XU100.IS' | 'XU030.IS'
 ): Promise<MarketOverviewCard> {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`
-    const response = await fetchWithTimeout(url, 12_000, {
-        headers: {
-            Accept: 'application/json',
-            'User-Agent':
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-        },
-    })
+    const payload = await fetchYahooChart(symbol, '1d', '1mo')
+    const response = { ok: true } // already checked in fetchYahooChart
+    void response
 
-    if (!response.ok) {
-        throw new Error(`Yahoo request failed: ${response.status}`)
+    if (!payload) {
+        throw new Error(`Yahoo request failed for ${symbol}`)
     }
 
-    const series = parseYahooSeries(await response.json())
+    const series = parseYahooSeries(payload)
     const last = series[series.length - 1]
     const prev = series[series.length - 2] || last
 
@@ -166,20 +225,8 @@ function parseTcmbUsdTry(xml: string): { value: number; asOf: string } | null {
 }
 
 async function fetchUsdTryFromYahoo(): Promise<MarketOverviewCard> {
-    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/TRY=X?interval=1d&range=1mo'
-    const response = await fetchWithTimeout(url, 10_000, {
-        headers: {
-            Accept: 'application/json',
-            'User-Agent':
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-        },
-    })
-
-    if (!response.ok) {
-        throw new Error(`Yahoo TRY=X failed: ${response.status}`)
-    }
-
-    const series = parseYahooSeries(await response.json())
+    const payload = await fetchYahooChart('TRY=X', '1d', '1mo')
+    const series = parseYahooSeries(payload)
     const last = series[series.length - 1]
     const prev = series[series.length - 2] || last
     if (!last) {
@@ -297,16 +344,29 @@ async function resolveCardWithFallback(
     }
 }
 
+const fetchYahooIndexCardCached = unstable_cache(
+    (id: 'bist100' | 'bist30', label: string, symbol: 'XU100.IS' | 'XU030.IS') =>
+        fetchYahooIndexCard(id, label, symbol),
+    ['yahoo-index-card'],
+    { revalidate: 3600 }
+)
+
+const fetchUsdTryFromYahooCached = unstable_cache(
+    () => fetchUsdTryFromYahoo(),
+    ['yahoo-usdtry'],
+    { revalidate: 3600 }
+)
+
 export async function GET() {
     const bist100Promise = resolveCardWithFallback(
         'bist100',
-        () => fetchYahooIndexCard('bist100', 'BIST 100', 'XU100.IS'),
+        () => fetchYahooIndexCardCached('bist100', 'BIST 100', 'XU100.IS'),
         buildUnavailableCard('bist100', 'BIST 100', 'TRY')
     )
 
     const bist30Promise = resolveCardWithFallback(
         'bist30',
-        () => fetchYahooIndexCard('bist30', 'BIST 30', 'XU030.IS'),
+        () => fetchYahooIndexCardCached('bist30', 'BIST 30', 'XU030.IS'),
         buildUnavailableCard('bist30', 'BIST 30', 'TRY')
     )
 
@@ -314,7 +374,7 @@ export async function GET() {
         'usdtry',
         async () => {
             try {
-                return await fetchUsdTryFromYahoo()
+                return await fetchUsdTryFromYahooCached()
             } catch {
                 return await fetchUsdTryFromTcmb()
             }

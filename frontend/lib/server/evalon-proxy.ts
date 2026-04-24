@@ -6,6 +6,7 @@ type ProxySearchParams =
     | Record<string, string | number | boolean | null | undefined>
 
 interface ProxyOptions {
+    baseUrl?: string
     cacheControl?: string
     pathname: string
     request?: NextRequest
@@ -54,10 +55,11 @@ async function readProxyPayload(response: Response): Promise<unknown> {
 
 export function buildEvalonUrl(
     pathname: string,
-    searchParams?: ProxySearchParams
+    searchParams?: ProxySearchParams,
+    baseUrl?: string
 ): string {
     const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`
-    const url = new URL(`${EVALON_API_URL}${normalizedPath}`)
+    const url = new URL(`${baseUrl ?? EVALON_API_URL}${normalizedPath}`)
     const params = toSearchParams(searchParams)
     params.forEach((value, key) => url.searchParams.set(key, value))
     return url.toString()
@@ -75,7 +77,8 @@ export async function fetchEvalonJson(
         const url = buildEvalonUrl(
             pathname,
             options.searchParams ??
-                (options.request ? options.request.nextUrl.searchParams : undefined)
+                (options.request ? options.request.nextUrl.searchParams : undefined),
+            options.baseUrl
         )
 
         return await fetch(url, {

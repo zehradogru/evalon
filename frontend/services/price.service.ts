@@ -1,4 +1,4 @@
-import { TICKER_NAMES } from '@/config/markets'
+﻿import { TICKER_NAMES } from '@/config/markets'
 import { getRecentFetchParams } from '@/lib/evalon'
 import { FetchPricesParams, PriceBar, PriceResponse, Timeframe } from '@/types'
 
