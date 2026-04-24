@@ -213,7 +213,7 @@ export function MarketOverviewSection() {
                     fontSize: '12px',
                   }}
                   labelStyle={{ color: '#787b86' }}
-                  formatter={(value: number | undefined) => [(value ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), 'Price']}
+                  formatter={(value) => [Number(value ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), 'Price']}
                 />
                 <Area
                   type="monotone"

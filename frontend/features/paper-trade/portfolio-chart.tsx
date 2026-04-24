@@ -73,7 +73,7 @@ export function PortfolioChart({ snapshots, initialBalance = PAPER_TRADE_INITIAL
                                 fontSize: '12px',
                                 color: '#D1D4DC',
                             }}
-                            formatter={(value: number | string | (string | number)[] | undefined) => [
+                            formatter={(value) => [
                                 `₺${Number(value ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`,
                                 'Portföy Değeri',
                             ]}

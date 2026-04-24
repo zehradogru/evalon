@@ -560,7 +560,7 @@ export function TimeMachinePanel() {
                                                 fontSize: '12px',
                                                 padding: '8px 12px'
                                             }}
-                                            formatter={(value: number | undefined) => [`₺${formatCurrency(value ?? 0)}`, 'Portföy Değeri']}
+                                            formatter={(value) => [`₺${formatCurrency(Number(value ?? 0))}`, 'Portföy Değeri']}
                                             labelFormatter={(label) => `Tarih: ${label}`}
                                         />
                                         <ReferenceLine
