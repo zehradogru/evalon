@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -21,9 +21,9 @@ import { cn } from '@/lib/utils'
 type Tab = 'gainers' | 'losers' | 'active'
 
 const TABS: { id: Tab; label: string; icon: typeof Flame }[] = [
-    { id: 'gainers', label: 'En Çok Yükselenler', icon: Flame },
-    { id: 'losers', label: 'En Çok Düşenler', icon: Snowflake },
-    { id: 'active', label: 'En Aktif (Hacim)', icon: Activity },
+    { id: 'gainers', label: 'Top Gainers', icon: Flame },
+    { id: 'losers', label: 'Top Losers', icon: Snowflake },
+    { id: 'active', label: 'Most Active (Volume)', icon: Activity },
 ]
 
 function formatVolume(vol: number | null): string {
@@ -116,7 +116,7 @@ export function MoversView() {
                     </div>
                     <div>
                         <h1 className="text-xl font-bold text-foreground">Piyasa Hareketleri</h1>
-                        <p className="text-sm text-muted-foreground">BIST — günün en aktif hisseleri</p>
+                        <p className="text-sm text-muted-foreground">BIST — most active stocks of the day</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 mt-2 sm:mt-0">
@@ -165,7 +165,7 @@ export function MoversView() {
                 ) : isError ? (
                     <div className="flex flex-col items-center justify-center py-24 gap-3 text-center px-6">
                         <p className="text-sm text-muted-foreground">
-                            {marketStatus.errorMessage || 'Piyasa verisi geçici olarak kullanılamıyor.'}
+                            {marketStatus.errorMessage || 'Market data temporarily unavailable.'}
                         </p>
                         <Button size="sm" variant="outline" onClick={() => void retryNow()}>
                             <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
@@ -174,7 +174,7 @@ export function MoversView() {
                     </div>
                 ) : rows.length === 0 ? (
                     <div className="flex items-center justify-center py-24 text-sm text-muted-foreground">
-                        {marketStatus.isWarming ? 'Veri yükleniyor...' : 'Veri bulunamadı'}
+                        {marketStatus.isWarming ? 'Loading data...' : 'No data found'}
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -182,11 +182,11 @@ export function MoversView() {
                             <thead>
                                 <tr className="border-b border-border bg-muted/20 text-left">
                                     <th className="py-2.5 pl-4 pr-2 w-8 text-[11px] font-medium text-muted-foreground">#</th>
-                                    <th className="py-2.5 px-2 text-[11px] font-medium text-muted-foreground">Hisse</th>
-                                    <th className="py-2.5 px-2 text-right text-[11px] font-medium text-muted-foreground">Fiyat</th>
-                                    <th className="py-2.5 px-2 text-right text-[11px] font-medium text-muted-foreground">Değişim ₺</th>
-                                    <th className="py-2.5 px-4 text-right text-[11px] font-medium text-muted-foreground">Değişim %</th>
-                                    <th className="py-2.5 pl-2 pr-4 text-right text-[11px] font-medium text-muted-foreground hidden sm:table-cell">Hacim</th>
+                                    <th className="py-2.5 px-2 text-[11px] font-medium text-muted-foreground">Stock</th>
+                                    <th className="py-2.5 px-2 text-right text-[11px] font-medium text-muted-foreground">Price</th>
+                                    <th className="py-2.5 px-2 text-right text-[11px] font-medium text-muted-foreground">Change ₺</th>
+                                    <th className="py-2.5 px-4 text-right text-[11px] font-medium text-muted-foreground">Change %</th>
+                                    <th className="py-2.5 pl-2 pr-4 text-right text-[11px] font-medium text-muted-foreground hidden sm:table-cell">Volume</th>
                                     <th className="py-2.5 pl-2 pr-4 hidden md:table-cell w-8" />
                                 </tr>
                             </thead>

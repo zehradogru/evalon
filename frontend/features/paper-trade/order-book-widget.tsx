@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { X, Clock, Ban } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -42,7 +42,7 @@ export function OrderBookWidget({ orders, onCancelOrder }: OrderBookWidgetProps)
                                                 'text-[10px] font-semibold',
                                                 isBuy ? 'text-emerald-400' : 'text-red-400'
                                             )}>
-                                                {isBuy ? 'ALIŞ' : 'SATIŞ'}
+                                                {isBuy ? 'BUY' : 'SELL'}
                                             </span>
                                             <span className="text-[10px] text-muted-foreground/60 uppercase">{order.type}</span>
                                         </div>
@@ -59,7 +59,7 @@ export function OrderBookWidget({ orders, onCancelOrder }: OrderBookWidgetProps)
                                 <button
                                     onClick={() => onCancelOrder?.(order.orderId)}
                                     className="p-1.5 rounded-md text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
-                                    title="İptal Et"
+                                    title="Cancel"
                                 >
                                     <X size={14} />
                                 </button>

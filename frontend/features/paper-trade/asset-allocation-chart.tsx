@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
@@ -23,7 +23,7 @@ const COLORS = [
 ]
 
 function formatCurrency(val: number): string {
-    return val.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 export function AssetAllocationChart({ portfolio }: AssetAllocationChartProps) {
@@ -56,10 +56,10 @@ export function AssetAllocationChart({ portfolio }: AssetAllocationChartProps) {
             <div className="rounded-xl border border-border bg-card/50 p-4">
                 <div className="flex items-center gap-2 mb-3">
                     <PieChartIcon size={14} className="text-violet-400" />
-                    <h3 className="text-xs font-semibold text-foreground">Varlık Dağılımı</h3>
+                    <h3 className="text-xs font-semibold text-foreground">Asset Allocation</h3>
                 </div>
                 <div className="flex items-center justify-center py-8 text-center">
-                    <p className="text-xs text-muted-foreground">Portföyünüzde henüz hisse bulunmuyor.</p>
+                    <p className="text-xs text-muted-foreground">No stocks in your portfolio yet.</p>
                 </div>
             </div>
         )
@@ -69,7 +69,7 @@ export function AssetAllocationChart({ portfolio }: AssetAllocationChartProps) {
         <div className="rounded-xl border border-border bg-card/50 p-4">
             <div className="flex items-center gap-2 mb-3">
                 <PieChartIcon size={14} className="text-violet-400" />
-                <h3 className="text-xs font-semibold text-foreground">Varlık Dağılımı</h3>
+                <h3 className="text-xs font-semibold text-foreground">Asset Allocation</h3>
             </div>
 
             <div className="flex items-center gap-4">

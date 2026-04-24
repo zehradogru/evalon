@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -51,29 +51,29 @@ const TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d', '1w', '1M'
 
 const QUICK_PROMPTS = [
   {
-    label: 'Strateji Öner',
-    prompt: 'THYAO için 1 saatlik RSI tabanlı bir alım satım stratejisi öner',
+    label: 'Suggest Strategy',
+    prompt: 'Suggest a 1-hour RSI-based trading strategy for THYAO',
     icon: Lightbulb,
     gradient: 'from-blue-500/20 to-indigo-500/20 border-blue-500/30',
     iconColor: 'text-blue-400',
   },
   {
-    label: 'Backtest Çalıştır',
-    prompt: 'GARAN için EMA crossover stratejisi oluştur ve backtest et',
+    label: 'Run Backtest',
+    prompt: 'Create an EMA crossover strategy for GARAN and backtest it',
     icon: BarChart2,
     gradient: 'from-emerald-500/20 to-teal-500/20 border-emerald-500/30',
     iconColor: 'text-emerald-400',
   },
   {
-    label: 'İndikatör Analizi',
-    prompt: 'BIMAS için günlük MACD ve RSI göstergelerini hesapla ve yorumla',
+    label: 'Indicator Analysis',
+    prompt: 'Calculate and interpret daily MACD and RSI indicators for BIMAS',
     icon: TrendingUp,
     gradient: 'from-purple-500/20 to-pink-500/20 border-purple-500/30',
     iconColor: 'text-purple-400',
   },
   {
-    label: 'Kural Seti',
-    prompt: 'Momentum breakout için bir giriş-çıkış kural seti oluştur',
+    label: 'Rule Set',
+    prompt: 'Create an entry-exit rule set for momentum breakout',
     icon: GitBranch,
     gradient: 'from-orange-500/20 to-amber-500/20 border-orange-500/30',
     iconColor: 'text-orange-400',
@@ -204,7 +204,7 @@ function ChatMessage({
             >
               {toolsExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
               <Zap size={10} className="text-yellow-400" />
-              {toolResults.length} tool çalıştırıldı
+              {toolResults.length} tools run
             </button>
             {toolsExpanded && (
               <div className="mt-1.5 space-y-1.5">
@@ -239,15 +239,15 @@ function ChatMessage({
         {hasDrafts && (
           <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 px-1">
             <Sparkles size={10} />
-            {latestResponse?.drafts?.strategy && <span>Strateji taslağı oluşturuldu</span>}
-            {latestResponse?.drafts?.rule && <span>Kural taslağı oluşturuldu</span>}
-            {latestResponse?.drafts?.indicator && <span>İndikatör taslağı oluşturuldu</span>}
+            {latestResponse?.drafts?.strategy && <span>Strategy draft created</span>}
+            {latestResponse?.drafts?.rule && <span>Rule draft created</span>}
+            {latestResponse?.drafts?.indicator && <span>Indicator draft created</span>}
           </div>
         )}
 
         {/* Timestamp */}
         <span className="text-[10px] text-muted-foreground/50 px-1">
-          {new Date(msg.created_at * 1000).toLocaleTimeString('tr-TR', {
+          {new Date(msg.created_at * 1000).toLocaleTimeString('en-US', {
             hour: '2-digit',
             minute: '2-digit',
           })}
@@ -270,7 +270,7 @@ function EmptyState({ onPromptSelect }: { onPromptSelect: (prompt: string) => vo
         <div className="text-center">
           <h2 className="text-xl font-semibold text-foreground">Evalon AI</h2>
           <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-            Strateji geliştir, backtest çalıştır, indikatörler analiz et
+            Develop strategies, run backtests, analyze indicators
           </p>
         </div>
       </div>
@@ -333,7 +333,7 @@ function AssetCard({ asset }: { asset: AiAsset }) {
       </button>
       {expanded && (
         <div className="px-3 pb-3 text-[11px] text-muted-foreground border-t border-border/50 pt-2.5 space-y-1">
-          <p>{asset.description || 'Açıklama yok'}</p>
+          <p>{asset.description || 'No description'}</p>
           {asset.prompt && (
             <p className="text-[10px] italic text-muted-foreground/60 line-clamp-2">
               &ldquo;{asset.prompt}&rdquo;
@@ -712,7 +712,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
             <Bot size={20} className="text-white" />
           </div>
           <p className="text-sm text-muted-foreground">
-            Evalon AI&apos;yı kullanmak için giriş yapman gerekiyor.
+            You need to log in to use Evalon AI.
           </p>
         </div>
       </div>
@@ -748,7 +748,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
           ) : messages.length === 0 ? (
             <div className="text-center py-8 space-y-2">
               <Bot size={24} className="mx-auto text-muted-foreground/40" />
-              <p className="text-xs text-muted-foreground">Mesaj göndererek başla</p>
+              <p className="text-xs text-muted-foreground">Start by sending a message</p>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -844,7 +844,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
           <div className="p-2 space-y-0.5">
             {sessions.length === 0 && (
               <p className="text-[11px] text-muted-foreground/50 text-center py-6 px-3">
-                Henüz oturum yok
+                No sessions yet
               </p>
             )}
             {sessions.map((session) => (
@@ -871,7 +871,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                     <span className="truncate">{session.title}</span>
                   </div>
                   <div className="text-[10px] text-muted-foreground/50 mt-0.5 pl-[19px]">
-                    {new Date(session.createdAt * 1000).toLocaleDateString('tr-TR')}
+                    {new Date(session.createdAt * 1000).toLocaleDateString('en-US')}
                   </div>
                 </button>
                 <button
@@ -890,7 +890,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
         <div className="p-3 border-t border-border">
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <Zap size={11} className="text-yellow-400" />
-            <span>{toolsQuery.data?.count ?? 0} araç aktif</span>
+            <span>{toolsQuery.data?.count ?? 0} tools active</span>
           </div>
         </div>
       </div>
@@ -903,7 +903,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
             <button
               onClick={() => setHistoryOpen((p) => !p)}
               className="h-7 w-7 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-              title={historyOpen ? 'Geçmişi gizle' : 'Geçmişi göster'}
+              title={historyOpen ? 'Hide history' : 'Show history'}
             >
               {historyOpen ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
             </button>
@@ -940,7 +940,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
           <div className="flex items-center gap-2">
             {sendMutation.isError && (
               <span className="text-[11px] text-destructive">
-                {sendMutation.error instanceof Error ? sendMutation.error.message : 'Hata oluştu'}
+                {sendMutation.error instanceof Error ? sendMutation.error.message : 'An error occurred'}
               </span>
             )}
             <button
@@ -974,7 +974,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
             <button
               onClick={() => setContextOpen((p) => !p)}
               className="h-7 w-7 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-              title={contextOpen ? 'Ayarları gizle' : 'Ayarları göster'}
+              title={contextOpen ? 'Hide settings' : 'Show settings'}
             >
               {contextOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
             </button>
@@ -1034,7 +1034,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                       handleSend()
                     }
                   }}
-                  placeholder="Bir strateji sor, backtest başlat, indikatör analizi yaptır…"
+                  placeholder="Ask about a strategy, start a backtest, analyze indicators…"
                   className="h-11 pr-4 bg-secondary/40 border-border/60 focus:border-primary/50 rounded-xl text-sm"
                   disabled={sendMutation.isPending}
                 />
@@ -1053,7 +1053,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
               </Button>
             </div>
             <p className="text-[10px] text-muted-foreground/40 mt-2 text-center">
-              Enter ile gönder · Shift+Enter satır atla · Yanıtlar AI tarafından üretilir
+              Press Enter to send · Shift+Enter for new line · Responses are AI-generated
             </p>
           </div>
         </div>
@@ -1073,7 +1073,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
               {/* Context settings */}
               <div className="space-y-3">
                 <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Bağlam
+                  Context
                 </h3>
 
                 <div className="space-y-2.5">
@@ -1102,7 +1102,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] text-muted-foreground">İndikatör</label>
+                    <label className="text-[11px] text-muted-foreground">Indicator</label>
                     <Input
                       value={indicatorId}
                       onChange={(e) => setIndicatorId(e.target.value.toLowerCase())}
@@ -1122,7 +1122,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                       onChange={(e) => setAutoSaveDrafts(e.target.checked)}
                       className="rounded"
                     />
-                    <span className="text-[11px] text-muted-foreground">Taslakları otomatik kaydet</span>
+                    <span className="text-[11px] text-muted-foreground">Auto-save drafts</span>
                   </label>
                 </div>
               </div>
@@ -1134,7 +1134,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
               {latestResponse && (
                 <div className="space-y-3">
                   <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    Son Yanıt
+                    Last Response
                   </h3>
                   {latestResponse.plan?.intent && (
                     <div className="rounded-lg border border-border/50 bg-secondary/20 px-3 py-2">
@@ -1175,7 +1175,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      Kayıtlı Assetler
+                      Saved Assets
                     </h3>
                     <span className="text-[10px] text-muted-foreground/60 bg-secondary/50 px-1.5 py-0.5 rounded-full">
                       {allAssets.length}
@@ -1201,7 +1201,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                         color: 'text-emerald-400',
                       },
                       {
-                        label: 'İndikatör',
+                        label: 'Indicator',
                         count: assetsQuery.data?.counts?.indicators ?? 0,
                         color: 'text-purple-400',
                       },
@@ -1222,10 +1222,10 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
               {allAssets.length === 0 && assetsQuery.isSuccess && (
                 <div className="space-y-2">
                   <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    Kayıtlı Assetler
+                    Saved Assets
                   </h3>
                   <p className="text-[11px] text-muted-foreground/50">
-                    Henüz kayıtlı asset yok. AI ile strateji oluşturunca buraya kaydedilebilir.
+                    No saved assets yet. Assets can be saved here once you create strategies with AI.
                   </p>
                 </div>
               )}
@@ -1246,7 +1246,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                 ) : (
                   <Plus size={12} className="mr-1" />
                 )}
-                Yeni Oturum Oluştur
+                New Session
               </Button>
             </div>
           </ScrollArea>

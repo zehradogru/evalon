@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { cn } from '@/lib/utils'
 import { TrendingUp, TrendingDown, ArrowDownUp } from 'lucide-react'
@@ -16,10 +16,10 @@ export function TradeHistoryTable({ trades, loading, hasMore, onLoadMore }: Trad
         return (
             <div className="rounded-xl border border-border bg-card">
                 <div className="p-4 border-b border-border">
-                    <h3 className="text-sm font-semibold text-foreground">İşlem Geçmişi</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Trade History</h3>
                 </div>
                 <div className="p-10 text-center">
-                    <p className="text-sm text-muted-foreground">Henüz işlem yapılmadı.</p>
+                    <p className="text-sm text-muted-foreground">No trades yet.</p>
                 </div>
             </div>
         )
@@ -29,7 +29,7 @@ export function TradeHistoryTable({ trades, loading, hasMore, onLoadMore }: Trad
         <div className="rounded-xl border border-border bg-card overflow-hidden">
             <div className="p-4 border-b border-border">
                 <h3 className="text-sm font-semibold text-foreground">
-                    İşlem Geçmişi ({trades.length})
+                    Trade History ({trades.length})
                 </h3>
             </div>
 
@@ -40,7 +40,7 @@ export function TradeHistoryTable({ trades, loading, hasMore, onLoadMore }: Trad
                         <tr className="border-b border-border/50 text-[11px] text-muted-foreground uppercase tracking-wider">
                             <th className="text-left p-3 font-medium">Tarih</th>
                             <th className="text-left p-3 font-medium">Hisse</th>
-                            <th className="text-center p-3 font-medium">İşlem</th>
+                            <th className="text-center p-3 font-medium">Trade</th>
                             <th className="text-right p-3 font-medium">Adet</th>
                             <th className="text-right p-3 font-medium">Fiyat</th>
                             <th className="text-right p-3 font-medium">Tutar</th>
@@ -59,8 +59,8 @@ export function TradeHistoryTable({ trades, loading, hasMore, onLoadMore }: Trad
                             return (
                                 <tr key={trade.tradeId} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
                                     <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">
-                                        <p>{date.toLocaleDateString('tr-TR')}</p>
-                                        <p className="text-[10px] opacity-60">{date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</p>
+                                        <p>{date.toLocaleDateString('en-US')}</p>
+                                        <p className="text-[10px] opacity-60">{date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
                                     </td>
                                     <td className="p-3">
                                         <span className="font-bold text-foreground text-xs">{trade.ticker}</span>
@@ -73,24 +73,24 @@ export function TradeHistoryTable({ trades, loading, hasMore, onLoadMore }: Trad
                                                 ? 'bg-emerald-500/10 text-emerald-400'
                                                 : 'bg-red-500/10 text-red-400'
                                         )}>
-                                            {isBuy ? '↑ ALIŞ' : '↓ SATIŞ'}
+                                            {isBuy ? '↑ BUY' : '↓ SELL'}
                                         </span>
                                     </td>
-                                    <td className="p-3 text-right text-foreground text-xs">{trade.quantity.toLocaleString('tr-TR')}</td>
-                                    <td className="p-3 text-right text-foreground text-xs">₺{trade.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</td>
-                                    <td className="p-3 text-right text-foreground text-xs">₺{trade.total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</td>
-                                    <td className="p-3 text-right text-muted-foreground text-xs">₺{trade.commission.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</td>
+                                    <td className="p-3 text-right text-foreground text-xs">{trade.quantity.toLocaleString('en-US')}</td>
+                                    <td className="p-3 text-right text-foreground text-xs">₺{trade.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                    <td className="p-3 text-right text-foreground text-xs">₺{trade.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                    <td className="p-3 text-right text-muted-foreground text-xs">₺{trade.commission.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                                     <td className="p-3 text-right">
                                         {hasPnl ? (
                                             <span className={cn('text-xs font-semibold', isPositive ? 'text-emerald-400' : 'text-red-400')}>
-                                                {isPositive ? '+' : ''}₺{(trade.pnl ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                                {isPositive ? '+' : ''}₺{(trade.pnl ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                             </span>
                                         ) : (
                                             <span className="text-xs text-muted-foreground/50">—</span>
                                         )}
                                     </td>
                                     <td className="p-3 text-right text-muted-foreground text-xs">
-                                        ₺{trade.balanceAfter.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                        ₺{trade.balanceAfter.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                     </td>
                                 </tr>
                             )
@@ -115,11 +115,11 @@ export function TradeHistoryTable({ trades, loading, hasMore, onLoadMore }: Trad
                                         'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold',
                                         isBuy ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
                                     )}>
-                                        {isBuy ? 'ALIŞ' : 'SATIŞ'}
+                                        {isBuy ? 'BUY' : 'SELL'}
                                     </span>
                                     <span className="font-bold text-foreground text-xs">{trade.ticker}</span>
                                 </div>
-                                <span className="text-[10px] text-muted-foreground">{date.toLocaleDateString('tr-TR')}</span>
+                                <span className="text-[10px] text-muted-foreground">{date.toLocaleDateString('en-US')}</span>
                             </div>
                             <div className="flex items-center justify-between text-[11px]">
                                 <span className="text-muted-foreground">
@@ -146,7 +146,7 @@ export function TradeHistoryTable({ trades, loading, hasMore, onLoadMore }: Trad
                         disabled={loading}
                         className="text-xs text-primary hover:text-primary/80 font-medium disabled:opacity-50"
                     >
-                        {loading ? 'Yükleniyor...' : 'Daha Fazla Yükle'}
+                        {loading ? 'Loading...' : 'Load More'}
                     </button>
                 </div>
             )}

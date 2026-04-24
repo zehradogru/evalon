@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -267,7 +267,7 @@ export function AnalysisView() {
                                         dataKey="t"
                                         minTickGap={40}
                                         tickFormatter={(value) =>
-                                            new Date(String(value)).toLocaleDateString('tr-TR', {
+                                            new Date(String(value)).toLocaleDateString('en-US', {
                                                 day: '2-digit',
                                                 month: 'short',
                                             })
@@ -276,7 +276,7 @@ export function AnalysisView() {
                                     <YAxis />
                                     <Tooltip
                                         labelFormatter={(value) =>
-                                            new Date(String(value)).toLocaleString('tr-TR')
+                                            new Date(String(value)).toLocaleString('en-US')
                                         }
                                     />
                                     <Legend />

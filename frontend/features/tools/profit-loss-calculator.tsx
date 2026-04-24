@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useMemo } from 'react'
 import {
@@ -20,7 +20,7 @@ interface CalcInput {
     exitPrice: number
     quantity: number
     commissionBps: number   // e.g. 2 = binde 2 = 0.02%
-    bsmvBps: number         // e.g. 5 = binde 5 (BSMV komisyon üzerinden)
+    bsmvBps: number         // e.g. 5 = 5 per mille (BSMV on commission)
     direction: 'long' | 'short'
 }
 
@@ -46,18 +46,18 @@ function calculate(input: CalcInput): CalcResult | null {
     const sign = direction === 'long' ? 1 : -1
     const gross = (exitPrice - entryPrice) * quantity * sign
 
-    // Komisyon: alış + satış toplam işlem hacmi üzerinden
+    // Commission: on total buy + sell volume
     const commissionTotal = (entryPrice + exitPrice) * quantity * (commissionBps / 10000)
 
-    // BSMV: komisyon tutarı üzerinden
+    // BSMV: on commission amount
     const bsmv = commissionTotal * (bsmvBps / 1000)
 
     const net = gross - commissionTotal - bsmv
     const totalCost = entryPrice * quantity
     const roi = totalCost > 0 ? (net / totalCost) * 100 : 0
 
-    // Başabaş: komisyon + bsmv'nin entry tarafına eklenmesi
-    const totalFeeRatio = (commissionBps / 10000) * (1 + bsmvBps / 1000) * 2 // alış + satış
+    // Break-even: commission + bsmv added to entry side
+    const totalFeeRatio = (commissionBps / 10000) * (1 + bsmvBps / 1000) * 2 // buy + sell
     const breakEven = direction === 'long'
         ? entryPrice * (1 + totalFeeRatio)
         : entryPrice * (1 - totalFeeRatio)
@@ -209,7 +209,7 @@ export function ProfitLossCalculator() {
     }, [entryPrice, exitPrice, quantity, commissionBps, bsmvBps, direction])
 
     const fmt = (n: number, decimals = 2) =>
-        n.toLocaleString('tr-TR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+        n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 
     return (
         <div className="mx-auto max-w-4xl px-4 py-8">
@@ -219,9 +219,9 @@ export function ProfitLossCalculator() {
                     <Calculator className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                    <h1 className="text-xl font-bold text-foreground">Kar / Zarar Hesaplayıcı</h1>
+                    <h1 className="text-xl font-bold text-foreground">Profit / Loss Calculator</h1>
                     <p className="text-sm text-muted-foreground">
-                        Net kazancınızı ve başabaş fiyatını komisyon dahil hesaplayın
+                        Calculate your net profit and break-even price including commissions
                     </p>
                 </div>
             </div>
@@ -231,7 +231,7 @@ export function ProfitLossCalculator() {
                 <div className="rounded-2xl border border-border bg-card p-6 flex flex-col gap-5">
                     {/* Direction Toggle */}
                     <div>
-                        <span className="text-xs font-medium text-muted-foreground mb-2 block">İşlem Yönü</span>
+                        <span className="text-xs font-medium text-muted-foreground mb-2 block">Trade Direction</span>
                         <div className="grid grid-cols-2 gap-2">
                             <button
                                 onClick={() => setDirection('long')}
@@ -243,7 +243,7 @@ export function ProfitLossCalculator() {
                                 )}
                             >
                                 <TrendingUp className="h-4 w-4" />
-                                Long (Al)
+                                Long (Buy)
                             </button>
                             <button
                                 onClick={() => setDirection('short')}
@@ -255,32 +255,32 @@ export function ProfitLossCalculator() {
                                 )}
                             >
                                 <TrendingDown className="h-4 w-4" />
-                                Short (Sat)
+                                Short (Sell)
                             </button>
                         </div>
                     </div>
 
                     {/* Core inputs */}
                     <NumInput
-                        label="Alış Fiyatı"
+                        label="Buy Price"
                         value={entryPrice}
                         onChange={setEntryPrice}
                         prefix="₺"
                         placeholder="0.00"
                     />
                     <NumInput
-                        label="Satış / Hedef Fiyatı"
+                        label="Sell / Target Price"
                         value={exitPrice}
                         onChange={setExitPrice}
                         prefix="₺"
                         placeholder="0.00"
                     />
                     <NumInput
-                        label="Lot Sayısı"
+                        label="Lot Size"
                         value={quantity}
                         onChange={setQuantity}
                         placeholder="100"
-                        hint="1 lot = 1 hisse"
+                        hint="1 lot = 1 share"
                     />
 
                     {/* Advanced toggle */}
@@ -291,7 +291,7 @@ export function ProfitLossCalculator() {
                         <ChevronDown
                             className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")}
                         />
-                        Komisyon Detayları
+                        Commission Details
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted ml-1">
                             {commissionBps}‰ komisyon · {bsmvBps}‰ BSMV
                         </span>
@@ -300,20 +300,20 @@ export function ProfitLossCalculator() {
                     {showAdvanced && (
                         <div className="grid grid-cols-2 gap-4 pt-1 border-t border-border/50">
                             <NumInput
-                                label="Komisyon (binde)"
+                                label="Commission (per mille)"
                                 value={commissionBps}
                                 onChange={setCommissionBps}
                                 suffix="‰"
                                 placeholder="2"
-                                hint="Aracı kurum oranı"
+                                hint="Broker rate"
                             />
                             <NumInput
-                                label="BSMV (komisyon üzeri)"
+                                label="BSMV (on commission)"
                                 value={bsmvBps}
                                 onChange={setBsmvBps}
                                 suffix="‰"
                                 placeholder="5"
-                                hint="Banka sigorta muamele vergisi"
+                                hint="Banking & insurance transaction tax"
                             />
                         </div>
                     )}
@@ -325,9 +325,9 @@ export function ProfitLossCalculator() {
                         <>
                             {/* Net P/L — big card */}
                             <ResultCard
-                                label="Net Kar / Zarar"
+                                label="Net Profit / Loss"
                                 value={`${result.net >= 0 ? '+' : ''}₺${fmt(result.net)}`}
-                                sub={`Brüt: ${result.gross >= 0 ? '+' : ''}₺${fmt(result.gross)}`}
+                                sub={`Gross: ${result.gross >= 0 ? '+' : ''}₺${fmt(result.gross)}`}
                                 highlight
                                 positive={result.isProfit}
                                 icon={result.isProfit ? TrendingUp : TrendingDown}
@@ -336,27 +336,27 @@ export function ProfitLossCalculator() {
                             {/* 2-col grid */}
                             <div className="grid grid-cols-2 gap-3">
                                 <ResultCard
-                                    label="Getiri Oranı"
+                                    label="Return Rate"
                                     value={`${result.roi >= 0 ? '+' : ''}${fmt(result.roi)}%`}
                                     positive={result.roi >= 0 ? true : false}
                                     icon={Percent}
                                 />
                                 <ResultCard
-                                    label="Başabaş Fiyatı"
+                                    label="Break-even Price"
                                     value={`₺${fmt(result.breakEven)}`}
-                                    sub="Komisyon dahil"
+                                    sub="Including commission"
                                     positive={null}
                                     icon={ArrowRight}
                                 />
                                 <ResultCard
-                                    label="Toplam Komisyon"
+                                    label="Total Commission"
                                     value={`₺${fmt(result.commissionTotal)}`}
                                     sub={`BSMV: ₺${fmt(result.bsmv)}`}
                                     positive={null}
                                     icon={DollarSign}
                                 />
                                 <ResultCard
-                                    label="Yatırım Tutarı"
+                                    label="Investment Amount"
                                     value={`₺${fmt(result.totalCost)}`}
                                     positive={null}
                                     icon={DollarSign}
@@ -367,10 +367,9 @@ export function ProfitLossCalculator() {
                             <div className="rounded-xl bg-muted/30 border border-border/50 px-4 py-3 flex items-start gap-2">
                                 <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
                                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                    Hesaplama; <strong className="text-foreground">{commissionBps}‰</strong> aracı
-                                    kurum komisyonu ve komisyon tutarı üzerinden{' '}
-                                    <strong className="text-foreground">{bsmvBps}‰</strong> BSMV içerir.
-                                    Stopaj ve diğer vergi yükümlülükleri dahil değildir.
+                                    Calculation includes <strong className="text-foreground">{commissionBps}‰</strong> broker commission and{' '}
+                                    <strong className="text-foreground">{bsmvBps}‰</strong> BSMV on commission.
+                                    Withholding tax and other tax obligations are not included.
                                 </p>
                             </div>
                         </>
@@ -378,10 +377,10 @@ export function ProfitLossCalculator() {
                         <div className="flex-1 flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/50 bg-muted/10 px-8 py-16 text-center">
                             <Calculator className="h-10 w-10 text-muted-foreground/30 mb-4" />
                             <p className="text-sm font-medium text-muted-foreground">
-                                Alış fiyatı, satış fiyatı ve lot sayısını girin
+                                Enter buy price, sell price and lot size
                             </p>
                             <p className="text-xs text-muted-foreground/60 mt-1">
-                                Sonuçlar anında hesaplanır
+                                Results are calculated instantly
                             </p>
                         </div>
                     )}

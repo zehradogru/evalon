@@ -1,9 +1,9 @@
-import type { Metadata } from 'next'
+﻿import type { Metadata } from 'next'
 import { LeaderboardTable } from '@/features/paper-trade/leaderboard-table'
 
 export const metadata: Metadata = {
-    title: 'Liderlik Tablosu — EVALON',
-    description: 'Paper Trading topluluk sıralaması.',
+    title: 'Leaderboard — EVALON',
+    description: 'Paper Trading community rankings.',
 }
 
 export default function LeaderboardPage() {

@@ -9,10 +9,10 @@ import type { ScreenerTimeframe } from '@/types/screener'
 import { cn } from '@/lib/utils'
 
 const ALL_SECTORS = [
-  'Banka', 'Enerji', 'Teknoloji', 'Çelik', 'Kimya', 'GYO', 'Holding', 'Havacılık',
-  'Otomotiv', 'Perakende', 'Çimento', 'Gıda & İçecek', 'İlaç', 'Sigorta', 'Tekstil',
-  'Madencilik', 'Lojistik', 'Savunma', 'Turizm', 'Telekomünikasyon', 'Cam', 'Sağlık',
-  'Finans', 'Altın', 'Medya', 'Kağıt', 'Orman Ürünleri', 'Dayanıklı Tüketim', 'İnşaat',
+  'Banking', 'Energy', 'Technology', 'Steel', 'Chemicals', 'GYO', 'Holding', 'Aviation',
+  'Automotive', 'Retail', 'Cement', 'Food & Beverage', 'Pharmaceuticals', 'Insurance', 'Textiles',
+  'Mining', 'Logistics', 'Defense', 'Tourism', 'Telecommunications', 'Glass', 'Healthcare',
+  'Finance', 'Gold', 'Media', 'Paper', 'Forest Products', 'Consumer Durables', 'Construction',
 ]
 
 interface ScanControlsProps {

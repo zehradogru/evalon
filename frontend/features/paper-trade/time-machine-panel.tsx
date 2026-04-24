@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import {
@@ -54,20 +54,20 @@ const SEARCH_INDEX = BIST_AVAILABLE.map((t) => ({
 
 // ─── Quick Presets ───
 const DATE_PRESETS = [
-    { label: '1 Ay Önce', days: 30 },
-    { label: '3 Ay Önce', days: 90 },
-    { label: '6 Ay Önce', days: 180 },
-    { label: '1 Yıl Önce', days: 365 },
+    { label: '1 Month Ago', days: 30 },
+    { label: '3 Months Ago', days: 90 },
+    { label: '6 Months Ago', days: 180 },
+    { label: '1 Year Ago', days: 365 },
 ]
 
 const AMOUNT_PRESETS = [5000, 10000, 25000, 50000, 100000]
 
 function formatCurrency(val: number): string {
-    return val.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('tr-TR', {
+    return new Date(dateStr).toLocaleDateString('en-US', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
@@ -169,7 +169,7 @@ export function TimeMachinePanel() {
 
         const amount = parseFloat(investmentAmount)
         if (!amount || amount <= 0) {
-            setError('Geçerli bir yatırım tutarı girin.')
+            setError('Enter a valid investment amount.')
             return
         }
 
@@ -187,7 +187,7 @@ export function TimeMachinePanel() {
             })
 
             if (!data.data || data.data.length === 0) {
-                setError('Bu tarih için fiyat verisi bulunamadı. Farklı bir tarih deneyin.')
+                setError('No price data found for this date. Try a different date.')
                 return
             }
 
@@ -198,7 +198,7 @@ export function TimeMachinePanel() {
 
             const sharesBought = Math.floor(amount / buyPrice)
             if (sharesBought <= 0) {
-                setError(`₺${formatCurrency(amount)} ile ${ticker} alınamaz. Fiyat: ₺${formatCurrency(buyPrice)}`)
+                setError(`₺${formatCurrency(amount)} cannot buy \. Price: ₺${formatCurrency(buyPrice)}`)
                 return
             }
 
@@ -213,7 +213,7 @@ export function TimeMachinePanel() {
 
             // Build chart data
             const chartData = data.data.map((bar) => ({
-                date: new Date(bar.t).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }),
+                date: new Date(bar.t).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' }),
                 value: Math.round(sharesBought * bar.c * 100) / 100,
             }))
 
@@ -232,7 +232,7 @@ export function TimeMachinePanel() {
                 chartData,
             })
         } catch (err) {
-            setError((err as Error).message || 'Fiyat verisi alınamadı.')
+            setError((err as Error).message || 'Failed to fetch price data.')
         } finally {
             setLoading(false)
         }
@@ -250,8 +250,8 @@ export function TimeMachinePanel() {
                     <Sparkles size={20} className="text-violet-400" />
                 </div>
                 <div>
-                    <h2 className="text-sm font-bold text-foreground">Tarihsel Simülasyon</h2>
-                    <p className="text-xs text-muted-foreground">Geçmişte alsaydınız ne olurdu?</p>
+                    <h2 className="text-sm font-bold text-foreground">Historical Simulation</h2>
+                    <p className="text-xs text-muted-foreground">What if you had bought in the past?</p>
                 </div>
             </div>
 
@@ -259,7 +259,7 @@ export function TimeMachinePanel() {
             <div className="rounded-xl border border-border bg-card/50 p-4 space-y-4">
                 {/* Ticker Search */}
                 <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground font-medium">Hisse Seç</label>
+                    <label className="text-xs text-muted-foreground font-medium">Select Stock</label>
                     <div ref={searchRef} className="relative">
                         <div
                             className="flex items-center gap-2 bg-secondary/30 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-secondary/50 transition-colors"
@@ -297,7 +297,7 @@ export function TimeMachinePanel() {
                                             }
                                             else if (e.key === 'Escape') setSearchOpen(false)
                                         }}
-                                        placeholder="Hisse kodu veya adı..."
+                                        placeholder="Ticker or company name..."
                                         className="w-full bg-secondary/20 rounded-md px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
                                     />
                                 </div>
@@ -319,7 +319,7 @@ export function TimeMachinePanel() {
                                         </button>
                                     ))}
                                     {searchQuery && searchResults.length === 0 && (
-                                        <p className="px-3 py-3 text-xs text-muted-foreground text-center">Sonuç bulunamadı</p>
+                                        <p className="px-3 py-3 text-xs text-muted-foreground text-center">No results found</p>
                                     )}
                                 </div>
                             </div>
@@ -329,7 +329,7 @@ export function TimeMachinePanel() {
 
                 {/* Date Picker */}
                 <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground font-medium">Alım Tarihi</label>
+                    <label className="text-xs text-muted-foreground font-medium">Purchase Date</label>
                     <div className="relative">
                         <CalendarDays size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <input
@@ -356,7 +356,7 @@ export function TimeMachinePanel() {
 
                 {/* Investment Amount */}
                 <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground font-medium">Yatırım Tutarı</label>
+                    <label className="text-xs text-muted-foreground font-medium">Investment Amount</label>
                     <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₺</span>
                         <input
@@ -381,7 +381,7 @@ export function TimeMachinePanel() {
                                         : 'bg-secondary/20 text-muted-foreground hover:text-foreground hover:bg-secondary/40'
                                 )}
                             >
-                                ₺{a.toLocaleString('tr-TR')}
+                                ₺{a.toLocaleString('en-US')}
                             </button>
                         ))}
                     </div>
@@ -393,7 +393,7 @@ export function TimeMachinePanel() {
                         <div className="flex items-center gap-2 text-muted-foreground">
                             <Clock size={14} className="text-violet-400" />
                             <span>
-                                {formatDate(buyDate)} fiyati:
+                                {formatDate(buyDate)} price:
                             </span>
                         </div>
                         {previewLoading ? (
@@ -403,16 +403,16 @@ export function TimeMachinePanel() {
                                 <span className="font-bold text-foreground">₺{formatCurrency(previewPrice)}</span>
                                 {parseFloat(investmentAmount) > 0 && parseFloat(investmentAmount) >= previewPrice ? (
                                     <div className="text-[10px] text-violet-400 font-medium mt-0.5">
-                                        ~{Math.floor(parseFloat(investmentAmount) / previewPrice)} adet alınabilir
+                                        ~{Math.floor(parseFloat(investmentAmount) / previewPrice)} shares can be purchased
                                     </div>
                                 ) : parseFloat(investmentAmount) > 0 ? (
                                     <div className="text-[10px] text-red-400 font-medium mt-0.5">
-                                        Bakiye yetersiz
+                                        Insufficient balance
                                     </div>
                                 ) : null}
                             </div>
                         ) : (
-                            <span className="text-red-400 text-[10px]">Fiyat bulunamadı</span>
+                            <span className="text-red-400 text-[10px]">Price not found</span>
                         )}
                     </div>
                 )}
@@ -433,7 +433,7 @@ export function TimeMachinePanel() {
                     ) : (
                         <>
                             <Sparkles size={16} />
-                            Simüle Et
+                            Simulate
                         </>
                     )}
                 </button>
@@ -461,13 +461,13 @@ export function TimeMachinePanel() {
                         <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider font-semibold">
                             <Clock size={12} />
                             <span>
-                                Simülasyon Analizi: <strong className="text-foreground">{result.ticker}</strong> / {formatDate(result.buyDate)}
+                                Simulation Analysis: <strong className="text-foreground">{result.ticker}</strong> / {formatDate(result.buyDate)}
                             </span>
                         </div>
 
                         {/* Main KPI */}
                         <div className="text-center py-2">
-                            <p className="text-xs text-muted-foreground mb-1">Portföy Değeriniz</p>
+                            <p className="text-xs text-muted-foreground mb-1">Your Portfolio Value</p>
                             <p className={cn(
                                 'text-3xl font-bold tracking-tight',
                                 result.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'
@@ -493,32 +493,32 @@ export function TimeMachinePanel() {
                         <div className="grid grid-cols-2 gap-3">
                             <DetailItem
                                 icon={DollarSign}
-                                label="Yatırım"
+                                label="Investment"
                                 value={`₺${formatCurrency(result.investmentAmount)}`}
                             />
                             <DetailItem
                                 icon={BarChart3}
-                                label="Alınan Lot"
+                                label="Shares Purchased"
                                 value={`${result.sharesBought} adet`}
                             />
                             <DetailItem
                                 icon={ArrowRight}
-                                label="Alış Fiyatı"
+                                label="Buy Price"
                                 value={`₺${formatCurrency(result.buyPrice)}`}
                             />
                             <DetailItem
                                 icon={ArrowRight}
-                                label="Güncel Fiyat"
+                                label="Current Price"
                                 value={`₺${formatCurrency(result.currentPrice)}`}
                             />
                             <DetailItem
                                 icon={Clock}
-                                label="Tutma Süresi"
-                                value={`${result.holdingDays} gün`}
+                                label="Holding Period"
+                                value={`${result.holdingDays} days`}
                             />
                             <DetailItem
                                 icon={TrendingUp}
-                                label="Günlük Ort. Getiri"
+                                label="Avg. Daily Return"
                                 value={`%${(result.pnlPercent / Math.max(1, result.holdingDays)).toFixed(3)}`}
                             />
                         </div>
@@ -527,7 +527,7 @@ export function TimeMachinePanel() {
                     {/* Chart */}
                     {result.chartData.length > 1 && (
                         <div className="rounded-xl border border-border bg-card/50 p-4">
-                            <h3 className="text-xs font-semibold text-foreground mb-3">Portföy Değeri Zaman Serisi</h3>
+                            <h3 className="text-xs font-semibold text-foreground mb-3">Portfolio Value Time Series</h3>
                             <div className="h-[220px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={result.chartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
@@ -561,7 +561,7 @@ export function TimeMachinePanel() {
                                                 fontSize: '12px',
                                                 padding: '8px 12px'
                                             }}
-                                            formatter={(value) => [`₺${formatCurrency(Number(value ?? 0))}`, 'Portföy Değeri']}
+                                            formatter={(value) => [`₺${formatCurrency(Number(value ?? 0))}`, 'Portfolio Value']}
                                             labelFormatter={(label) => `Tarih: ${label}`}
                                         />
                                         <ReferenceLine
@@ -583,7 +583,7 @@ export function TimeMachinePanel() {
                                 </ResponsiveContainer>
                             </div>
                             <p className="text-[10px] text-muted-foreground/60 mt-2 text-center">
-                                Kesikli çizgi = Başlangıç yatırımı (₺{formatCurrency(result.investmentAmount)})
+                                Dashed line = Initial investment (₺{formatCurrency(result.investmentAmount)})
                             </p>
                         </div>
                     )}
@@ -595,16 +595,16 @@ export function TimeMachinePanel() {
                             <div className="text-xs text-muted-foreground leading-relaxed">
                                 {result.pnl >= 0 ? (
                                     <>
-                                        <strong className="text-foreground">Pozitif Getiri Analizi: </strong>
-                                        Simüle edilen pozisyon {result.holdingDays} gün boyunca taşınmış olup, dönem sonunda <strong className="text-emerald-400">%{result.pnlPercent.toFixed(1)}</strong> net sermaye büyümesi sağlamıştır.
-                                        {result.pnlPercent > 50 && ' Bu performans oranı, ilgili zaman dilimi için piyasa ortalamasının üzerinde değerlendirilebilir.'}
-                                        {result.pnlPercent > 100 && ' Başlangıç yatırımı belirtilen periyot içinde net olarak ikiye katlanmıştır.'}
+                                        <strong className="text-foreground">Positive Return Analysis: </strong>
+                                        The simulated position was held for {result.holdingDays} days, resulting in <strong className="text-emerald-400">{result.pnlPercent.toFixed(1)}%</strong> net capital growth.
+                                        {result.pnlPercent > 50 && ' This performance rate can be considered above the market average for the relevant time period.'}
+                                        {result.pnlPercent > 100 && ' The initial investment effectively doubled within the specified period.'}
                                     </>
                                 ) : (
                                     <>
-                                        <strong className="text-foreground">Negatif Getiri Analizi: </strong>
-                                        Simüle edilen pozisyon {result.holdingDays} gün boyunca taşınmış olup, dönem sonunda sermayede <strong className="text-red-400">%{Math.abs(result.pnlPercent).toFixed(1)}</strong> oranında küçülme gerçekleşmiştir.
-                                        {' Portföy optimizasyonu için zarar kes (stop-loss) ve risk yönetimi stratejileri bu tür senaryolarda kritik öneme sahiptir.'}
+                                        <strong className="text-foreground">Negative Return Analysis: </strong>
+                                        The simulated position was held for {result.holdingDays} days, resulting in a <strong className="text-red-400">{Math.abs(result.pnlPercent).toFixed(1)}%</strong> capital decline.
+                                        {' Stop-loss and risk management strategies are critical in such scenarios for portfolio optimization.'}
                                     </>
                                 )}
                             </div>

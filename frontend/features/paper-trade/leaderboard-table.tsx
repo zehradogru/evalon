@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Trophy, TrendingUp, Target, BarChart3, Medal, Loader2, RefreshCw, Crown, DollarSign } from 'lucide-react'
@@ -8,14 +8,14 @@ import { useAuthStore } from '@/store/use-auth-store'
 import type { LeaderboardEntry, LeaderboardSortBy } from '@/types/paper-trade'
 
 const SORT_OPTIONS: { id: LeaderboardSortBy; label: string; icon: typeof TrendingUp }[] = [
-    { id: 'pnl', label: 'Kâr/Zarar', icon: TrendingUp },
-    { id: 'totalValue' as LeaderboardSortBy, label: 'Toplam Değer', icon: DollarSign },
-    { id: 'winRate', label: 'Kazanma Oranı', icon: Target },
-    { id: 'trades', label: 'İşlem Sayısı', icon: BarChart3 },
+    { id: 'pnl', label: 'P&L', icon: TrendingUp },
+    { id: 'totalValue' as LeaderboardSortBy, label: 'Total Value', icon: DollarSign },
+    { id: 'winRate', label: 'Win Rate', icon: Target },
+    { id: 'trades', label: 'Trade Count', icon: BarChart3 },
 ]
 
 function formatCurrency(val: number): string {
-    return val.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function getRankBadge(rank: number) {
@@ -48,7 +48,7 @@ export function LeaderboardTable() {
             setEntries(res.entries)
         } catch (err: unknown) {
             console.error(err)
-            setError(err instanceof Error ? err.message : 'Liderlik tablosu yüklenemedi')
+            setError(err instanceof Error ? err.message : 'Failed to load leaderboard')
             setEntries([])
         } finally {
             setLoading(false)
@@ -70,7 +70,7 @@ export function LeaderboardTable() {
                     </div>
                     <div>
                         <h2 className="text-sm font-bold text-foreground">Liderlik Tablosu</h2>
-                        <p className="text-xs text-muted-foreground">Paper Trading topluluk sıralaması</p>
+                        <p className="text-xs text-muted-foreground">Paper Trading community rankings</p>
                     </div>
                 </div>
                 <button
@@ -108,26 +108,26 @@ export function LeaderboardTable() {
                 </div>
             ) : error ? (
                 <div className="flex flex-col items-center justify-center py-12 px-4 text-center border border-red-500/20 bg-red-500/5 rounded-xl">
-                    <p className="text-sm font-semibold text-red-500 mb-1">Veri Çekilemedi</p>
+                    <p className="text-sm font-semibold text-red-500 mb-1">Failed to Load Data</p>
                     <p className="text-xs text-red-400 max-w-md">{error}</p>
                 </div>
             ) : entries.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                     <Trophy size={32} className="text-muted-foreground/30 mb-3" />
-                    <p className="text-sm text-muted-foreground">Henüz kimse işlem yapmamış.</p>
-                    <p className="text-xs text-muted-foreground/60 mt-1">İlk işleminizi yaparak tabloda yerinizi alın!</p>
+                    <p className="text-sm text-muted-foreground">No one has made a trade yet.</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1">Make your first trade to appear on the board!</p>
                 </div>
             ) : (
                 <div className="space-y-1.5">
                     {/* Column Headers */}
                     <div className="grid grid-cols-[2rem_1fr_5.5rem_5rem_5rem_4.5rem_4.5rem] gap-2 px-3 py-1.5 text-[10px] text-muted-foreground/60 uppercase tracking-wider font-semibold">
                         <span>#</span>
-                        <span>Kullanıcı</span>
-                        <span className="text-right">Toplam</span>
+                        <span>User</span>
+                        <span className="text-right">Total</span>
                         <span className="text-right">P&L</span>
                         <span className="text-right">P&L %</span>
                         <span className="text-right">Win %</span>
-                        <span className="text-right">İşlem</span>
+                        <span className="text-right">Trades</span>
                     </div>
 
                     {/* Rows */}

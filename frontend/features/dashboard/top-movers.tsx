@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -255,7 +255,7 @@ export function MarketMovers() {
                     href="/markets/movers"
                     className="flex items-center justify-center gap-1.5 w-full py-1.5 text-[11px] font-medium text-muted-foreground hover:text-primary transition-colors rounded-lg hover:bg-muted/30"
                 >
-                    Tümünü Gör
+                    View All
                     <ArrowRight className="h-3 w-3" />
                 </Link>
             </div>

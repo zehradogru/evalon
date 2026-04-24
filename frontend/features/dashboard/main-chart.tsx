@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -68,14 +68,14 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
       let timeStr: string
       if (period === '1D') {
         // Intraday: only show time
-        timeStr = date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+        timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
       } else if (period === '1W') {
         // Weekly with hourly data: show date + time to avoid repeating hours
-        timeStr = date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' }) + ' ' +
-          date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+        timeStr = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) + ' ' +
+          date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
       } else {
         // Monthly/quarterly: show date
-        timeStr = date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' })
+        timeStr = date.toLocaleDateString('en-US', { day: '2-digit', month: 'short' })
       }
       return {
         time: timeStr,
@@ -196,7 +196,7 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
             </div>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-2xl font-bold text-foreground">
-                {lastPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {lastPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
               <span className="text-xs text-muted-foreground">TRY</span>
               <div className={cn("flex items-center gap-0.5 text-sm font-semibold", isPositive ? "text-chart-2" : "text-destructive")}>
@@ -240,7 +240,7 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
           <button
             onClick={handleOpenFullscreen}
             className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-            title="Tam ekran grafiği aç"
+            title="Open fullscreen chart"
           >
             <Maximize2 className="h-4 w-4" />
           </button>
@@ -292,7 +292,7 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: '#787b86', fontSize: 10 }}
-                tickFormatter={(v) => v.toLocaleString('tr-TR')}
+                tickFormatter={(v) => v.toLocaleString('en-US')}
                 width={55}
               />
               <Tooltip
@@ -306,7 +306,7 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
                 }}
                 labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px' }}
                 formatter={(value) => [
-                  Number(value ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }),
+                  Number(value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 }),
                   'Price',
                 ]}
                 cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeDasharray: '4 4' }}

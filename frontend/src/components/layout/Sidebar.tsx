@@ -11,7 +11,6 @@ import {
     Settings,
     SlidersHorizontal,
     Star,
-    TimerReset,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -19,8 +18,7 @@ import { cn } from '@/lib/utils';
 
 const tools = [
     { name: 'Watchlist', label: 'Watchlist', icon: Star, path: '/watchlist', isWidget: true },
-    { name: 'Paper Trade', label: 'Paper Trade', icon: BriefcaseBusiness, path: '/paper-trade', isWidget: false },
-    { name: 'Tarihsel Simülasyon', label: 'Tarihsel Simülasyon', icon: TimerReset, path: '/paper-trade/time-machine', isWidget: false },
+    { name: 'Paper Trade', label: 'Paper Trade', icon: BriefcaseBusiness, path: '/paper-trade', isWidget: true },
     { name: 'Alerts', label: 'Price Alerts', icon: BellPlus, path: '/alerts', isWidget: true },
     { name: 'News', label: 'News', icon: Newspaper, path: '/news', isWidget: true },
     { name: 'Screeners', label: 'Market Screener', icon: SlidersHorizontal, path: '/screener', isWidget: true },

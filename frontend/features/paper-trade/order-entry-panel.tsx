@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { Search, ChevronDown, Minus, Plus, ArrowUpDown, AlertTriangle, Check, Loader2 } from 'lucide-react'
@@ -127,7 +127,7 @@ export function OrderEntryPanel({
             }
 
             onSubmitOrder(req, currentPrice)
-            setSuccessMsg(side === 'buy' ? 'Alış emri başarılı!' : 'Satış emri başarılı!')
+            setSuccessMsg(side === 'buy' ? 'Buy order successful!' : 'Sell order successful!')
             setQuantity('1')
             setStopLoss('')
             setTakeProfit('')
@@ -155,7 +155,7 @@ export function OrderEntryPanel({
                                 <span className="text-xs text-muted-foreground truncate">{selectedTickerName}</span>
                             </div>
                         ) : (
-                            <span className="text-sm text-muted-foreground">Hisse Seç...</span>
+                            <span className="text-sm text-muted-foreground">Select Stock...</span>
                         )}
                         <ChevronDown size={14} className="text-muted-foreground" />
                     </div>
@@ -200,7 +200,7 @@ export function OrderEntryPanel({
                                     </button>
                                 ))}
                                 {searchQuery && searchResults.length === 0 && (
-                                    <p className="px-3 py-3 text-xs text-muted-foreground text-center">Sonuç bulunamadı</p>
+                                    <p className="px-3 py-3 text-xs text-muted-foreground text-center">No results found</p>
                                 )}
                             </div>
                         </div>
@@ -211,7 +211,7 @@ export function OrderEntryPanel({
                 {selectedTicker && currentPrice > 0 && (
                     <div className="mt-2 flex items-center gap-2">
                         <span className="text-lg font-bold text-foreground">
-                            ₺{currentPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ₺{currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                     </div>
                 )}
@@ -229,7 +229,7 @@ export function OrderEntryPanel({
                                 : 'text-muted-foreground hover:text-foreground'
                         )}
                     >
-                        ALIŞ
+                        BUY
                     </button>
                     <button
                         onClick={() => setSide('sell')}
@@ -240,7 +240,7 @@ export function OrderEntryPanel({
                                 : 'text-muted-foreground hover:text-foreground'
                         )}
                     >
-                        SATIŞ
+                        SELL
                     </button>
                 </div>
             </div>
@@ -310,12 +310,12 @@ export function OrderEntryPanel({
                             type="number"
                             value={quantity}
                             onChange={(e) => {
-                                // Sadece tam sayılara izin ver
+                                // Allow integers only
                                 const val = e.target.value.replace(/[^0-9]/g, '')
                                 setQuantity(val)
                             }}
                             onKeyDown={(e) => {
-                                // Nokta ve virgüle basılmasını engelle
+                                // Prevent dot and comma input
                                 if (e.key === '.' || e.key === ',') {
                                     e.preventDefault()
                                 }
@@ -346,7 +346,7 @@ export function OrderEntryPanel({
                     </div>
                     {qty > 0 && effectivePrice > 0 && (
                         <p className="text-[11px] text-muted-foreground text-right">
-                            ≈ ₺{subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ≈ ₺{subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
                     )}
                 </div>
@@ -357,7 +357,7 @@ export function OrderEntryPanel({
                     className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
                 >
                     <ArrowUpDown size={12} />
-                    Gelişmiş Seçenekler
+                    Advanced Options
                     <ChevronDown size={12} className={cn('transition-transform', showAdvanced && 'rotate-180')} />
                 </button>
 
@@ -400,30 +400,30 @@ export function OrderEntryPanel({
                         <div className="flex justify-between text-xs">
                             <span className="text-muted-foreground">Tutar</span>
                             <span className="text-foreground font-medium">
-                                ₺{subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                ₺{subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                             </span>
                         </div>
                         <div className="flex justify-between text-xs">
                             <span className="text-muted-foreground">Komisyon (‰1)</span>
                             <span className="text-foreground">
-                                ₺{commission.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                ₺{commission.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                             </span>
                         </div>
                         <div className="h-px bg-border/50" />
                         <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground font-medium">Toplam</span>
                             <span className="text-foreground font-bold">
-                                ₺{total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                ₺{total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                             </span>
                         </div>
                         {side === 'buy' && (
                             <div className="flex justify-between text-[11px]">
-                                <span className="text-muted-foreground">İşlem Sonrası Bakiye</span>
+                                <span className="text-muted-foreground">Post-Trade Balance</span>
                                 <span className={cn(
                                     'font-medium',
                                     insufficientBalance ? 'text-red-400' : 'text-muted-foreground'
                                 )}>
-                                    ₺{(portfolio.cashBalance - total).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                    ₺{(portfolio.cashBalance - total).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                 </span>
                             </div>
                         )}
@@ -477,9 +477,9 @@ export function OrderEntryPanel({
                     {submitting ? (
                         <Loader2 size={16} className="animate-spin" />
                     ) : side === 'buy' ? (
-                        <>ALIŞ EMRİ VER</>
+                        <>PLACE BUY ORDER</>
                     ) : (
-                        <>SATIŞ EMRİ VER</>
+                        <>PLACE SELL ORDER</>
                     )}
                 </button>
             </div>

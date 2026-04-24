@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -109,11 +109,11 @@ function ChartFrame({
                                         rel="noreferrer"
                                     >
                                         <ExternalLink className="h-4 w-4" />
-                                        Yeni Sekmede Aç
+                                        Open in New Tab
                                     </a>
                                 </Button>
                                 <Button asChild variant="ghost">
-                                    <Link href={detailHref}>Detaya Dön</Link>
+                                    <Link href={detailHref}>Back to Detail</Link>
                                 </Button>
                             </div>
                         </div>
@@ -125,7 +125,7 @@ function ChartFrame({
                             </div>
                             <div className="space-y-1">
                                 <div className="text-sm font-semibold">
-                                    Grafik açılıyor
+                                    Loading chart
                                 </div>
                                 <p className="text-sm text-muted-foreground">
                                     {normalizedTicker} ·{' '}
@@ -133,8 +133,8 @@ function ChartFrame({
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                     {isSlow
-                                        ? 'Harici grafik servisi cevap veriyor. Bu ekran açık kalabilir.'
-                                        : 'Tam ekran webview hazırlanıyor.'}
+                                        ? 'External chart service is responding. You can keep this screen open.'
+                                        : 'Preparing fullscreen webview.'}
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
@@ -145,11 +145,11 @@ function ChartFrame({
                                         rel="noreferrer"
                                     >
                                         <ExternalLink className="h-4 w-4" />
-                                        Yeni Sekmede Aç
+                                        Open in New Tab
                                     </a>
                                 </Button>
                                 <Button asChild variant="ghost" size="sm">
-                                    <Link href={detailHref}>Detaya Dön</Link>
+                                    <Link href={detailHref}>Back to Detail</Link>
                                 </Button>
                             </div>
                         </div>
@@ -235,8 +235,8 @@ export function FullscreenChartView({
                             size="icon-sm"
                             className="shrink-0"
                             onClick={handleRetry}
-                            title="Grafiği yenile"
-                            aria-label="Grafiği yenile"
+                            title="Refresh chart"
+                            aria-label="Refresh chart"
                         >
                             <RefreshCw
                                 className="h-4 w-4"
@@ -253,8 +253,8 @@ export function FullscreenChartView({
                                 href={chartUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                aria-label="Grafiği yeni sekmede aç"
-                                title="Yeni sekmede aç"
+                                aria-label="Open chart in new tab"
+                                title="Open in New Tab"
                             >
                                 <ExternalLink className="h-4 w-4" />
                             </a>
@@ -272,7 +272,7 @@ export function FullscreenChartView({
                                 rel="noreferrer"
                             >
                                 <ExternalLink className="h-4 w-4" />
-                                Yeni Sekmede Aç
+                                Open in New Tab
                             </a>
                         </Button>
                     </div>

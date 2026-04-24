@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -15,19 +15,19 @@ function formatRelativeTime(dateStr: string | null): string {
     if (!dateStr) return '—';
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'şimdi';
-    if (mins < 60) return `${mins}d önce`;
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}s önce`;
-    return `${Math.floor(hours / 24)}g önce`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
 }
 
 function mapSentiment(s: string | null): string {
-    if (!s) return 'Nötr';
+    if (!s) return 'Neutral';
     const u = s.toUpperCase();
     if (u === 'OLUMLU') return 'Olumlu';
     if (u === 'OLUMSUZ') return 'Olumsuz';
-    if (u === 'NÖTR' || u === 'NOTR') return 'Nötr';
+    if (u === 'NÖTR' || u === 'NOTR') return 'Neutral';
     if (u === 'BEKLIYOR') return 'Bekleniyor';
     return s;
 }
@@ -66,7 +66,7 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
                     <Button variant="ghost" size="icon" className="h-6 w-6"><Filter size={14} /></Button>
                 </div>
                 <div className="flex-1 overflow-auto p-0">
-                    {loading && <p className="text-xs text-muted-foreground p-4">Yükleniyor...</p>}
+                    {loading && <p className="text-xs text-muted-foreground p-4">Loading...</p>}
                     {error && <p className="text-xs text-destructive p-4">{error}</p>}
                     {newsItems.slice(0, 8).map((item) => (
                         <div key={item.id} className="flex flex-col py-2 px-4 hover:bg-accent/50 cursor-pointer border-b border-border last:border-0 gap-1">
@@ -94,17 +94,17 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
                         </h1>
                         <div className="flex items-center gap-2">
                             <Select className="w-[120px] h-8 text-xs bg-secondary/50 border-0">
-                                <option>Tüm Haberler</option>
+                                <option>All News</option>
                                 <option value="OLUMLU">Olumlu</option>
                                 <option value="OLUMSUZ">Olumsuz</option>
-                                <option value="NÖTR">Nötr</option>
+                                <option value="NÖTR">Neutral</option>
                             </Select>
                         </div>
                     </div>
                     <div className="relative">
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Başlık, sembol ara..."
+                            placeholder="Search title, symbol..."
                             className="pl-9 bg-secondary/30 border-border"
                             value={searchQ}
                             onChange={e => setSearchQ(e.target.value)}
@@ -115,10 +115,10 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
                 {/* News List */}
                 <ScrollArea className="flex-1">
                     <div className="divide-y divide-border">
-                        {loading && <p className="p-6 text-sm text-muted-foreground">Haberler yükleniyor...</p>}
+                        {loading && <p className="p-6 text-sm text-muted-foreground">Haberler Loading...</p>}
                         {error && <p className="p-6 text-sm text-destructive">{error}</p>}
                         {!loading && !error && newsItems.length === 0 && (
-                            <p className="p-6 text-sm text-muted-foreground">Haber bulunamadı.</p>
+                            <p className="p-6 text-sm text-muted-foreground">No news found.</p>
                         )}
                         {newsItems.map((item) => (
                             <div
@@ -174,11 +174,11 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
                             {newsItems.find(n => n.id === selectedNews)?.news_url && (
                                 <Button variant="outline" size="sm" className="gap-2" asChild>
                                     <a href={newsItems.find(n => n.id === selectedNews)!.news_url!} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink size={14} /> Kaynağa Git
+                                        <ExternalLink size={14} /> Go to Source
                                     </a>
                                 </Button>
                             )}
-                            <Button variant="default" size="sm">Haber ile İşlem</Button>
+                            <Button variant="default" size="sm">Trade on News</Button>
                         </div>
                     </div>
                     <ScrollArea className="flex-1 p-8">

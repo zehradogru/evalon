@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { TrendingUp, TrendingDown, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -19,12 +19,12 @@ export function PositionsTable({ portfolio, onSellClick, onTickerClick }: Positi
         return (
             <div className="rounded-xl border border-border bg-card">
                 <div className="p-4 border-b border-border">
-                    <h3 className="text-sm font-semibold text-foreground">Açık Pozisyonlar</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Open Positions</h3>
                 </div>
                 <div className="p-10 text-center">
-                    <p className="text-sm text-muted-foreground">Henüz açık pozisyonunuz yok.</p>
+                    <p className="text-sm text-muted-foreground">No open positions yet.</p>
                     <p className="text-xs text-muted-foreground/60 mt-1">
-                        Emir giriş panelinden hisse alarak başlayın.
+                        Start by buying stocks from the order entry panel.
                     </p>
                 </div>
             </div>
@@ -35,7 +35,7 @@ export function PositionsTable({ portfolio, onSellClick, onTickerClick }: Positi
         <div className="rounded-xl border border-border bg-card overflow-hidden">
             <div className="p-4 border-b border-border flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-foreground">
-                    Açık Pozisyonlar ({positions.length})
+                    Open Positions ({positions.length})
                 </h3>
             </div>
 
@@ -47,11 +47,11 @@ export function PositionsTable({ portfolio, onSellClick, onTickerClick }: Positi
                             <th className="text-left p-3 font-medium">Hisse</th>
                             <th className="text-right p-3 font-medium">Adet</th>
                             <th className="text-right p-3 font-medium">Ort. Maliyet</th>
-                            <th className="text-right p-3 font-medium">Güncel Fiyat</th>
-                            <th className="text-right p-3 font-medium">Piyasa Değeri</th>
+                            <th className="text-right p-3 font-medium">Current Price</th>
+                            <th className="text-right p-3 font-medium">Market Value</th>
                             <th className="text-right p-3 font-medium">P&L</th>
-                            <th className="text-right p-3 font-medium">Ağırlık</th>
-                            <th className="text-right p-3 font-medium">İşlem</th>
+                            <th className="text-right p-3 font-medium">Weight</th>
+                            <th className="text-right p-3 font-medium">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -74,23 +74,23 @@ export function PositionsTable({ portfolio, onSellClick, onTickerClick }: Positi
                                         </button>
                                     </td>
                                     <td className="p-3 text-right text-foreground font-medium">
-                                        {pos.quantity.toLocaleString('tr-TR')}
+                                        {pos.quantity.toLocaleString('en-US')}
                                     </td>
                                     <td className="p-3 text-right text-muted-foreground">
-                                        ₺{pos.avgCost.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                        ₺{pos.avgCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                     </td>
                                     <td className="p-3 text-right text-foreground font-medium">
-                                        ₺{pos.currentPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                        ₺{pos.currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                     </td>
                                     <td className="p-3 text-right text-foreground">
-                                        ₺{pos.marketValue.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                        ₺{pos.marketValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                     </td>
                                     <td className="p-3 text-right">
                                         <div className={cn('flex items-center justify-end gap-1', isPositive ? 'text-emerald-400' : 'text-red-400')}>
                                             {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                                             <div className="flex flex-col items-end">
                                                 <span className="font-semibold text-xs">
-                                                    {isPositive ? '+' : ''}₺{pos.unrealizedPnL.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                                    {isPositive ? '+' : ''}₺{pos.unrealizedPnL.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                 </span>
                                                 <span className="text-[10px] opacity-70">
                                                     {isPositive ? '+' : ''}{pos.unrealizedPnLPercent.toFixed(2)}%
@@ -132,7 +132,7 @@ export function PositionsTable({ portfolio, onSellClick, onTickerClick }: Positi
                                 </button>
                                 <div className={cn('text-right', isPositive ? 'text-emerald-400' : 'text-red-400')}>
                                     <p className="text-xs font-semibold">
-                                        {isPositive ? '+' : ''}₺{pos.unrealizedPnL.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                        {isPositive ? '+' : ''}₺{pos.unrealizedPnL.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                     </p>
                                     <p className="text-[10px] opacity-70">
                                         {isPositive ? '+' : ''}{pos.unrealizedPnLPercent.toFixed(2)}%
@@ -149,7 +149,7 @@ export function PositionsTable({ portfolio, onSellClick, onTickerClick }: Positi
                                     <p className="text-foreground">₺{pos.avgCost.toFixed(2)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground/60">Güncel</p>
+                                    <p className="text-muted-foreground/60">Current</p>
                                     <p className="text-foreground font-medium">₺{pos.currentPrice.toFixed(2)}</p>
                                 </div>
                             </div>

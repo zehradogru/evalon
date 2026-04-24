@@ -1,6 +1,6 @@
-'use client'
+﻿'use client'
 
-import { useCallback, useMemo, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
@@ -25,6 +25,7 @@ import type { MarketQueryStatus } from '@/lib/market-data'
 import { cn } from '@/lib/utils'
 import { useInfiniteLoad } from '@/hooks/use-infinite-load'
 import { useMarketList } from '@/hooks/use-market-list'
+import { fetchPrices } from '@/services/price.service'
 import type {
     ListSortDirection,
     MarketListItem,
@@ -43,7 +44,7 @@ const RATING_ORDER: Record<string, number> = {
     'Strong Sell': 1,
 }
 
-const mockMarketData: Record<'nasdaq' | 'crypto' | 'forex', MarketListItem[]> = {
+const mockMarketData: Record<'nasdaq' | 'forex', MarketListItem[]> = {
     nasdaq: MARKET_TICKERS.NASDAQ.map((item) => ({
         ticker: item.ticker,
         name: item.name,
@@ -53,21 +54,6 @@ const mockMarketData: Record<'nasdaq' | 'crypto' | 'forex', MarketListItem[]> = 
         high: 855,
         low: 835,
         vol: 45_000_000,
-        rating: 'Strong Buy',
-        marketCap: null,
-        pe: null,
-        eps: null,
-        sector: null,
-    })),
-    crypto: MARKET_TICKERS.CRYPTO.map((item) => ({
-        ticker: item.ticker,
-        name: item.name,
-        price: 65_200,
-        changePct: 2.1,
-        changeVal: 1_350,
-        high: 65_800,
-        low: 63_500,
-        vol: 45_000_000_000,
         rating: 'Strong Buy',
         marketCap: null,
         pe: null,
@@ -89,6 +75,50 @@ const mockMarketData: Record<'nasdaq' | 'crypto' | 'forex', MarketListItem[]> = 
         eps: null,
         sector: null,
     })),
+}
+
+function useCryptoList() {
+    const [items, setItems] = useState<MarketListItem[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [isError, setIsError] = useState(false)
+
+    useEffect(() => {
+        setIsLoading(true)
+        setIsError(false)
+        void Promise.all(
+            MARKET_TICKERS.CRYPTO.map(async (t) => {
+                try {
+                    const res = await fetchPrices({ ticker: t.ticker, timeframe: '1d', limit: 2 })
+                    const bars = res.data
+                    if (bars.length === 0) return null
+                    const last = bars[bars.length - 1]
+                    const prev = bars.length >= 2 ? bars[bars.length - 2] : null
+                    return {
+                        ticker: t.ticker,
+                        name: t.name,
+                        price: last.c,
+                        changePct: prev ? ((last.c - prev.c) / prev.c) * 100 : 0,
+                        changeVal: prev ? last.c - prev.c : 0,
+                        high: last.h,
+                        low: last.l,
+                        vol: last.v,
+                        rating: 'Neutral' as const,
+                        marketCap: null,
+                        pe: null,
+                        eps: null,
+                        sector: null,
+                    } satisfies MarketListItem
+                } catch {
+                    return null
+                }
+            })
+        )
+            .then(results => setItems(results.filter((r): r is MarketListItem => r !== null)))
+            .catch(() => setIsError(true))
+            .finally(() => setIsLoading(false))
+    }, [])
+
+    return { items, isLoading, isError }
 }
 
 function formatVolume(vol: number | null) {
@@ -225,7 +255,7 @@ function MarketTable({
             if (!aHasData && !bHasData) return 0
 
             if (activeSortField === 'ticker') {
-                const compare = a.ticker.localeCompare(b.ticker, 'tr-TR')
+                const compare = a.ticker.localeCompare(b.ticker, 'en-US')
                 return activeSortDirection === 'asc' ? compare : -compare
             }
 
@@ -254,7 +284,7 @@ function MarketTable({
             <Card className="bg-card border-none rounded-none shadow-none overflow-hidden p-8">
                 <div className="flex flex-col items-center gap-3 text-center">
                     <span className="text-sm text-destructive">
-                        {errorMessage || marketStatus?.errorMessage || 'Liste yüklenemedi.'}
+                        {errorMessage || marketStatus?.errorMessage || 'Failed to load list.'}
                     </span>
                     {onRetry ? (
                         <Button size="sm" variant="outline" onClick={onRetry}>
@@ -439,7 +469,7 @@ function MarketTable({
                                 <TableRow>
                                     <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                                         {marketStatus?.isWarming
-                                            ? 'Piyasa verisi hazirlaniyor.'
+                                            ? 'Market data warming up.'
                                             : 'No data available'}
                                     </TableCell>
                                 </TableRow>
@@ -494,17 +524,17 @@ function MarketSummaryCard({
     const hasChange = typeof card?.changePct === 'number'
     const numericChangePct = hasChange && card ? card.changePct : null
     const sourceLabel = (() => {
-        if (!card) return isLoading ? 'yenileniyor' : 'veri alinamiyor'
-        if (card.source === 'tcmb-official-daily') return 'resmi gunluk kur'
-        if (card.source === 'error-yahoo-429') return 'kaynak limit (yahoo 429)'
-        if (card.source === 'error') return 'veri alinamiyor'
-        if (card.stale || card.source.startsWith('stale-cache')) return 'gecikmeli'
-        return 'canli'
+        if (!card) return isLoading ? 'Refreshing' : 'data unavailable'
+        if (card.source === 'tcmb-official-daily') return 'official daily rate'
+        if (card.source === 'error-yahoo-429') return 'source limit (yahoo 429)'
+        if (card.source === 'error') return 'data unavailable'
+        if (card.stale || card.source.startsWith('stale-cache')) return 'Stale'
+        return 'live'
     })()
 
     const numericValue = hasValue && card ? card.value : null
     const formattedValue = typeof numericValue === 'number'
-        ? numericValue.toLocaleString('tr-TR', {
+        ? numericValue.toLocaleString('en-US', {
             minimumFractionDigits: 2,
             maximumFractionDigits: card?.currency === 'TRY' ? 2 : 3,
         })
@@ -555,13 +585,14 @@ const OVERVIEW_LAYOUT: Array<{
 }> = [
         { id: 'bist100', title: 'BIST 100', color: 'bg-chart-5', icon: <TrendingUp size={20} /> },
         { id: 'bist30', title: 'BIST 30', color: 'bg-primary', icon: <Activity size={20} /> },
-        { id: 'xauusd', title: 'Ons Altın / USD', color: 'bg-chart-4', icon: <DollarSign size={20} /> },
+        { id: 'xauusd', title: 'Gold (XAU) / USD', color: 'bg-chart-4', icon: <DollarSign size={20} /> },
         { id: 'usdtry', title: 'USD / TRY', color: 'bg-chart-2', icon: <DollarSign size={20} /> },
     ]
 
 export function MarketsView() {
     const [sortField, setSortField] = useState<SortField>('changePct')
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+    const { items: cryptoItems, isLoading: cryptoLoading, isError: cryptoError } = useCryptoList()
 
     const {
         data,
@@ -587,7 +618,7 @@ export function MarketsView() {
         queryFn: async () => {
             const response = await fetch('/api/market-overview', { cache: 'no-store' })
             if (!response.ok) {
-                throw new Error('Overview kart verisi alinamadi.')
+                throw new Error('Failed to fetch overview card data.')
             }
             return response.json() as Promise<{ cards: MarketOverviewCard[] }>
         },
@@ -693,11 +724,11 @@ export function MarketsView() {
                             <MarketDataStatusChip
                                 status={marketStatus}
                                 labels={{
-                                    refreshing: 'Yenileniyor',
-                                    warming: 'Hazirlaniyor',
-                                    stale: 'Gecikmeli',
-                                    partial: 'Kismi veri',
-                                    error: 'Baglanti sorunu',
+                                    refreshing: 'Refreshing',
+                                    warming: 'Warming up',
+                                    stale: 'Stale',
+                                    partial: 'Partial data',
+                                    error: 'Connection issue',
                                 }}
                             />
                         </div>
@@ -728,7 +759,7 @@ export function MarketsView() {
                     </TabsContent>
 
                     <TabsContent value="crypto" className="mt-0 animate-in fade-in duration-500">
-                        <MarketTable data={mockMarketData.crypto} isInteractive={true} />
+                        <MarketTable data={cryptoItems} isLoading={cryptoLoading} isError={cryptoError} isInteractive={true} />
                     </TabsContent>
 
                     <TabsContent value="forex" className="mt-0 animate-in fade-in duration-500">

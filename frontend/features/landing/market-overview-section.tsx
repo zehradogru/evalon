@@ -1,13 +1,27 @@
-'use client'
+﻿'use client'
 
-import { useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { marketIndices, generateIntradayData } from '@/data/dashboard.mock'
+import { marketIndices } from '@/data/dashboard.mock'
+import { fetchPrices } from '@/services/price.service'
 import { TrendingUp, ChevronRight } from 'lucide-react'
 
 export function MarketOverviewSection() {
-  const chartData = useMemo(() => generateIntradayData(), [])
+  const [chartData, setChartData] = useState<{ time: string; price: number }[]>([])
+
+  useEffect(() => {
+    fetchPrices({ ticker: 'XU100', timeframe: '1d', limit: 90 })
+      .then(res =>
+        setChartData(
+          res.data.map(b => ({
+            time: new Date(b.t).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }),
+            price: b.c,
+          }))
+        )
+      )
+      .catch(() => {})
+  }, [])
 
   // Ticker Tape Data
   const tickerItems = [
@@ -202,7 +216,7 @@ export function MarketOverviewSection() {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: '#787b86', fontSize: 11 }}
-                  tickFormatter={(v) => v.toLocaleString('tr-TR')}
+                  tickFormatter={(v) => v.toLocaleString('en-US')}
                 />
                 <Tooltip
                   contentStyle={{
@@ -213,7 +227,7 @@ export function MarketOverviewSection() {
                     fontSize: '12px',
                   }}
                   labelStyle={{ color: '#787b86' }}
-                  formatter={(value) => [Number(value ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }), 'Price']}
+                  formatter={(value) => [Number(value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 }), 'Price']}
                 />
                 <Area
                   type="monotone"

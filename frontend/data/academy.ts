@@ -1,9 +1,9 @@
-export type AcademyCategory =
-    | 'Teknik Analiz'
-    | 'Temel Analiz'
-    | 'Genel Kavramlar'
-    | 'Türev Ürünler'
-    | 'Piyasa Türleri'
+﻿export type AcademyCategory =
+    | 'Technical Analysis'
+    | 'Fundamental Analysis'
+    | 'General Concepts'
+    | 'Derivatives'
+    | 'Market Types'
 
 export interface AcademyTerm {
     slug: string
@@ -17,12 +17,12 @@ export interface AcademyTerm {
 }
 
 export const academyTerms: AcademyTerm[] = [
-    // ─── Teknik Analiz ────────────────────────────────────────────────────────
+    // ─── Technical Analysis ────────────────────────────────────────────────────────
     {
         slug: 'rsi',
         title: 'RSI',
         fullName: 'Relative Strength Index',
-        category: 'Teknik Analiz',
+        category: 'Technical Analysis',
         icon: 'Activity',
         short: 'Bir hissenin aşırı alım ya da aşırı satım bölgesinde olup olmadığını gösteren momentum indikatörü.',
         long: 'RSI, 0–100 arasında bir değer alır. Genel kabul; 70 üzeri "aşırı alım" (satış sinyali), 30 altı ise "aşırı satım" (alım fırsatı) olarak yorumlanır. 14 günlük periyot standart kabul edilse de yatırımcılar farklı periyotlar kullanabilir. Örneğin RSI(14) = 78 ise hisse kısa vadede "yorgun" sayılır ve fiyat düzeltmesi yaşanabilir.',
@@ -32,7 +32,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'macd',
         title: 'MACD',
         fullName: 'Moving Average Convergence Divergence',
-        category: 'Teknik Analiz',
+        category: 'Technical Analysis',
         icon: 'TrendingUp',
         short: 'İki hareketli ortalama arasındaki farkı izleyerek trend dönüşlerini sinyalleyen indikatör.',
         long: 'MACD, 12 günlük EMA ile 26 günlük EMA arasındaki farktır. Bu farkın 9 günlük EMA\'sı "sinyal çizgisi" olarak kullanılır. MACD çizgisi sinyal çizgisini yukarıdan keserse alım, aşağıdan keserse satım sinyali olarak yorumlanır. Histogram ise iki çizgi arasındaki mesafeyi görselleştirir.',
@@ -42,7 +42,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'bollinger-bands',
         title: 'Bollinger Bantları',
         fullName: 'Bollinger Bands',
-        category: 'Teknik Analiz',
+        category: 'Technical Analysis',
         icon: 'GitBranch',
         short: 'Fiyatın ortalama etrafındaki volatiliteyi ölçen üst, orta ve alt bantlardan oluşan sistem.',
         long: 'Orta bant 20 günlük SMA, üst ve alt bantlar ise bu SMA\'nın 2 standart sapma üstü ve altıdır. Fiyat üst banda değdiğinde aşırı alım, alt banda değdiğinde aşırı satım düşünülebilir. Bantların daralması düşük volatiliteye, genişlemesi ise yüksek volatiliteye işaret eder ve büyük bir fiyat hareketinin habercisi olabilir.',
@@ -52,7 +52,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'ema',
         title: 'EMA',
         fullName: 'Exponential Moving Average',
-        category: 'Teknik Analiz',
+        category: 'Technical Analysis',
         icon: 'TrendingUp',
         short: 'Son fiyatlara daha fazla ağırlık vererek hesaplanan üstel hareketli ortalama.',
         long: 'SMA\'dan (Basit Hareketli Ortalama) farklı olarak EMA, yakın tarihli kapanış fiyatlarına daha fazla ağırlık verir. Bu nedenle trend değişimlerine daha hızlı tepki verir. 20, 50 ve 200 günlük EMA\'lar en sık kullanılan periyotlardır. Fiyatın 200 günlük EMA üzerinde kalması uzun vadeli yükselen trend göstergesidir.',
@@ -61,7 +61,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'sma',
         title: 'SMA',
         fullName: 'Simple Moving Average',
-        category: 'Teknik Analiz',
+        category: 'Technical Analysis',
         icon: 'Minus',
         short: 'Belirli bir periyottaki kapanış fiyatlarının aritmetik ortalamasıdır.',
         long: 'SMA, belirli bir dönemdeki (örn. 20, 50, 200 gün) kapanış fiyatlarının toplamının periyot sayısına bölünmesiyle hesaplanır. Trendin genel yönünü anlamak için kullanılır. Kısa dönem SMA (20) uzun dönem SMA\'yı (50) yukarıdan keserse "golden cross" — aşağıdan keserse "death cross" olarak adlandırılır.',
@@ -71,7 +71,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'fibonacci',
         title: 'Fibonacci',
         fullName: 'Fibonacci Retracement',
-        category: 'Teknik Analiz',
+        category: 'Technical Analysis',
         icon: 'GitMerge',
         short: 'Önemli destek ve direnç seviyelerini matematiksel Fibonacci oranlarıyla belirleyen araç.',
         long: 'Fibonacci düzeltme seviyeleri; %23.6, %38.2, %50, %61.8 ve %78.6\'dır. Bir yükseliş hareketinin ardından fiyat geri çekildiğinde, bu seviyelerin potansiyel destek bölgeleri olabileceği düşünülür. En kritik seviye olan %61.8 "altın oran" olarak bilinir.',
@@ -80,7 +80,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'direnc-destek',
         title: 'Direnç & Destek',
         fullName: 'Resistance & Support',
-        category: 'Teknik Analiz',
+        category: 'Technical Analysis',
         icon: 'ArrowUpDown',
         short: 'Fiyatın daha önce duraksadığı veya döndüğü kritik fiyat bölgeleri.',
         long: 'Destek: Fiyatın düşerken alıcı baskısıyla durduğu seviyedir. Direnç: Fiyatın yükselirken satıcı baskısıyla geri döndüğü seviyedir. Kırılan bir direnç seviyesi genellikle desteğe dönüşür (rol değişimi) ve tersi de geçerlidir. Bu seviyeler kendi kendini gerçekleştiren kehanet özelliği taşır; çünkü çok sayıda yatırımcı aynı seviyeye bakarak işlem yapar.',
@@ -89,7 +89,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'hacim',
         title: 'Hacim',
         fullName: 'Volume',
-        category: 'Teknik Analiz',
+        category: 'Technical Analysis',
         icon: 'BarChart2',
         short: 'Belirli bir dönemde el değiştiren hisse senedi miktarı; trend gücünün önemli göstergesi.',
         long: 'Hacim, bir fiyat hareketinin ne kadar "inandırıcı" olduğunu gösterir. Yükseliş + yüksek hacim = güçlü yükseliş. Yükseliş + düşük hacim = zayıf hareket, tersine dönme riski. Kırılmalar (destek veya direnç kırılışları) yüksek hacimle gerçekleşirse daha güvenilir sayılır.',
@@ -98,7 +98,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'stokastik',
         title: 'Stokastik Osilatör',
         fullName: 'Stochastic Oscillator',
-        category: 'Teknik Analiz',
+        category: 'Technical Analysis',
         icon: 'Activity',
         short: 'Kapanış fiyatının belirli bir periyottaki fiyat aralığına göre konumunu gösteren osilatör.',
         long: 'Stokastik, 0–100 arasında değer alır. 80 üzeri aşırı alım, 20 altı aşırı satım bölgesi sayılır. %K çizgisi ham osilatör, %D çizgisi ise %K\'nın 3 günlük ortalamasıdır. İki çizginin kesiştiği noktalar alım-satım sinyali olarak değerlendirilir. RSI ile birlikte kullanıldığında doğrulama gücü artar.',
@@ -108,18 +108,18 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'mum-formasyonlari',
         title: 'Mum Formasyonları',
         fullName: 'Candlestick Patterns',
-        category: 'Teknik Analiz',
+        category: 'Technical Analysis',
         icon: 'CandlestickChart',
         short: 'Japonya\'dan gelen, tek veya birkaç mumun şekliyle trend dönüşlerini öngören analiz yöntemi.',
         long: 'En bilinen formasyonlar: Doji (kararsızlık), Çekiç/Hanging Man (dönüş), Engulfing (yutma formasyonu, güçlü dönüş sinyali), Sabah/Akşam Yıldızı (3 mumlu dönüş formasyonu) ve Harami (zayıflama). Mum formasyonları tek başına değil, destek/direnç ve hacimle birlikte değerlendirildiğinde daha güvenilir sonuç verir.',
     },
 
-    // ─── Temel Analiz ─────────────────────────────────────────────────────────
+    // ─── Fundamental Analysis ─────────────────────────────────────────────────────────
     {
         slug: 'fk-orani',
         title: 'F/K Oranı',
         fullName: 'Fiyat / Kazanç Oranı (P/E Ratio)',
-        category: 'Temel Analiz',
+        category: 'Fundamental Analysis',
         icon: 'Calculator',
         short: 'Hissenin piyasa fiyatının hisse başı kazanca oranıdır; ucuz/pahalı değerlemeyi gösterir.',
         long: 'F/K = Hisse Fiyatı / Hisse Başı Net Kar. Yüksek F/K yatırımcıların hisseden büyük büyüme beklediğini, düşük F/K ise ucuz değerlemeyi ya da zayıf beklentiyi gösterebilir. Sektörden sektöre normlar farklılaşır; bu yüzden F/K oranı rakip şirketlerle kıyaslanmalıdır. Türk piyasasında 10 altı düşük, 20 üzeri yüksek sayılabilir.',
@@ -129,7 +129,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'pddd',
         title: 'PD/DD Oranı',
         fullName: 'Piyasa Değeri / Defter Değeri (P/B Ratio)',
-        category: 'Temel Analiz',
+        category: 'Fundamental Analysis',
         icon: 'BookOpen',
         short: 'Şirketin piyasa değerini, bilançodaki öz kaynak değeriyle karşılaştıran oran.',
         long: 'PD/DD < 1 ise şirket "defter değerinin altında" işlem görüyor demektir; bu potansiyel bir değer fırsatı olabilir. Ancak düşük PD/DD bazen finansal sorunların işareti de olabilir. Özellikle bankacılık sektöründe sıkça kullanılır.',
@@ -139,7 +139,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'favok',
         title: 'FAVÖK',
         fullName: 'Faiz, Amortisman ve Vergi Öncesi Kâr (EBITDA)',
-        category: 'Temel Analiz',
+        category: 'Fundamental Analysis',
         icon: 'DollarSign',
         short: 'Şirketin temel operasyonel kârlılığını finansman yapısından bağımsız ölçen gösterge.',
         long: 'FAVÖK, şirketin finans giderlerini, vergi yükünü ve amortisman gibi nakit dışı giderleri hesaba katmadan operasyonlardan ne kadar kazandığını gösterir. Farklı sermaye yapılarına sahip şirketleri kıyaslamak için idealdir. "EV/FAVÖK" çarpanı şirket değerlemesinde en çok kullanılan oranlardan biridir.',
@@ -149,7 +149,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'temttu-verimi',
         title: 'Temettü Verimi',
         fullName: 'Dividend Yield',
-        category: 'Temel Analiz',
+        category: 'Fundamental Analysis',
         icon: 'Percent',
         short: 'Hisse başı ödenen temettünün, hissenin piyasa fiyatına oranını gösteren getiri ölçütü.',
         long: 'Temettü Verimi = (Hisse Başı Temettü / Hisse Fiyatı) × 100. Yüksek temettü verimi hisseyi pasif gelir arayan yatırımcılar için cazip yapar. Ancak sürdürülebilirlik önemlidir; anormal yüksek verim şirketin finansal zorluklarını da yansıtıyor olabilir. BIST\'te yüksek temettü verimiyle bilinen hisseler genellikle savunma, enerji ve telekomünikasyon sektöründendir.',
@@ -159,19 +159,19 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'net-kar-marji',
         title: 'Net Kâr Marjı',
         fullName: 'Net Profit Margin',
-        category: 'Temel Analiz',
+        category: 'Fundamental Analysis',
         icon: 'TrendingUp',
         short: 'Şirketin her 100 TL\'lik satışından kaç TL net kar elde ettiğini gösteren verimlilik göstergesi.',
         long: 'Net Kâr Marjı = (Net Kâr / Net Satışlar) × 100. Yüksek marj şirketin maliyetlerini iyi yönettiğini gösterir. Sektöre göre normlar farklıdır; perakende sektöründe %3–5 normal iken yazılım sektöründe %20–30 beklenir. Zaman içindeki değişimi takip etmek, anlık değerden daha anlamlı olabilir.',
         formula: 'Net Kâr Marjı (%) = (Net Kâr / Net Satışlar) × 100',
     },
 
-    // ─── Genel Kavramlar ──────────────────────────────────────────────────────
+    // ─── General Concepts ──────────────────────────────────────────────────────
     {
         slug: 'boga-piyasasi',
         title: 'Boğa Piyasası',
         fullName: 'Bull Market',
-        category: 'Genel Kavramlar',
+        category: 'General Concepts',
         icon: 'TrendingUp',
         short: 'Fiyatların genel olarak yükseldiği, iyimserlik ve yüksek işlem hacminin hakim olduğu piyasa dönemi.',
         long: 'Teknik tanım olarak piyasanın son dip noktasından %20 veya daha fazla yükseldiği dönemdir. Boğa piyasasında yatırımcı güveni yüksektir, ekonomik büyüme devam etmektedir ve şirket kârları artmaktadır. "Boğa" metaforu hayvanın boynuzlarını yukarı kaldırmasından gelir.',
@@ -180,7 +180,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'ayi-piyasasi',
         title: 'Ayı Piyasası',
         fullName: 'Bear Market',
-        category: 'Genel Kavramlar',
+        category: 'General Concepts',
         icon: 'TrendingDown',
         short: 'Piyasanın son zirvesinden %20 veya daha fazla gerilediği, kötümserliğin hakim olduğu dönem.',
         long: 'Ayı piyasaları genellikle ekonomik resesyon, yüksek enflasyon, faiz artışları veya jeopolitik risklerle tetiklenir. Tarihsel olarak boğa piyasalarından daha kısa sürseler de daha sert olabilirler. "Ayı" metaforu hayvanın pençelerini aşağı indirmesinden türetilmiştir.',
@@ -189,7 +189,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'volatilite',
         title: 'Volatilite',
         fullName: 'Volatility',
-        category: 'Genel Kavramlar',
+        category: 'General Concepts',
         icon: 'Activity',
         short: 'Bir varlığın fiyatının belirli bir sürede ne kadar değişkenlik gösterdiğinin ölçüsü.',
         long: 'Yüksek volatilite hem fırsat hem de risk demektir. İstatistiksel olarak standart sapmayla ölçülür. Türev ürünlerde "implied volatility" (beklenen volatilite) opsiyon fiyatlamasında kritik rol oynar. Piyasanın "korku göstergesi" olarak da bilinen VIX endeksi, S&P 500 opsiyonlarının beklenen volatilitesini yansıtır.',
@@ -198,7 +198,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'likidite',
         title: 'Likidite',
         fullName: 'Liquidity',
-        category: 'Genel Kavramlar',
+        category: 'General Concepts',
         icon: 'Droplets',
         short: 'Bir varlığın fiyatı olumsuz etkilemeksizin hızlıca nakde çevrilebilme kolaylığı.',
         long: 'Yüksek likit hisseler (THYAO, GARAN gibi) düşük spread ile kolayca alınıp satılabilir. Düşük likit hisseler ise büyük emir girildiğinde fiyatı ciddi şekilde etkileyebilir. Likidite; hacim, spread ve piyasa derinliğiyle ölçülür. Kriz dönemlerinde likidite aniden kuruyabilir.',
@@ -207,7 +207,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'spread',
         title: 'Spread (Alış-Satış Farkı)',
         fullName: 'Bid-Ask Spread',
-        category: 'Genel Kavramlar',
+        category: 'General Concepts',
         icon: 'ArrowLeftRight',
         short: 'En iyi alış fiyatı (bid) ile en iyi satış fiyatı (ask) arasındaki fark; işlem maliyetinin parçası.',
         long: 'Piyasa yapıcılar (market maker) bu farkı kâr olarak alır. Spread ne kadar dar olursa işlem o kadar ucuzdur. Likit hisselerde spread çok dar (birkaç kuruş), düşük hacimli hisselerde ise geniş olabilir. Stop-loss ve take-profit seviyelerini belirlerken spread dikkate alınmalıdır.',
@@ -216,7 +216,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'lot',
         title: 'Lot',
         fullName: 'Lot / Share',
-        category: 'Genel Kavramlar',
+        category: 'General Concepts',
         icon: 'Package',
         short: 'Borsada işlem gören en küçük hisse birimi; Türkiye\'de 1 lot = 1 hisse senedidir.',
         long: 'Bazı ülkelerde lot kavramı farklıdır (örn. Hong Kong\'da 1 lot = 100 veya 1000 hisse). BİST\'te 1 lot = 1 hisse senedi olarak kabul edilir. Küçük yatırımcı bile 1 lot alabilir. "Tam lot" ve "kesirli lot" kavramları bazı platformlarda küçük miktarlar için kullanılır.',
@@ -225,7 +225,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'aciga-satis',
         title: 'Açığa Satış',
         fullName: 'Short Selling',
-        category: 'Genel Kavramlar',
+        category: 'General Concepts',
         icon: 'TrendingDown',
         short: 'Sahip olmadığınız bir hisseyi ödünç alıp düşeceği beklentisiyle satmak.',
         long: 'Açığa satış şu şekilde işler: Hisseyi bir aracıdan ödünç alırsınız, satarsınız; fiyat düşünce geri alıp iade edersiniz, aradaki fark kârınızdır. Türev ürünler (VİOP) aracılığıyla da benzer pozisyon alınabilir. Riski teorik olarak sınırsızdır çünkü fiyat ne kadar yükselirse kayıp o kadar büyür. BİST\'te spot açığa satış düzenlemesi sınırlıdır.',
@@ -234,7 +234,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'stop-loss',
         title: 'Stop-Loss',
         fullName: 'Stop-Loss Emri',
-        category: 'Genel Kavramlar',
+        category: 'General Concepts',
         icon: 'ShieldAlert',
         short: 'Fiyat belirli bir seviyeye düştüğünde otomatik satış emri vererek zararı sınırlayan koruma aracı.',
         long: 'Stop-loss, riskin önceden tanımlanmasını sağlar. Örneğin 100 TL\'den aldığınız hisse için 90 TL\'ye stop koyarsanız kayıp maksimum %10 olur. "Trailing stop" ise fiyat yükseldikçe stop seviyesini otomatik olarak yukarı kaydıran dinamik versiyondur. Duygusal karar almanın önüne geçer.',
@@ -243,18 +243,18 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'take-profit',
         title: 'Take-Profit',
         fullName: 'Kâr Al Emri',
-        category: 'Genel Kavramlar',
+        category: 'General Concepts',
         icon: 'Target',
         short: 'Fiyat hedef seviyeye ulaştığında otomatik olarak satış yaparak kârı realize eden emir.',
         long: 'Take-profit emri, belirlediğiniz hedef fiyata ulaşıldığında pozisyonu otomatik kapatır. Stop-loss ile birlikte kullanıldığında risk/ödül oranını önceden tanımlamanızı sağlar. Örnek: 100 TL alış, 115 TL take-profit, 92 TL stop-loss → risk/ödül = 1:1.875. Profesyonel yatırımcılar genellikle minimum 1:2 oranı arar.',
     },
 
-    // ─── Türev Ürünler ─────────────────────────────────────────────────────────
+    // ─── Derivatives ─────────────────────────────────────────────────────────
     {
         slug: 'viop',
         title: 'VİOP',
         fullName: 'Vadeli İşlem ve Opsiyon Piyasası',
-        category: 'Türev Ürünler',
+        category: 'Derivatives',
         icon: 'Layers',
         short: 'BİST bünyesindeki Türk türev ürünler piyasası; vadeli sözleşmeler ve opsiyonlar işlem görür.',
         long: 'VİOP\'ta endeks, hisse, döviz, emtia ve kıymetli maden üzerine vadeli sözleşmeler (futures) ve opsiyonlar işlem görür. Kaldıraç etkisiyle az teminatla büyük pozisyon alınabilir; bu hem getiriyi hem de riski artırır. BIST 30 vadeli kontratı Türkiye\'nin en likit türev ürünü olup kurumsal yatırımcılar tarafından riskten korunma (hedge) amacıyla yoğun kullanılır.',
@@ -263,7 +263,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'vadeli-islem',
         title: 'Vadeli İşlem (Futures)',
         fullName: 'Futures Contract',
-        category: 'Türev Ürünler',
+        category: 'Derivatives',
         icon: 'Clock',
         short: 'İki tarafın gelecekte belirlenmiş fiyattan ve tarihte alım-satım yapmayı taahhüt ettiği sözleşme.',
         long: 'Futures sözleşmeleri standartlaştırılmış ve borsada işlem görür. Uzun (long) pozisyon almak varlığı almayı, kısa (short) pozisyon ise satmayı taahhüt eder. Günlük "mark-to-market" mekanizmasıyla kazanç/kayıp her gün hesaplanır. Hem spekülatif hem de riskten korunma (hedging) amaçlı kullanılır.',
@@ -272,7 +272,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'opsiyon',
         title: 'Opsiyon',
         fullName: 'Options Contract',
-        category: 'Türev Ürünler',
+        category: 'Derivatives',
         icon: 'ToggleRight',
         short: 'Belirli bir varlığı belirlenen fiyattan belirlenen süre içinde alma ya da satma hakkı (zorunluluğu değil).',
         long: 'Call (alım) opsiyonu: Varlığı belirlenen fiyattan (kullanım fiyatı / strike) alma hakkı verir. Put (satım) opsiyonu: Varlığı belirlenen fiyattan satma hakkı verir. Opsiyon almak için prim ödenir; bu maksimum kayıptır. Kaldıraçlı yapısı nedeniyle hem spekülatif hem de portföy koruma aracıdır.',
@@ -281,18 +281,18 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'warrant',
         title: 'Varant',
         fullName: 'Warrant',
-        category: 'Türev Ürünler',
+        category: 'Derivatives',
         icon: 'Ticket',
         short: 'Dayanak varlığı belirli bir fiyattan satın alma ya da satma hakkı tanıyan, borsada işlem gören araç.',
         long: 'Varantlar opsiyona benzer ancak bir ihraçcı (genellikle bir banka) tarafından çıkarılır ve BİST\'te işlem görür. Kaldıraç etkisiyle küçük bir prim ödeyerek büyük bir piyasa hareketine katılım imkanı sunar. Vadeye kadar tutulabilir ya da ikincil piyasada satılabilir. Diğer türev araçlara kıyasla küçük yatırımcı için daha erişilebilirdir.',
     },
 
-    // ─── Piyasa Türleri ────────────────────────────────────────────────────────
+    // ─── Market Types ────────────────────────────────────────────────────────
     {
         slug: 'bist-100',
         title: 'BIST 100',
         fullName: 'Borsa İstanbul 100 Endeksi',
-        category: 'Piyasa Türleri',
+        category: 'Market Types',
         icon: 'BarChart3',
         short: 'Borsa İstanbul\'da işlem gören en büyük 100 şirketi kapsayan ana piyasa endeksi.',
         long: 'BIST 100, Türk hisse senedi piyasasının genel termometresidir. Piyasa değeri ve likidite kriterlerine göre seçilen 100 hisseden oluşur. Her çeyrekte yeniden oluşturulur; performans düşen hisseler endeksten çıkarılır, daha iyi performans gösterenler eklenir. BIST 100\'ün yönü Türkiye ekonomisine ilişkin küresel yatırımcı algısını özetler.',
@@ -301,7 +301,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'bist-30',
         title: 'BIST 30',
         fullName: 'Borsa İstanbul 30 Endeksi',
-        category: 'Piyasa Türleri',
+        category: 'Market Types',
         icon: 'Award',
         short: 'BİST\'in en likit ve büyük 30 hissesini kapsayan "blue-chip" endeksi; VİOP\'ta işlem görür.',
         long: 'BIST 30, Türkiye\'nin en büyük şirketlerinin (THYAO, GARAN, ASELS, EREGL vb.) bulunduğu mavi çip endeksidir. VİOP\'ta bu endeksin vadeli ve opsiyon sözleşmeleri en likit türev araçlardır. Kurumsal yatırımcılar portföy riskini yönetmek için bu endeksi referans alır.',
@@ -310,7 +310,7 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'ipo',
         title: 'Halka Arz (IPO)',
         fullName: 'Initial Public Offering',
-        category: 'Piyasa Türleri',
+        category: 'Market Types',
         icon: 'Rocket',
         short: 'Bir şirketin hisselerini ilk kez halka sunarak borsada işlem görmeye başladığı süreç.',
         long: 'IPO sürecinde şirket, sermaye artırmak ya da mevcut ortaklara çıkış imkanı sağlamak için hisselerini belirli bir fiyattan yatırımcılara sunar. Türkiye\'de SPK onayı zorunludur. Talep toplama döneminde bireysel yatırımcılar başvuru yapabilir; talebin arzı aşması halinde oransal dağıtım yapılır. İlk günkü fiyat hareketleri çoğu zaman sert olur.',
@@ -319,18 +319,18 @@ export const academyTerms: AcademyTerm[] = [
         slug: 'endeks',
         title: 'Endeks',
         fullName: 'Borsa Endeksi',
-        category: 'Piyasa Türleri',
+        category: 'Market Types',
         icon: 'LineChart',
         short: 'Belirli kriterlere göre seçilmiş hisse sepetinin genel performansını gösteren sayısal gösterge.',
         long: 'Endeksler piyasanın genel durumunu tek bir sayıyla özetler. Piyasa değeri ağırlıklı endekslerde (BIST 100 gibi) büyük şirketler endekse daha fazla etki eder. Endeksler; sektörel (BIST Banka, BIST Sanayi), bölgesel (Avrupa, Asya) veya strateji bazlı olabilir. ETF\'ler aracılığıyla endekslere yatırım yapılabilir.',
     },
 ]
 
-// Tüm kategoriler
+// All categories
 export const academyCategories: AcademyCategory[] = [
-    'Teknik Analiz',
-    'Temel Analiz',
-    'Genel Kavramlar',
-    'Türev Ürünler',
-    'Piyasa Türleri',
+    'Technical Analysis',
+    'Fundamental Analysis',
+    'General Concepts',
+    'Derivatives',
+    'Market Types',
 ]

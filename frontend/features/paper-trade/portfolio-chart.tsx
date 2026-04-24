@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useMemo } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
@@ -17,7 +17,7 @@ export function PortfolioChart({ snapshots, initialBalance = PAPER_TRADE_INITIAL
             date: s.date,
             value: s.totalValue,
             pnl: s.cumulativePnL,
-            label: new Date(s.date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' }),
+            label: new Date(s.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short' }),
         }))
     }, [snapshots])
 
@@ -25,11 +25,11 @@ export function PortfolioChart({ snapshots, initialBalance = PAPER_TRADE_INITIAL
         return (
             <div className="rounded-xl border border-border bg-card">
                 <div className="p-4 border-b border-border">
-                    <h3 className="text-sm font-semibold text-foreground">Portföy Değer Grafiği</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Portfolio Value Chart</h3>
                 </div>
                 <div className="p-10 text-center">
-                    <p className="text-sm text-muted-foreground">Grafik için yeterli veri yok.</p>
-                    <p className="text-xs text-muted-foreground/60 mt-1">En az 2 günlük snapshot gereklidir.</p>
+                    <p className="text-sm text-muted-foreground">Not enough data for chart.</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1">At least 2 daily snapshots required.</p>
                 </div>
             </div>
         )
@@ -43,7 +43,7 @@ export function PortfolioChart({ snapshots, initialBalance = PAPER_TRADE_INITIAL
     return (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
             <div className="p-4 border-b border-border">
-                <h3 className="text-sm font-semibold text-foreground">Portföy Değer Grafiği</h3>
+                <h3 className="text-sm font-semibold text-foreground">Portfolio Value Chart</h3>
             </div>
             <div className="p-4 h-[260px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -74,8 +74,8 @@ export function PortfolioChart({ snapshots, initialBalance = PAPER_TRADE_INITIAL
                                 color: '#D1D4DC',
                             }}
                             formatter={(value) => [
-                                `₺${Number(value ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`,
-                                'Portföy Değeri',
+                                `₺${Number(value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+                                'Portfolio Value',
                             ]}
                             labelFormatter={(label) => String(label)}
                         />
