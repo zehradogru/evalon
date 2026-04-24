@@ -24,6 +24,7 @@ import {
 import { auth, storage } from '@/lib/firebase'
 import {
     buildCommunityImageStoragePath,
+    COMMUNITY_COMMENT_MAX,
     COMMUNITY_CONTENT_MAX,
     COMMUNITY_MAX_TAGS,
     COMMUNITY_MAX_TICKERS,
@@ -36,6 +37,8 @@ import {
     validateCommunityImageFile,
 } from '@/lib/community'
 import {
+    postCommentDoc,
+    postCommentsCollection,
     postDoc,
     postReportDoc,
     postsCollection,
@@ -45,6 +48,9 @@ import {
     userSavesCollection,
 } from '@/lib/community-firestore'
 import type {
+    CommunityComment,
+    CommunityCommentDraft,
+    CommunityCommentRecord,
     CommunityFeedCursor,
     CommunityFeedFilter,
     CommunityFeedPage,
@@ -78,6 +84,10 @@ interface ToggleSaveResult {
 
 interface ReportPostResult {
     reportCount: number
+}
+
+interface CommentCountResult {
+    commentCount: number
 }
 
 interface UploadedCommunityImage {
@@ -214,6 +224,22 @@ function validateDraft(draft: CommunityPostDraft) {
     return normalized
 }
 
+function validateCommentDraft(draft: CommunityCommentDraft) {
+    const content = draft.content.trim()
+
+    if (!content) {
+        throw new Error('Comment cannot be empty.')
+    }
+
+    if (content.length > COMMUNITY_COMMENT_MAX) {
+        throw new Error(
+            `Comment must be ${COMMUNITY_COMMENT_MAX} characters or fewer.`
+        )
+    }
+
+    return { content }
+}
+
 function toIsoString(value: Timestamp | null) {
     return value ? value.toDate().toISOString() : null
 }
@@ -303,6 +329,7 @@ function mapPostRecord(
         createdAt: record.createdAt.toDate().toISOString(),
         editedAt: toIsoString(record.editedAt),
         likeCount: record.likeCount,
+        commentCount: record.commentCount ?? 0,
         reportCount: record.reportCount,
         imageUrl: record.imageUrl ?? null,
         imagePath: record.imagePath ?? null,
@@ -310,6 +337,24 @@ function mapPostRecord(
         imageHeight: record.imageHeight ?? null,
         viewerHasLiked: viewerFlags.likedIds.has(id),
         viewerHasSaved: viewerFlags.savedIds.has(id),
+        isMine: Boolean(currentUserId && record.authorId === currentUserId),
+    }
+}
+
+function mapCommentRecord(
+    postId: string,
+    id: string,
+    record: CommunityCommentRecord,
+    currentUserId?: string | null
+): CommunityComment {
+    return {
+        id,
+        postId,
+        content: record.content,
+        authorId: record.authorId,
+        authorName: record.authorName,
+        createdAt: record.createdAt.toDate().toISOString(),
+        editedAt: toIsoString(record.editedAt),
         isMine: Boolean(currentUserId && record.authorId === currentUserId),
     }
 }
@@ -632,6 +677,7 @@ export const communityService = {
                     createdAt: serverTimestamp(),
                     editedAt: null,
                     likeCount: 0,
+                    commentCount: 0,
                     reportCount: 0,
                     ...(uploadedImage
                         ? {
@@ -846,6 +892,142 @@ export const communityService = {
             return {
                 saved: !saveSnapshot.exists(),
             }
+        })
+    },
+
+    async getComments(
+        postId: string,
+        userId?: string | null
+    ): Promise<CommunityComment[]> {
+        const snapshot = await getDocs(
+            query(postCommentsCollection(postId), orderBy('createdAt', 'desc'))
+        )
+
+        return snapshot.docs.map((docSnapshot) =>
+            mapCommentRecord(postId, docSnapshot.id, docSnapshot.data(), userId)
+        )
+    },
+
+    async createComment(
+        postId: string,
+        draft: CommunityCommentDraft
+    ): Promise<{ comment: CommunityComment; commentCount: number }> {
+        const currentUser = ensureAuthenticatedUser()
+        const normalizedDraft = validateCommentDraft(draft)
+        const commentId =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+        const commentRef = postCommentDoc(postId, commentId)
+
+        const result = await runTransaction(commentRef.firestore, async (transaction) => {
+            const postRef = postDoc(postId)
+            const [postSnapshot, authorProfile] = await Promise.all([
+                transaction.get(postRef),
+                transaction.get(userDoc(currentUser.uid)),
+            ])
+
+            if (!postSnapshot.exists()) {
+                throw new Error('Post not found.')
+            }
+
+            const authorName =
+                (authorProfile.exists() &&
+                    typeof authorProfile.data()?.displayName === 'string' &&
+                    authorProfile.data()?.displayName.trim()) ||
+                getAuthorName()
+            const nextCommentCount = (postSnapshot.data().commentCount ?? 0) + 1
+
+            transaction.set(commentRef, {
+                content: normalizedDraft.content,
+                authorId: currentUser.uid,
+                authorName,
+                createdAt: serverTimestamp(),
+                editedAt: null,
+            })
+            transaction.update(postRef, {
+                commentCount: nextCommentCount,
+            })
+
+            return { commentCount: nextCommentCount }
+        })
+
+        const snapshot = await getDoc(commentRef)
+
+        if (!snapshot.exists()) {
+            throw new Error('Failed to load the created comment.')
+        }
+
+        return {
+            comment: mapCommentRecord(postId, snapshot.id, snapshot.data(), currentUser.uid),
+            commentCount: result.commentCount,
+        }
+    },
+
+    async updateComment(
+        postId: string,
+        commentId: string,
+        draft: CommunityCommentDraft
+    ): Promise<CommunityComment> {
+        const currentUser = ensureAuthenticatedUser()
+        const normalizedDraft = validateCommentDraft(draft)
+
+        await updateDoc(postCommentDoc(postId, commentId), {
+            content: normalizedDraft.content,
+            editedAt: serverTimestamp(),
+        })
+
+        const snapshot = await getDoc(postCommentDoc(postId, commentId))
+
+        if (!snapshot.exists()) {
+            throw new Error('Failed to load the updated comment.')
+        }
+
+        return mapCommentRecord(postId, snapshot.id, snapshot.data(), currentUser.uid)
+    },
+
+    async deleteComment(
+        postId: string,
+        commentId: string
+    ): Promise<CommentCountResult> {
+        const currentUser = ensureAuthenticatedUser()
+
+        return runTransaction(postDoc(postId).firestore, async (transaction) => {
+            const postRef = postDoc(postId)
+            const commentRef = postCommentDoc(postId, commentId)
+            const [postSnapshot, commentSnapshot] = await Promise.all([
+                transaction.get(postRef),
+                transaction.get(commentRef),
+            ])
+
+            if (!commentSnapshot.exists()) {
+                return {
+                    commentCount: postSnapshot.exists()
+                        ? Math.max(postSnapshot.data().commentCount ?? 0, 0)
+                        : 0,
+                }
+            }
+
+            if (commentSnapshot.data().authorId !== currentUser.uid) {
+                throw new Error('You can only delete your own comments.')
+            }
+
+            if (!postSnapshot.exists()) {
+                transaction.delete(commentRef)
+                return { commentCount: 0 }
+            }
+
+            const nextCommentCount = Math.max(
+                (postSnapshot.data().commentCount ?? 0) - 1,
+                0
+            )
+
+            transaction.delete(commentRef)
+            transaction.update(postRef, {
+                commentCount: nextCommentCount,
+            })
+
+            return { commentCount: nextCommentCount }
         })
     },
 

@@ -18,12 +18,17 @@ import {
 } from '@/hooks/use-community'
 import { useToast } from '@/hooks/use-toast'
 import { CommunityComposerPanel } from '@/features/community/components/community-composer-panel'
+import { CommunityDiscussionPanel } from '@/features/community/components/community-discussion-panel'
 import { CommunityEmptyState } from '@/features/community/components/community-empty-state'
 import { CommunityPostCard } from '@/features/community/components/community-post-card'
 import { CommunityRelatedPostGroups } from '@/features/community/components/community-related-post-groups'
 import { buildCommunityPostUrl } from '@/lib/community'
 import { useAuthStore } from '@/store/use-auth-store'
-import type { CommunityPost, CommunityPostDraft, CommunityReportReason } from '@/types'
+import type {
+    CommunityPost,
+    CommunityPostDraft,
+    CommunityReportReason,
+} from '@/types'
 
 interface PostDetailViewProps {
     postId: string
@@ -273,28 +278,18 @@ export function PostDetailView({ postId }: PostDetailViewProps) {
                     </span>
                 </nav>
 
-                {/* Header bar */}
-                <section className="animate-fade-in-up animation-delay-100 flex flex-col gap-4 rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.05] via-white/[0.02] to-transparent p-6 shadow-[0_16px_48px_-16px_rgba(0,0,0,0.6)] md:flex-row md:items-center md:justify-between">
-                    <div className="space-y-2">
-                        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                            Full context view
-                        </h1>
-                        <p className="max-w-lg text-sm leading-6 text-muted-foreground">
-                            Read the full note, then compare with related posts around the same tickers.
-                        </p>
-                    </div>
-
-                    {currentPost.isMine ? (
+                {currentPost.isMine ? (
+                    <div className="animate-fade-in-up animation-delay-100 flex justify-end">
                         <Button
-                            size="lg"
+                            size="sm"
                             className="w-fit rounded-xl shadow-[0_4px_16px_-4px_rgba(40,98,255,0.5)]"
                             onClick={() => setIsEditing(true)}
                         >
                             <PenSquare className="size-4" />
                             Edit post
                         </Button>
-                    ) : null}
-                </section>
+                    </div>
+                ) : null}
 
                 {/* Main post */}
                 <div className="animate-fade-in-up animation-delay-200">
@@ -313,6 +308,13 @@ export function PostDetailView({ postId }: PostDetailViewProps) {
                         onReport={(post, reason) => {
                             void handleReport(post, reason)
                         }}
+                    />
+                </div>
+
+                <div className="animate-fade-in-up animation-delay-300">
+                    <CommunityDiscussionPanel
+                        postId={currentPost.id}
+                        commentCount={currentPost.commentCount}
                     />
                 </div>
 

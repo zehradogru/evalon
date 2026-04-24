@@ -19,6 +19,7 @@ import {
 import { useInfiniteLoad } from '@/hooks/use-infinite-load'
 import { useToast } from '@/hooks/use-toast'
 import { CommunityComposerPanel } from '@/features/community/components/community-composer-panel'
+import { CommunityDiscussionPanel } from '@/features/community/components/community-discussion-panel'
 import { CommunityFeedList } from '@/features/community/components/community-feed-list'
 import { CommunityFilterBar } from '@/features/community/components/community-filter-bar'
 import { CommunityPostCard } from '@/features/community/components/community-post-card'
@@ -83,6 +84,7 @@ export function CommunityView() {
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
     const [filter, setFilter] = useState<CommunityFeedFilter>('all')
     const [composerState, setComposerState] = useState<ComposerState>(null)
+    const [openDiscussionPostId, setOpenDiscussionPostId] = useState<string | null>(null)
 
     const activeTicker = useMemo(() => {
         const rawTicker = searchParams.get('ticker')
@@ -269,6 +271,10 @@ export function CommunityView() {
         }
     }
 
+    function toggleDiscussion(post: CommunityPost) {
+        setOpenDiscussionPostId((current) => (current === post.id ? null : post.id))
+    }
+
     return (
         <div className="relative overflow-hidden">
             {/* -------- Animated background mesh -------- */}
@@ -281,25 +287,25 @@ export function CommunityView() {
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 pb-24 sm:px-6">
 
                 {/* ===================== HERO SECTION ===================== */}
-                <section className="animate-fade-in-up relative overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.05] via-white/[0.02] to-transparent p-6 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.7)] sm:p-8">
+	                <section className="animate-fade-in-up relative overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.045] via-white/[0.018] to-transparent p-5 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.7)] sm:p-6">
                     {/* Decorative grid pattern */}
                     <div className="pointer-events-none absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
-                    <div className="relative grid gap-8 lg:grid-cols-[1fr_auto]">
-                        <div className="space-y-5">
+	                    <div className="relative grid gap-6 lg:grid-cols-[1fr_auto]">
+	                        <div className="space-y-4">
                             <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
                                 <Sparkles className="size-3.5" />
                                 Community
                             </div>
 
                             <div className="space-y-3">
-                                <h1 className="max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+	                                <h1 className="max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
                                     Share setups.{' '}
                                     <span className="bg-gradient-to-r from-primary via-blue-400 to-cyan-400 bg-clip-text text-transparent">
                                         Shape conviction.
                                     </span>
                                 </h1>
-                                <p className="max-w-lg text-sm leading-7 text-muted-foreground sm:text-[15px]">
+	                                <p className="max-w-lg text-sm leading-7 text-muted-foreground">
                                     Publish concise market notes with charts, tickers, and your thesis — structured for fast scanning.
                                 </p>
                             </div>
@@ -338,7 +344,7 @@ export function CommunityView() {
                         </div>
 
                         {/* Stat cards */}
-                        <div className="hidden gap-3 lg:grid lg:grid-cols-1 lg:w-56">
+	                        <div className="hidden gap-3 lg:grid lg:grid-cols-1 lg:w-52">
                             <div className="group rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 transition-all duration-500 hover:border-white/[0.1] hover:bg-white/[0.05]">
                                 <div className="mb-2.5 flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary transition-transform duration-500 group-hover:scale-110">
                                     <Flame className="size-4" />
@@ -399,28 +405,40 @@ export function CommunityView() {
                             void feedQuery.retryNow()
                         }}
                         ticker={activeTicker}
-                        requiresAuth={requiresAuth}
-                        renderPost={(post) => (
-                            <CommunityPostCard
-                                key={post.id}
-                                post={post}
-                                context="feed"
-                                onLike={handleLike}
-                                onSave={handleSave}
-                                onShare={(targetPost) => {
-                                    void sharePost(targetPost, toast)
-                                }}
-                                onEdit={(targetPost) =>
-                                    setComposerState({ mode: 'edit', post: targetPost })
-                                }
-                                onDelete={(targetPost) => {
-                                    void handleDeletePost(targetPost)
-                                }}
-                                onReport={(targetPost, reason) => {
-                                    void handleReport(targetPost, reason)
-                                }}
-                            />
-                        )}
+	                        requiresAuth={requiresAuth}
+	                        renderPost={(post) => (
+	                            <div key={post.id} className="space-y-3">
+	                                <CommunityPostCard
+	                                    post={post}
+	                                    context="feed"
+	                                    onLike={handleLike}
+	                                    onSave={handleSave}
+	                                    onShare={(targetPost) => {
+	                                        void sharePost(targetPost, toast)
+	                                    }}
+	                                    onEdit={(targetPost) =>
+	                                        setComposerState({ mode: 'edit', post: targetPost })
+	                                    }
+	                                    onDelete={(targetPost) => {
+	                                        void handleDeletePost(targetPost)
+	                                    }}
+	                                    onReport={(targetPost, reason) => {
+	                                        void handleReport(targetPost, reason)
+	                                    }}
+	                                    onDiscuss={toggleDiscussion}
+	                                    isDiscussionOpen={openDiscussionPostId === post.id}
+	                                />
+	                                {openDiscussionPostId === post.id ? (
+	                                    <div className="-mt-3 rounded-b-2xl border-x border-b border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent px-4 py-4 shadow-[0_18px_44px_-32px_rgba(0,0,0,0.8)]">
+	                                        <CommunityDiscussionPanel
+	                                            postId={post.id}
+	                                            commentCount={post.commentCount}
+	                                            variant="inline"
+	                                        />
+	                                    </div>
+	                                ) : null}
+	                            </div>
+	                        )}
                     />
                 </section>
             </div>

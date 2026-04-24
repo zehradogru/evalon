@@ -55,6 +55,22 @@ service cloud.firestore {
         isValidImageFields(data);
     }
 
+    function hasValidCommentCount(data) {
+      return !data.keys().hasAny(['commentCount']) ||
+        (data.commentCount is int && data.commentCount >= 0);
+    }
+
+    function isValidCommentBody(data) {
+      return data.content is string &&
+        data.content.size() > 0 &&
+        data.content.size() <= 500 &&
+        data.authorId is string &&
+        data.authorId.size() > 0 &&
+        data.authorName is string &&
+        data.authorName.size() > 0 &&
+        data.authorName.size() <= 80;
+    }
+
     function isAuthorEdit() {
       return isSignedIn() &&
         request.auth.uid == resource.data.authorId &&
@@ -63,6 +79,7 @@ service cloud.firestore {
           'tickers',
           'tags',
           'editedAt',
+          'commentCount',
           'imageUrl',
           'imagePath',
           'imageWidth',
@@ -73,6 +90,8 @@ service cloud.firestore {
         request.resource.data.authorName == resource.data.authorName &&
         request.resource.data.createdAt == resource.data.createdAt &&
         request.resource.data.likeCount == resource.data.likeCount &&
+        hasValidCommentCount(request.resource.data) &&
+        request.resource.data.get('commentCount', 0) == resource.data.get('commentCount', 0) &&
         request.resource.data.reportCount == resource.data.reportCount &&
         request.resource.data.editedAt is timestamp;
     }
@@ -95,6 +114,26 @@ service cloud.firestore {
         request.resource.data.reportCount is int &&
         resource.data.reportCount is int &&
         request.resource.data.reportCount == resource.data.reportCount + 1;
+    }
+
+    function isCommentCountDelta() {
+      return isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentCount']) &&
+        request.resource.data.commentCount is int &&
+        request.resource.data.commentCount >= 0 &&
+        (
+          (
+            resource.data.commentCount is int &&
+            (
+              request.resource.data.commentCount == resource.data.commentCount + 1 ||
+              (resource.data.commentCount > 0 && request.resource.data.commentCount == resource.data.commentCount - 1)
+            )
+          ) ||
+          (
+            !resource.data.keys().hasAny(['commentCount']) &&
+            request.resource.data.commentCount == 1
+          )
+        );
     }
 
     function canCreatePost(uid) {
@@ -126,6 +165,7 @@ service cloud.firestore {
           'createdAt',
           'editedAt',
           'likeCount',
+          'commentCount',
           'reportCount',
           'imageUrl',
           'imagePath',
@@ -136,12 +176,41 @@ service cloud.firestore {
         request.resource.data.createdAt is timestamp &&
         request.resource.data.editedAt == null &&
         request.resource.data.likeCount == 0 &&
+        request.resource.data.commentCount == 0 &&
         request.resource.data.reportCount == 0 &&
         isValidPostBody(request.resource.data) &&
         canCreatePost(request.auth.uid);
 
-      allow update: if isAuthorEdit() || isLikeCountDelta() || isReportCountDelta();
+      allow update: if isAuthorEdit() || isLikeCountDelta() || isReportCountDelta() || isCommentCountDelta();
       allow delete: if isSignedIn() && request.auth.uid == resource.data.authorId;
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn() &&
+          request.resource.data.keys().hasOnly([
+            'content',
+            'authorId',
+            'authorName',
+            'createdAt',
+            'editedAt'
+          ]) &&
+          request.resource.data.authorId == request.auth.uid &&
+          request.resource.data.createdAt is timestamp &&
+          request.resource.data.editedAt == null &&
+          isValidCommentBody(request.resource.data);
+        allow update: if isSignedIn() &&
+          request.auth.uid == resource.data.authorId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'content',
+            'editedAt'
+          ]) &&
+          request.resource.data.authorId == resource.data.authorId &&
+          request.resource.data.authorName == resource.data.authorName &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.editedAt is timestamp &&
+          isValidCommentBody(request.resource.data);
+        allow delete: if isSignedIn() && request.auth.uid == resource.data.authorId;
+      }
 
       match /reports/{reporterUid} {
         allow read: if isSignedIn() && request.auth.uid == reporterUid;

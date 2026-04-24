@@ -26,6 +26,8 @@ import {
 } from '@/services/community.service'
 import { useAuthStore } from '@/store/use-auth-store'
 import type {
+    CommunityComment,
+    CommunityCommentDraft,
     CommunityFeedCursor,
     CommunityFeedFilter,
     CommunityFeedPage,
@@ -37,6 +39,7 @@ import type {
 const COMMUNITY_FEED_QUERY_KEY = 'community-feed'
 const COMMUNITY_POST_QUERY_KEY = 'community-post'
 const COMMUNITY_RELATED_QUERY_KEY = 'community-related-posts'
+const COMMUNITY_COMMENTS_QUERY_KEY = 'community-comments'
 
 interface UseCommunityFeedParams {
     filter: CommunityFeedFilter
@@ -46,6 +49,12 @@ interface UseCommunityFeedParams {
 interface UpdatePostVariables {
     postId: string
     draft: CommunityPostDraft
+}
+
+interface CommentMutationVariables {
+    postId: string
+    commentId: string
+    draft: CommunityCommentDraft
 }
 
 interface CommunityComposerErrors {
@@ -267,6 +276,16 @@ export function useCommunityRelatedPosts(postId: string, tickers: string[]) {
     })
 }
 
+export function useCommunityComments(postId: string) {
+    const userId = useAuthStore((state) => state.user?.id ?? null)
+
+    return useQuery({
+        queryKey: [COMMUNITY_COMMENTS_QUERY_KEY, userId ?? 'anon', postId],
+        queryFn: () => communityService.getComments(postId, userId),
+        staleTime: 30 * 1000,
+    })
+}
+
 export function useCreateCommunityPost() {
     const queryClient = useQueryClient()
     const userId = useAuthStore((state) => state.user?.id ?? null)
@@ -281,6 +300,80 @@ export function useCreateCommunityPost() {
             void queryClient.invalidateQueries({
                 queryKey: [COMMUNITY_FEED_QUERY_KEY],
             })
+        },
+    })
+}
+
+export function useCreateCommunityComment() {
+    const queryClient = useQueryClient()
+    const userId = useAuthStore((state) => state.user?.id ?? null)
+
+    return useMutation({
+        mutationFn: ({
+            postId,
+            draft,
+        }: {
+            postId: string
+            draft: CommunityCommentDraft
+        }) => communityService.createComment(postId, draft),
+        onSuccess: (result, variables) => {
+            queryClient.setQueryData(
+                [COMMUNITY_COMMENTS_QUERY_KEY, userId ?? 'anon', variables.postId],
+                (comments: CommunityComment[] | undefined) => [
+                    result.comment,
+                    ...(comments ?? []),
+                ]
+            )
+            patchCommunityPostEverywhere(queryClient, variables.postId, (post) => ({
+                ...post,
+                commentCount: result.commentCount,
+            }))
+        },
+    })
+}
+
+export function useUpdateCommunityComment() {
+    const queryClient = useQueryClient()
+    const userId = useAuthStore((state) => state.user?.id ?? null)
+
+    return useMutation({
+        mutationFn: ({ postId, commentId, draft }: CommentMutationVariables) =>
+            communityService.updateComment(postId, commentId, draft),
+        onSuccess: (comment, variables) => {
+            queryClient.setQueryData(
+                [COMMUNITY_COMMENTS_QUERY_KEY, userId ?? 'anon', variables.postId],
+                (comments: CommunityComment[] | undefined) =>
+                    comments?.map((item) =>
+                        item.id === comment.id ? comment : item
+                    ) ?? comments
+            )
+        },
+    })
+}
+
+export function useDeleteCommunityComment() {
+    const queryClient = useQueryClient()
+    const userId = useAuthStore((state) => state.user?.id ?? null)
+
+    return useMutation({
+        mutationFn: ({
+            postId,
+            commentId,
+        }: {
+            postId: string
+            commentId: string
+        }) => communityService.deleteComment(postId, commentId),
+        onSuccess: (result, variables) => {
+            queryClient.setQueryData(
+                [COMMUNITY_COMMENTS_QUERY_KEY, userId ?? 'anon', variables.postId],
+                (comments: CommunityComment[] | undefined) =>
+                    comments?.filter((comment) => comment.id !== variables.commentId) ??
+                    comments
+            )
+            patchCommunityPostEverywhere(queryClient, variables.postId, (post) => ({
+                ...post,
+                commentCount: result.commentCount,
+            }))
         },
     })
 }

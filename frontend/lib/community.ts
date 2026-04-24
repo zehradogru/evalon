@@ -7,6 +7,7 @@ import type {
 export const COMMUNITY_PAGE_SIZE = 20
 export const COMMUNITY_POST_COOLDOWN_MS = 30_000
 export const COMMUNITY_CONTENT_MAX = 500
+export const COMMUNITY_COMMENT_MAX = 500
 export const COMMUNITY_MAX_TICKERS = 3
 export const COMMUNITY_MAX_TAGS = 3
 export const COMMUNITY_IMAGE_MAX_SIZE_BYTES = 5 * 1024 * 1024

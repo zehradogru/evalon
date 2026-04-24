@@ -1,14 +1,27 @@
 'use client'
 
-import { useState } from 'react'
-import { ImagePlus, RotateCcw, Trash2, Upload, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import {
+    ImagePlus,
+    Loader2,
+    RotateCcw,
+    Search,
+    Trash2,
+    Upload,
+    X,
+} from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useCommunityComposer } from '@/hooks/use-community'
-import { COMMUNITY_CONTENT_MAX } from '@/lib/community'
+import {
+    COMMUNITY_CONTENT_MAX,
+    COMMUNITY_MAX_TICKERS,
+    normalizeTicker,
+} from '@/lib/community'
 import { cn } from '@/lib/utils'
 import type { CommunityPostDraft } from '@/types'
 
@@ -20,6 +33,42 @@ interface CommunityComposerProps {
     onCancel?: () => void
 }
 
+interface TickerSuggestion {
+    ticker: string
+    name: string
+    changePct: number | null
+}
+
+async function fetchTickerSuggestions(searchQuery: string): Promise<TickerSuggestion[]> {
+    const params = new URLSearchParams({
+        view: 'markets',
+        limit: '8',
+        sortBy: 'ticker',
+        sortDir: 'asc',
+        q: searchQuery,
+    })
+
+    const response = await fetch(`/api/markets/list?${params.toString()}`)
+    if (!response.ok) {
+        throw new Error('Failed to search tickers')
+    }
+
+    const payload: {
+        items: Array<{ ticker: string; name: string; changePct: number | null }>
+    } = await response.json()
+
+    return payload.items.map((item) => ({
+        ticker: item.ticker,
+        name: item.name,
+        changePct: item.changePct,
+    }))
+}
+
+function formatChangePct(value: number | null) {
+    if (value === null) return null
+    return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
+}
+
 export function CommunityComposer({
     mode,
     composer,
@@ -28,9 +77,38 @@ export function CommunityComposer({
     onCancel,
 }: CommunityComposerProps) {
     const [tickerInput, setTickerInput] = useState('')
+    const [debouncedTickerInput, setDebouncedTickerInput] = useState('')
+    const [isTickerSearchFocused, setIsTickerSearchFocused] = useState(false)
     const [tagInput, setTagInput] = useState('')
     const [fileInputKey, setFileInputKey] = useState(0)
     const [isDragging, setIsDragging] = useState(false)
+
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            setDebouncedTickerInput(normalizeTicker(tickerInput))
+        }, 220)
+
+        return () => clearTimeout(timeout)
+    }, [tickerInput])
+
+    const {
+        data: tickerSuggestions = [],
+        isLoading: isTickerSuggestionsLoading,
+        isError: isTickerSuggestionsError,
+    } = useQuery({
+        queryKey: ['community-ticker-suggestions', debouncedTickerInput],
+        queryFn: () => fetchTickerSuggestions(debouncedTickerInput),
+        enabled: debouncedTickerInput.length > 0,
+        staleTime: 30 * 1000,
+    })
+
+    const availableTickerSuggestions = useMemo(
+        () =>
+            tickerSuggestions.filter(
+                (item) => !composer.tickers.includes(normalizeTicker(item.ticker))
+            ),
+        [composer.tickers, tickerSuggestions]
+    )
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault()
@@ -50,6 +128,12 @@ export function CommunityComposer({
     function commitTickerInput() {
         composer.addTickersFromInput(tickerInput)
         setTickerInput('')
+    }
+
+    function selectTicker(ticker: string) {
+        composer.addTickersFromInput(ticker)
+        setTickerInput('')
+        setDebouncedTickerInput('')
     }
 
     function commitTagInput() {
@@ -261,96 +345,164 @@ export function CommunityComposer({
                 </section>
 
                 {/* -------- Tickers & Tags -------- */}
-                <section className="grid gap-4 md:grid-cols-2">
-                    <div className="group/section rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 transition-all duration-500 hover:border-white/[0.1]">
-                        <div className="mb-3 space-y-1">
-                            <p className="text-sm font-semibold">Tickers</p>
-                            <p className="text-[11px] text-muted-foreground">
-                                Up to 3 symbols. Normalized to uppercase.
-                            </p>
-                        </div>
-                        <Input
-                            value={tickerInput}
-                            onChange={(event) => setTickerInput(event.target.value)}
-                            onBlur={commitTickerInput}
-                            onKeyDown={(event) => {
-                                if (event.key === 'Enter' || event.key === ',') {
-                                    event.preventDefault()
-                                    commitTickerInput()
-                                }
-                            }}
-                            placeholder="THYAO, ASELS, BIMAS"
-                            className="rounded-xl border-white/[0.06] bg-black/40 transition-colors focus:border-primary/30"
-                        />
-                        <div className="mt-3 flex min-h-8 flex-wrap gap-1.5">
-                            {composer.tickers.map((ticker) => (
-                                <Badge
-                                    key={ticker}
-                                    className="gap-1 rounded-lg border-0 bg-primary/10 px-2.5 py-1 text-primary transition-all hover:bg-primary/20"
-                                >
-                                    ${ticker}
-                                    <button
-                                        type="button"
-                                        className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-primary/20"
-                                        onClick={() => composer.removeTicker(ticker)}
-                                    >
-                                        <X className="size-3" />
-                                    </button>
-                                </Badge>
-                            ))}
-                        </div>
-                        {composer.errors.tickers ? (
-                            <p className="mt-3 text-xs text-destructive">
-                                {composer.errors.tickers}
-                            </p>
-                        ) : null}
-                    </div>
+	                <section className="grid gap-4 md:grid-cols-2">
+	                    <div className="group/section rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 transition-all duration-500 hover:border-white/[0.1]">
+	                        <div className="mb-3 space-y-1">
+	                            <p className="text-sm font-semibold">Tickers</p>
+	                            <p className="text-[11px] text-muted-foreground">
+	                                Search and select up to {COMMUNITY_MAX_TICKERS} symbols.
+	                            </p>
+	                        </div>
+	                        <div className="relative">
+	                            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+	                            <Input
+	                                value={tickerInput}
+	                                onChange={(event) => setTickerInput(event.target.value)}
+	                                onFocus={() => setIsTickerSearchFocused(true)}
+	                                onBlur={() => {
+	                                    window.setTimeout(() => {
+	                                        setIsTickerSearchFocused(false)
+	                                        commitTickerInput()
+	                                    }, 120)
+	                                }}
+	                                onKeyDown={(event) => {
+	                                    if (event.key === 'Enter' || event.key === ',') {
+	                                        event.preventDefault()
+	                                        commitTickerInput()
+	                                    }
+	                                }}
+	                                placeholder="Search ticker or company..."
+	                                disabled={composer.tickers.length >= COMMUNITY_MAX_TICKERS}
+	                                className="rounded-xl border-white/[0.06] bg-black/40 pl-9 transition-colors focus:border-primary/30 disabled:opacity-60"
+	                            />
+	                            {isTickerSearchFocused && tickerInput.trim() ? (
+	                                <div className="absolute z-20 mt-2 max-h-72 w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-background/95 shadow-[0_18px_60px_-24px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+	                                    {isTickerSuggestionsLoading ? (
+	                                        <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
+	                                            <Loader2 className="size-4 animate-spin" />
+	                                            Searching tickers...
+	                                        </div>
+	                                    ) : isTickerSuggestionsError ? (
+	                                        <div className="px-3 py-3 text-sm text-destructive">
+	                                            Ticker search failed. You can still press Enter to add manually.
+	                                        </div>
+	                                    ) : availableTickerSuggestions.length > 0 ? (
+	                                        <div className="max-h-72 overflow-y-auto p-1.5">
+	                                            {availableTickerSuggestions.map((item) => {
+	                                                const changeLabel = formatChangePct(item.changePct)
+	                                                return (
+	                                                    <button
+	                                                        key={item.ticker}
+	                                                        type="button"
+	                                                        className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-white/[0.05]"
+	                                                        onMouseDown={(event) => event.preventDefault()}
+	                                                        onClick={() => selectTicker(item.ticker)}
+	                                                    >
+	                                                        <span className="min-w-0">
+	                                                            <span className="block text-sm font-semibold text-foreground">
+	                                                                {item.ticker}
+	                                                            </span>
+	                                                            <span className="block truncate text-xs text-muted-foreground">
+	                                                                {item.name}
+	                                                            </span>
+	                                                        </span>
+	                                                        <span
+	                                                            className={cn(
+	                                                                'shrink-0 rounded-full px-2 py-0.5 text-xs tabular-nums',
+	                                                                item.changePct === null
+	                                                                    ? 'bg-white/[0.04] text-muted-foreground'
+	                                                                    : item.changePct >= 0
+	                                                                      ? 'bg-emerald-500/10 text-emerald-400'
+	                                                                      : 'bg-rose-500/10 text-rose-400'
+	                                                            )}
+	                                                        >
+	                                                            {changeLabel ?? 'n/a'}
+	                                                        </span>
+	                                                    </button>
+	                                                )
+	                                            })}
+	                                        </div>
+	                                    ) : (
+	                                        <div className="px-3 py-3 text-sm text-muted-foreground">
+	                                            No exact result. Press Enter to add{' '}
+	                                            <span className="font-semibold text-foreground">
+	                                                {normalizeTicker(tickerInput)}
+	                                            </span>
+	                                            .
+	                                        </div>
+	                                    )}
+	                                </div>
+	                            ) : null}
+	                        </div>
+	                        <div className="mt-3 flex min-h-8 flex-wrap gap-1.5">
+	                            {composer.tickers.map((ticker) => (
+	                                <Badge
+	                                    key={ticker}
+	                                    className="gap-1 rounded-lg border-0 bg-primary/10 px-2.5 py-1 text-primary transition-all hover:bg-primary/20"
+	                                >
+	                                    ${ticker}
+	                                    <button
+	                                        type="button"
+	                                        className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-primary/20"
+	                                        onClick={() => composer.removeTicker(ticker)}
+	                                    >
+	                                        <X className="size-3" />
+	                                    </button>
+	                                </Badge>
+	                            ))}
+	                        </div>
+	                        {composer.errors.tickers ? (
+	                            <p className="mt-3 text-xs text-destructive">
+	                                {composer.errors.tickers}
+	                            </p>
+	                        ) : null}
+	                    </div>
 
-                    <div className="group/section rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 transition-all duration-500 hover:border-white/[0.1]">
-                        <div className="mb-3 space-y-1">
-                            <p className="text-sm font-semibold">Tags</p>
-                            <p className="text-[11px] text-muted-foreground">
-                                Up to 3 descriptors. Normalized to lowercase.
-                            </p>
-                        </div>
-                        <Input
-                            value={tagInput}
-                            onChange={(event) => setTagInput(event.target.value)}
-                            onBlur={commitTagInput}
-                            onKeyDown={(event) => {
-                                if (event.key === 'Enter' || event.key === ',') {
-                                    event.preventDefault()
-                                    commitTagInput()
-                                }
-                            }}
-                            placeholder="breakout, swing, reaction"
-                            className="rounded-xl border-white/[0.06] bg-black/40 transition-colors focus:border-primary/30"
-                        />
-                        <div className="mt-3 flex min-h-8 flex-wrap gap-1.5">
-                            {composer.tags.map((tag) => (
-                                <Badge
-                                    key={tag}
-                                    variant="outline"
-                                    className="gap-1 rounded-lg border-white/[0.08] bg-white/[0.03] px-2.5 py-1 transition-all hover:border-white/[0.15]"
-                                >
-                                    #{tag}
-                                    <button
-                                        type="button"
-                                        className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-white/10"
-                                        onClick={() => composer.removeTag(tag)}
-                                    >
-                                        <X className="size-3" />
-                                    </button>
-                                </Badge>
-                            ))}
-                        </div>
-                        {composer.errors.tags ? (
-                            <p className="mt-3 text-xs text-destructive">
-                                {composer.errors.tags}
-                            </p>
-                        ) : null}
-                    </div>
-                </section>
+	                    <div className="group/section rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 transition-all duration-500 hover:border-white/[0.1]">
+	                        <div className="mb-3 space-y-1">
+	                            <p className="text-sm font-semibold">Tags</p>
+	                            <p className="text-[11px] text-muted-foreground">
+	                                Up to 3 descriptors. Normalized to lowercase.
+	                            </p>
+	                        </div>
+	                        <Input
+	                            value={tagInput}
+	                            onChange={(event) => setTagInput(event.target.value)}
+	                            onBlur={commitTagInput}
+	                            onKeyDown={(event) => {
+	                                if (event.key === 'Enter' || event.key === ',') {
+	                                    event.preventDefault()
+	                                    commitTagInput()
+	                                }
+	                            }}
+	                            placeholder="breakout, swing, reaction"
+	                            className="rounded-xl border-white/[0.06] bg-black/40 transition-colors focus:border-primary/30"
+	                        />
+	                        <div className="mt-3 flex min-h-8 flex-wrap gap-1.5">
+	                            {composer.tags.map((tag) => (
+	                                <Badge
+	                                    key={tag}
+	                                    variant="outline"
+	                                    className="gap-1 rounded-lg border-white/[0.08] bg-white/[0.03] px-2.5 py-1 transition-all hover:border-white/[0.15]"
+	                                >
+	                                    #{tag}
+	                                    <button
+	                                        type="button"
+	                                        className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-white/10"
+	                                        onClick={() => composer.removeTag(tag)}
+	                                    >
+	                                        <X className="size-3" />
+	                                    </button>
+	                                </Badge>
+	                            ))}
+	                        </div>
+	                        {composer.errors.tags ? (
+	                            <p className="mt-3 text-xs text-destructive">
+	                                {composer.errors.tags}
+	                            </p>
+	                        ) : null}
+	                    </div>
+	                </section>
             </div>
 
             {/* -------- Footer -------- */}
@@ -390,5 +542,5 @@ export function CommunityComposer({
                 </div>
             </div>
         </form>
-    )
-}
+	    )
+	}

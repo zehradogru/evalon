@@ -9,6 +9,7 @@ import {
 
 import { db } from '@/lib/firebase'
 import type {
+    CommunityCommentRecord,
     CommunityMarkerRecord,
     CommunityPostRecord,
     CommunityReportRecord,
@@ -17,6 +18,7 @@ import type {
 const POSTS_COLLECTION = 'posts'
 const USERS_COLLECTION = 'users'
 const REPORTS_COLLECTION = 'reports'
+const COMMENTS_COLLECTION = 'comments'
 const LIKES_COLLECTION = 'likes'
 const SAVES_COLLECTION = 'saves'
 
@@ -35,6 +37,7 @@ function createConverter<T extends DocumentData>(): FirestoreDataConverter<T> {
 }
 
 const communityPostConverter = createConverter<CommunityPostRecord>()
+const communityCommentConverter = createConverter<CommunityCommentRecord>()
 const communityReportConverter = createConverter<CommunityReportRecord>()
 const communityMarkerConverter = createConverter<CommunityMarkerRecord>()
 
@@ -49,6 +52,18 @@ export function postDoc(postId: string) {
 export function postReportsCollection(postId: string) {
     return collection(db, POSTS_COLLECTION, postId, REPORTS_COLLECTION).withConverter(
         communityReportConverter
+    )
+}
+
+export function postCommentsCollection(postId: string) {
+    return collection(db, POSTS_COLLECTION, postId, COMMENTS_COLLECTION).withConverter(
+        communityCommentConverter
+    )
+}
+
+export function postCommentDoc(postId: string, commentId: string) {
+    return doc(db, POSTS_COLLECTION, postId, COMMENTS_COLLECTION, commentId).withConverter(
+        communityCommentConverter
     )
 }
 

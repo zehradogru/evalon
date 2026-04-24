@@ -16,6 +16,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { CommunityAvatar } from '@/features/community/components/community-avatar'
+import { CommunityImageLightbox } from '@/features/community/components/community-image-lightbox'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -43,34 +45,23 @@ interface CommunityPostCardProps {
     onEdit?: (post: CommunityPost) => void
     onDelete?: (post: CommunityPost) => void
     onReport?: (post: CommunityPost, reason: CommunityReportReason) => void
-}
-
-/* ---------- Avatar gradient palette ---------- */
-const AVATAR_GRADIENTS = [
-    'from-blue-500 to-cyan-400',
-    'from-violet-500 to-fuchsia-400',
-    'from-emerald-500 to-teal-400',
-    'from-amber-500 to-orange-400',
-    'from-rose-500 to-pink-400',
-    'from-indigo-500 to-blue-400',
-]
-
-function avatarGradient(name: string) {
-    const charCode = name.charCodeAt(0) || 0
-    return AVATAR_GRADIENTS[charCode % AVATAR_GRADIENTS.length]
+    onDiscuss?: (post: CommunityPost) => void
+    isDiscussionOpen?: boolean
 }
 
 function renderMedia(
     post: CommunityPost,
     context: CommunityPostCardProps['context'],
-    postHref: string
+    onOpenImage: () => void
 ) {
     if (!post.imageUrl) return null
 
-    const imageMarkup = (
-        <div
+    return (
+        <button
+            type="button"
+            onClick={onOpenImage}
             className={cn(
-                'group/media relative overflow-hidden border border-white/[0.06] bg-black',
+                'group/media relative block w-full overflow-hidden border border-white/[0.06] bg-black text-left',
                 context === 'detail'
                     ? 'rounded-2xl'
                     : context === 'related'
@@ -93,20 +84,15 @@ function renderMedia(
                 )}
             />
             {/* Hover gradient overlay */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all duration-300 group-hover/media:bg-black/30 group-hover/media:opacity-100">
+                <span className="rounded-full border border-white/15 bg-black/60 px-3 py-1.5 text-xs font-medium text-white shadow-lg">
+                    Click to zoom
+                </span>
+            </div>
             {context !== 'detail' && (
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover/media:opacity-100" />
             )}
-        </div>
-    )
-
-    if (context === 'detail') {
-        return imageMarkup
-    }
-
-    return (
-        <Link href={postHref} className="block">
-            {imageMarkup}
-        </Link>
+        </button>
     )
 }
 
@@ -119,11 +105,14 @@ export function CommunityPostCard({
     onEdit,
     onDelete,
     onReport,
+    onDiscuss,
+    isDiscussionOpen = false,
 }: CommunityPostCardProps) {
     const isDetail = context === 'detail'
     const postHref = buildCommunityPostUrl(post.id)
     const [likeAnimating, setLikeAnimating] = useState(false)
     const [saveAnimating, setSaveAnimating] = useState(false)
+    const [isImageOpen, setIsImageOpen] = useState(false)
     const likeTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null)
     const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null)
 
@@ -155,18 +144,8 @@ export function CommunityPostCard({
             <div className="space-y-4 p-5">
                 {/* Author header */}
                 <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        {/* Gradient avatar */}
-                        <div className="relative">
-                            <div className={cn(
-                                'flex size-10 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white shadow-lg',
-                                avatarGradient(post.authorName)
-                            )}>
-                                {post.authorName.slice(0, 1).toUpperCase()}
-                            </div>
-                            {/* Online indicator dot */}
-                            <div className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-black bg-emerald-400" />
-                        </div>
+	                    <div className="flex items-center gap-3">
+	                        <CommunityAvatar name={post.authorName} showStatus />
 
                         <div className="min-w-0">
                             <p className="truncate text-sm font-semibold tracking-tight text-foreground">
@@ -234,7 +213,7 @@ export function CommunityPostCard({
                 </div>
 
                 {/* Media */}
-                {renderMedia(post, context, postHref)}
+	                {renderMedia(post, context, () => setIsImageOpen(true))}
 
                 {/* Content */}
                 {isDetail ? (
@@ -306,19 +285,38 @@ export function CommunityPostCard({
                     <span className="tabular-nums">{post.likeCount}</span>
                 </Button>
 
-                {/* Comment indicator (read-only) */}
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1.5 rounded-xl px-3 text-xs text-muted-foreground"
-                    asChild
-                >
-                    <Link href={postHref}>
+                {onDiscuss ? (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                            'gap-1.5 rounded-xl px-3 text-xs transition-colors',
+                            isDiscussionOpen
+                                ? 'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary'
+                                : 'text-muted-foreground'
+                        )}
+                        onClick={() => onDiscuss(post)}
+                    >
                         <MessageCircle className="size-4" />
+                        <span className="tabular-nums">{post.commentCount}</span>
                         <span className="hidden sm:inline">Discuss</span>
-                    </Link>
-                </Button>
+                    </Button>
+                ) : (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 rounded-xl px-3 text-xs text-muted-foreground"
+                        asChild
+                    >
+                        <Link href={`${postHref}#comments`}>
+                            <MessageCircle className="size-4" />
+                            <span className="tabular-nums">{post.commentCount}</span>
+                            <span className="hidden sm:inline">Discuss</span>
+                        </Link>
+                    </Button>
+                )}
 
                 {/* Save */}
                 <Button
@@ -355,6 +353,14 @@ export function CommunityPostCard({
                     <span className="hidden sm:inline">Share</span>
                 </Button>
             </div>
+            {post.imageUrl ? (
+                <CommunityImageLightbox
+                    imageUrl={post.imageUrl}
+                    alt={`Visual for ${post.authorName}'s post`}
+                    open={isImageOpen}
+                    onOpenChange={setIsImageOpen}
+                />
+            ) : null}
         </Card>
     )
 }

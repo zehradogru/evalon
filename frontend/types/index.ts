@@ -82,11 +82,20 @@ export interface CommunityPostRecord {
     createdAt: Timestamp
     editedAt: Timestamp | null
     likeCount: number
+    commentCount?: number
     reportCount: number
     imageUrl: string | null
     imagePath: string | null
     imageWidth: number | null
     imageHeight: number | null
+}
+
+export interface CommunityCommentRecord {
+    content: string
+    authorId: string
+    authorName: string
+    createdAt: Timestamp
+    editedAt: Timestamp | null
 }
 
 export interface CommunityReportRecord {
@@ -126,6 +135,7 @@ export interface CommunityPost {
     createdAt: string
     editedAt: string | null
     likeCount: number
+    commentCount: number
     reportCount: number
     imageUrl: string | null
     imagePath: string | null
@@ -133,6 +143,21 @@ export interface CommunityPost {
     imageHeight: number | null
     viewerHasLiked: boolean
     viewerHasSaved: boolean
+    isMine: boolean
+}
+
+export interface CommunityCommentDraft {
+    content: string
+}
+
+export interface CommunityComment {
+    id: string
+    postId: string
+    content: string
+    authorId: string
+    authorName: string
+    createdAt: string
+    editedAt: string | null
     isMine: boolean
 }
 
