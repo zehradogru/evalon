@@ -1,26 +1,73 @@
 /**
  * Market Configuration
  * Central source of truth for all market tickers
- * Last verified: 2026-04-05
+ * Last verified: 2026-04-24
  */
 
 // ============================================================================
 // BIST (Borsa Istanbul)
 // ============================================================================
 
-// All BIST tickers with data on 2026-03-17 (127 verified)
+// All BIST tickers with data on 2026-04-24 (verified)
 export const BIST_AVAILABLE = [
-    'AEFES', 'AGHOL', 'AGROT', 'AHGAZ', 'AKBNK', 'AKCNS', 'AKENR', 'AKFGY', 'AKSA', 'AKSEN', 'ALARK', 'ALFAS',
-    'ALGYO', 'ALTNY', 'ANSGR', 'ARCLK', 'ARDYZ', 'ASELS', 'ASTOR', 'BAGFS', 'BALSU', 'BIMAS', 'BIZIM', 'BRSAN',
-    'BRYAT', 'BSOKE', 'BTCIM', 'CANTE', 'CCOLA', 'CIMSA', 'CLEBI', 'CWENE', 'DAPGM', 'DEVA', 'DOAS', 'DOHOL',
-    'DSTKF', 'ECILC', 'EFOR', 'EGEEN', 'EKGYO', 'ENERY', 'ENJSA', 'ENKAI', 'ERCB', 'EREGL', 'EUPWR', 'FENER',
-    'FROTO', 'GARAN', 'GENIL', 'GESAN', 'GLRMK', 'GRSEL', 'GRTHO', 'GSRAY', 'GUBRF', 'GWIND', 'HALKB', 'HEKTS',
-    'ISCTR', 'ISGYO', 'ISMEN', 'IZENR', 'IZFAS', 'IZMDC', 'KAREL', 'KCAER', 'KCHOL', 'KLRHO', 'KONTR', 'KRDMD',
-    'KTLEV', 'KUYAS', 'LOGO', 'MAGEN', 'MAVI', 'MGROS', 'MIATK', 'MPARK', 'NETAS', 'OBAMS', 'ODAS', 'OTKAR',
-    'OYAKC', 'PASEU', 'PATEK', 'PETKM', 'PETUN', 'PGSUS', 'PNSUT', 'PRKME', 'QUAGR', 'RALYH', 'REEDR', 'SAHOL',
-    'SASA', 'SELEC', 'SISE', 'SKBNK', 'SOKM', 'TABGD', 'TAVHL', 'TCELL', 'THYAO', 'TKFEN', 'TMSN', 'TOASO',
-    'TRALT', 'TRENJ', 'TRMET', 'TSKB', 'TSPOR', 'TTKOM', 'TTRAK', 'TUKAS', 'TUPRS', 'TUREX', 'TURSG', 'ULKER',
-    'VAKBN', 'VESBE', 'VESTL', 'YEOTK', 'YKBNK', 'ZEDUR', 'ZOREN'
+    'ADET', 'HACIM', 'A1CAP', 'A1YEN', 'ACSEL', 'ADEL', 'ADESE', 'ADGYO', 'AEFES', 'AFYON', 'AGESA', 'AGHOL',
+    'AGROT', 'AGYO', 'AHGAZ', 'AHSGY', 'AKBNK', 'AKCNS', 'AKENR', 'AKFGY', 'AKFIS', 'AKFYE', 'AKGRT', 'AKHAN',
+    'AKMGY', 'AKSA', 'AKSEN', 'AKSGY', 'AKSUE', 'AKYHO', 'ALARK', 'ALBRK', 'ALCAR', 'ALCTL', 'ALFAS', 'ALGYO',
+    'ALKA', 'ALKIM', 'ALKLC', 'ALTNY', 'ALVES', 'ANELE', 'ANGEN', 'ANHYT', 'ANSGR', 'APBDL', 'APLIB', 'APMDL',
+    'APX30', 'ARASE', 'ARCLK', 'ARDYZ', 'ARENA', 'ARFYE', 'ARMGD', 'ARSAN', 'ARTMS', 'ARZUM', 'ASELS', 'ASGYO',
+    'ASTOR', 'ASUZU', 'ATAGY', 'ATAKP', 'ATATP', 'ATEKS', 'ATLAS', 'ATSYH', 'AVGYO', 'AVHOL', 'AVOD', 'AVPGY',
+    'AVTUR', 'AYCES', 'AYDEM', 'AYEN', 'AYES', 'AYGAZ', 'AZTEK', 'BAGFS', 'BAHKM', 'BAKAB', 'BALAT', 'BALSU',
+    'BANVT', 'BARMA', 'BASCM', 'BASGZ', 'BAYRK', 'BEGYO', 'BERA', 'BESLR', 'BESTE', 'BEYAZ', 'BFREN', 'BIENY',
+    'BIGCH', 'BIGEN', 'BIGTK', 'BIMAS', 'BINBN', 'BINHO', 'BIOEN', 'BIZIM', 'BJKAS', 'BLCYT', 'BLUME', 'BMSCH',
+    'BMSTL', 'BNTAS', 'BOBET', 'BORLS', 'BORSK', 'BOSSA', 'BRISA', 'BRKO', 'BRKSN', 'BRKVY', 'BRLSM', 'BRMEN',
+    'BRSAN', 'BRYAT', 'BSOKE', 'BTCIM', 'BUCIM', 'BULGS', 'BURCE', 'BURVA', 'BVSAN', 'BYDNR', 'CANTE', 'CASA',
+    'CATES', 'CCOLA', 'CELHA', 'CEMAS', 'CEMTS', 'CEMZY', 'CEOEM', 'CGCAM', 'CIMSA', 'CLEBI', 'CMBTN', 'CMENT',
+    'CONSE', 'COSMO', 'CRDFA', 'CRFSA', 'CUSAN', 'CVKMD', 'CWENE', 'DAGI', 'DAPGM', 'DARDL', 'DCTTR', 'DENGE',
+    'DERHL', 'DERIM', 'DESA', 'DESPC', 'DEVA', 'DGATE', 'DGGYO', 'DGNMO', 'DITAS', 'DMRGD', 'DMSAS', 'DNISI',
+    'DOAS', 'DOCO', 'DOFER', 'DOFRB', 'DOGUB', 'DOHOL', 'DOKTA', 'DSTKF', 'DUNYH', 'DURDO', 'DURKN', 'DYOBY',
+    'DZGYO', 'EBEBK', 'ECILC', 'ECOGR', 'ECZYT', 'EDATA', 'EDIP', 'EFOR', 'EGEEN', 'EGEGY', 'EGEPO', 'EGGUB',
+    'EGPRO', 'EGSER', 'EKGYO', 'EKIZ', 'EKOS', 'EKSUN', 'ELITE', 'EMKEL', 'EMNIS', 'ENDAE', 'ENERY', 'ENJSA',
+    'ENKAI', 'ENSRI', 'ENTRA', 'EPLAS', 'ERBOS', 'ERCB', 'EREGL', 'ERSU', 'ESCAR', 'ESCOM', 'ESEN', 'ETILR',
+    'ETYAT', 'EUHOL', 'EUKYO', 'EUPWR', 'EUREN', 'EUYO', 'EYGYO', 'FADE', 'FENER', 'FLAP', 'FMIZP', 'FONET',
+    'FORMT', 'FORTE', 'FRIGO', 'FRMPL', 'FROTO', 'FZLGY', 'GARAN', 'GARFA', 'GATEG', 'GEDIK', 'GEDZA', 'GENIL',
+    'GENTS', 'GEREL', 'GESAN', 'GIPTA', 'GLBMD', 'GLCVY', 'GLDTR', 'GLRMK', 'GLRYH', 'GLYHO', 'GMSTR', 'GMTAS',
+    'GOKNR', 'GOLTS', 'GOODY', 'GOZDE', 'GRNYO', 'GRSEL', 'GRTHO', 'GSDDE', 'GSDHO', 'GSRAY', 'GUBRF', 'GUNDG',
+    'GWIND', 'GZNMI', 'HALKB', 'HALKS', 'HATEK', 'HATSN', 'HDFGS', 'HEDEF', 'HEKTS', 'HKTM', 'HLGYO', 'HOROZ',
+    'HRKET', 'HTTBT', 'HUBVC', 'HUNER', 'HURGZ', 'ICBCT', 'ICUGS', 'IDGYO', 'IEYHO', 'IHAAS', 'IHEVA', 'IHGZT',
+    'IHLAS', 'IHLGM', 'IHYAY', 'IMASM', 'INDES', 'INFO', 'INGRM', 'INTEK', 'INTEM', 'INVEO', 'INVES', 'ISATR',
+    'ISBIR', 'ISBTR', 'ISCTR', 'ISDMR', 'ISFIN', 'ISGLK', 'ISGSY', 'ISGYO', 'ISIST', 'ISKPL', 'ISKUR', 'ISMEN',
+    'ISSEN', 'ISYAT', 'IZENR', 'IZFAS', 'IZINV', 'IZMDC', 'JANTS', 'KAPLM', 'KAREL', 'KARSN', 'KARTN', 'KATMR',
+    'KAYSE', 'KBORU', 'KCAER', 'KCHOL', 'KENT', 'KERVN', 'KFEIN', 'KGYO', 'KIMMR', 'KLGYO', 'KLKIM', 'KLMSN',
+    'KLNMA', 'KLRHO', 'KLSER', 'KLSYN', 'KLYPV', 'KMPUR', 'KNFRT', 'KOCMT', 'KONKA', 'KONTR', 'KONYA', 'KOPOL',
+    'KORDS', 'KOTON', 'KRDMA', 'KRDMB', 'KRDMD', 'KRGYO', 'KRONT', 'KRPLS', 'KRSTL', 'KRTEK', 'KRVGD', 'KSTUR',
+    'KTLEV', 'KTSKR', 'KUTPO', 'KUVVA', 'KUYAS', 'KZBGY', 'KZGYO', 'LIDER', 'LIDFA', 'LILAK', 'LINK', 'LKMNH',
+    'LMKDC', 'LOGO', 'LRSHO', 'LUKSK', 'LYDHO', 'LYDYE', 'MAALT', 'MACKO', 'MAGEN', 'MAKIM', 'MAKTK', 'MANAS',
+    'MARBL', 'MARKA', 'MARMR', 'MARTI', 'MAVI', 'MEDTR', 'MEGAP', 'MEGMT', 'MEKAG', 'MEPET', 'MERCN', 'MERIT',
+    'MERKO', 'METRO', 'MEYSU', 'MGROS', 'MHRGY', 'MIATK', 'MMCAS', 'MNDRS', 'MNDTR', 'MOBTL', 'MOGAN', 'MOPAS',
+    'MPARK', 'MRGYO', 'MRSHL', 'MSGYO', 'MTRKS', 'MTRYO', 'MZHLD', 'NATEN', 'NETAS', 'NETCD', 'NIBAS', 'NPTLR',
+    'NTGAZ', 'NTHOL', 'NUGYO', 'NUHCM', 'OBAMS', 'OBASE', 'ODAS', 'ODINE', 'OFSYM', 'ONCSM', 'ONRYT', 'OPK30',
+    'OPT25', 'OPTGY', 'OPTLR', 'OPX30', 'ORCAY', 'ORGE', 'ORMA', 'OSMEN', 'OSTIM', 'OTKAR', 'OTTO', 'OYAKC',
+    'OYAYO', 'OYLUM', 'OYYAT', 'OZATD', 'OZGYO', 'OZKGY', 'OZRDN', 'OZSUB', 'OZYSR', 'PAGYO', 'PAHOL', 'PAMEL',
+    'PAPIL', 'PARSN', 'PASEU', 'PATEK', 'PCILT', 'PEKGY', 'PENGD', 'PENTA', 'PETKM', 'PETUN', 'PGSUS', 'PINSU',
+    'PKART', 'PKENT', 'PLTUR', 'PNLSN', 'PNSUT', 'POLHO', 'POLTK', 'PRDGS', 'PRKAB', 'PRKME', 'PRZMA', 'PSDTC',
+    'PSGYO', 'QNBFK', 'QNBTR', 'QTEMZ', 'QUAGR', 'RALYH', 'RAYSG', 'REEDR', 'RGYAS', 'RNPOL', 'RODRG', 'RTALB',
+    'RUBNS', 'RUZYE', 'RYGYO', 'RYSAS', 'SAFKR', 'SAHOL', 'SAMAT', 'SANEL', 'SANFM', 'SANKO', 'SARKY', 'SASA',
+    'SAYAS', 'SDTTR', 'SEGMN', 'SEGYO', 'SEKFK', 'SEKUR', 'SELEC', 'SELVA', 'SERNT', 'SEYKM', 'SILVR', 'SISE',
+    'SKBNK', 'SKTAS', 'SKYLP', 'SKYMD', 'SMART', 'SMRTG', 'SMRVA', 'SNGYO', 'SNICA', 'SNPAM', 'SODSN', 'SOKE',
+    'SOKM', 'SONME', 'SRVGY', 'SUMAS', 'SUNTK', 'SURGY', 'SUWEN', 'TABGD', 'TARKM', 'TATEN', 'TATGD', 'TAVHL',
+    'TBORG', 'TCELL', 'TCKRC', 'TDGYO', 'TEHOL', 'TEKTU', 'TERA', 'TEZOL', 'TGSAS', 'THYAO', 'TKFEN', 'TKNSA',
+    'TLMAN', 'TMPOL', 'TMSN', 'TNZTP', 'TOASO', 'TRALT', 'TRCAS', 'TRENJ', 'TRGYO', 'TRHOL', 'TRILC', 'TRMET',
+    'TSGYO', 'TSKB', 'TSPOR', 'TTKOM', 'TTRAK', 'TUCLK', 'TUKAS', 'TUPRS', 'TUREX', 'TURGG', 'TURSG', 'UCAYM',
+    'UFUK', 'ULAS', 'ULKER', 'ULUFA', 'ULUSE', 'ULUUN', 'UNLU', 'USAK', 'USDTR', 'VAKBN', 'VAKFA', 'VAKFN',
+    'VAKKO', 'VANGD', 'VBTYZ', 'VERTU', 'VERUS', 'VESBE', 'VESTL', 'VKFYO', 'VKGYO', 'VKING', 'VRGYO', 'VSNMD',
+    'X030S', 'X100S', 'XBANA', 'XBANK', 'XBLSM', 'XELKT', 'XFINK', 'XGIDA', 'XGMYO', 'XHARZ', 'XHOLD', 'XILTM',
+    'XINSA', 'XKAGT', 'XKMYA', 'XKOBI', 'XKURY', 'XMADN', 'XMANA', 'XMESY', 'XSADA', 'XSANK', 'XSANT', 'XSBAL',
+    'XSBUR', 'XSDNZ', 'XSGRT', 'XSIST', 'XSIZM', 'XSKAY', 'XSKOC', 'XSKON', 'XSPOR', 'XSTKR', 'XTAST', 'XTCRT',
+    'XTEKS', 'XTM25', 'XTMTU', 'XTRZM', 'XTUMY', 'XU030', 'XU050', 'XU100', 'XUHIZ', 'XULAS', 'XUMAL', 'XUSIN',
+    'XUSRD', 'XUTEK', 'XUTUM', 'XYLDZ', 'XYORT', 'XYUZO', 'YAPRK', 'YATAS', 'YAYLA', 'YBTAS', 'YEOTK', 'YESIL',
+    'YGGYO', 'YIGIT', 'YKBNK', 'YKSLN', 'YONGA', 'YUNSA', 'YYAPI', 'YYLGD', 'Z30EA', 'Z30KE', 'Z30KP', 'ZEDUR',
+    'ZELOT', 'ZERGY', 'ZGOLD', 'ZGYO', 'ZOREN', 'ZPBDL', 'ZPLIB', 'ZPT10', 'ZPX30', 'ZRE20', 'ZRGYO', 'ZSR25',
+    'ZTLRF', 'ZTLRK', 'ZTM25',
 ] as const;
 
 // Tickers NOT available in the API (for reference)

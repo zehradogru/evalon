@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from api.modules.ai.presentation.router import create_ai_router
 from api.modules.backtests.infrastructure.run_store import InMemoryRunStore
 from api.modules.backtests.presentation.router import create_backtest_router
+from api.screener import create_screener_router
 from api.talib_indicators import (
     INDICATOR_CATALOG,
     TalibUnavailableError,
@@ -322,6 +323,7 @@ app.include_router(
         asset_store_path=_resolve_ai_asset_store_path(),
     )
 )
+app.include_router(create_screener_router(price_client=client))
 
 
 @app.get("/")

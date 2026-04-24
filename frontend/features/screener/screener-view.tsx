@@ -1,630 +1,457 @@
-'use client'
+﻿'use client'
 
 import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-    type ChangeEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
 } from 'react'
-import { Card } from '@/components/ui/card'
+import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { MarketDataStatusChip } from '@/components/market-data-status-chip'
+import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select-native'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
-    ChevronDown,
-    ChevronUp,
-    ChevronsUpDown,
-    Download,
-    Filter,
-    Loader2,
-    MoreHorizontal,
-    RefreshCcw,
-    Search,
-    SlidersHorizontal,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import {
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
+  Loader2,
+  Search,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useInfiniteLoad } from '@/hooks/use-infinite-load'
 import { useMarketList } from '@/hooks/use-market-list'
 import {
-    useDeleteScreenerPreset,
-    useSaveScreenerPreset,
-    useScreenerPresets,
+  useDeleteScreenerPreset,
+  useSaveScreenerPreset,
+  useScreenerPresets,
 } from '@/hooks/use-screener-presets'
+import { useScreenerScan } from '@/hooks/use-screener'
+import { MarketDataStatusChip } from '@/components/market-data-status-chip'
+import { FilterPanel } from './filter-panel/filter-panel'
+import { ScanControls } from './scan-controls'
+import { ResultsTable } from './results-table'
 import type { ListSortDirection, MarketListSortField } from '@/types'
+import type {
+  FilterLogic,
+  ScanRequest,
+  ScanResponse,
+  ScreenerFilter,
+  ScreenerTimeframe,
+} from '@/types/screener'
 
-interface ScreenerViewProps {
-    isWidget?: boolean
+function formatVolume(vol: number | null | undefined) {
+  if (vol === null || vol === undefined) return '-'
+  if (vol >= 1_000_000_000) return `${(vol / 1_000_000_000).toFixed(2)}B`
+  if (vol >= 1_000_000) return `${(vol / 1_000_000).toFixed(2)}M`
+  if (vol >= 1_000) return `${(vol / 1_000).toFixed(2)}K`
+  return vol.toFixed(0)
 }
 
-function RatingBadge({ rating }: { rating: string }) {
-    let colorClass = 'bg-secondary text-muted-foreground'
-    if (rating === 'Strong Buy') colorClass = 'bg-chart-2/20 text-chart-2 border-chart-2/20'
-    if (rating === 'Buy') colorClass = 'bg-chart-2/10 text-chart-2'
-    if (rating === 'Sell') colorClass = 'bg-destructive/10 text-destructive'
-    if (rating === 'Strong Sell') colorClass = 'bg-destructive/20 text-destructive border-destructive/20'
-
-    return (
-        <Badge variant="outline" className={cn('border font-medium whitespace-nowrap h-5 text-[10px]', colorClass)}>
-            {rating}
-        </Badge>
-    )
+function fmt(v: number | null | undefined, d = 2) {
+  return v === null || v === undefined ? '-' : v.toFixed(d)
 }
 
-function formatVolume(vol: number | null) {
-    if (vol === null) return '-'
-    if (vol >= 1_000_000_000) return `${(vol / 1_000_000_000).toFixed(2)}B`
-    if (vol >= 1_000_000) return `${(vol / 1_000_000).toFixed(2)}M`
-    if (vol >= 1_000) return `${(vol / 1_000).toFixed(2)}K`
-    return vol.toFixed(0)
-}
-
-function formatNullableNumber(value: number | null | undefined, decimals = 2) {
-    if (value === null || value === undefined) return '-'
-    return value.toFixed(decimals)
-}
-
-function SortableHeadCell({
-    field,
-    label,
-    align = 'right',
-    activeField,
-    sortDirection,
-    onSort,
+function SortHead({
+  field, label, align = 'right', activeField, dir, onSort,
 }: {
-    field: MarketListSortField
-    label: string
-    align?: 'left' | 'right'
-    activeField: MarketListSortField
-    sortDirection: ListSortDirection
-    onSort: (field: MarketListSortField) => void
+  field: MarketListSortField
+  label: string
+  align?: 'left' | 'right'
+  activeField: MarketListSortField
+  dir: ListSortDirection
+  onSort: (f: MarketListSortField) => void
 }) {
-    const active = activeField === field
-
-    return (
-        <TableHead
-            className={cn(
-                'text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:bg-muted/40',
-                align === 'left' ? 'text-left' : 'text-right',
-                active && 'text-foreground'
-            )}
-            onClick={() => onSort(field)}
-        >
-            <div className={cn('flex items-center gap-1', align === 'right' && 'justify-end')}>
-                <span>{label}</span>
-                {active ? (
-                    sortDirection === 'asc' ? (
-                        <ChevronUp className="h-3.5 w-3.5" />
-                    ) : (
-                        <ChevronDown className="h-3.5 w-3.5" />
-                    )
-                ) : (
-                    <ChevronsUpDown className="h-3.5 w-3.5 opacity-30" />
-                )}
-            </div>
-        </TableHead>
-    )
+  const active = activeField === field
+  return (
+    <TableHead
+      className={cn(
+        'text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:bg-muted/40',
+        align === 'left' ? 'text-left' : 'text-right',
+        active && 'text-foreground',
+      )}
+      onClick={() => onSort(field)}
+    >
+      <div className={cn('flex items-center gap-1', align === 'right' && 'justify-end')}>
+        {label}
+        {active
+          ? dir === 'asc'
+            ? <ChevronUp className="h-3 w-3" />
+            : <ChevronDown className="h-3 w-3" />
+          : <ChevronsUpDown className="h-3 w-3 opacity-30" />}
+      </div>
+    </TableHead>
+  )
 }
+
+function exportCsv(response: ScanResponse) {
+  const header = 'Symbol,Sector,Price,Chg%,Volume,Vol/Avg,Filters'
+  const csvRows = response.rows.map((r) =>
+    [r.ticker, r.sector ?? '', r.close, r.change_pct, r.volume, r.vol_ratio?.toFixed(2) ?? '', r.matched_filters.join('; ')].join(','),
+  )
+  const blob = new Blob(['\uFEFF' + [header, ...csvRows].join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `screener_${Date.now()}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+interface ScreenerViewProps { isWidget?: boolean }
 
 export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
-    const [searchTerm, setSearchTerm] = useState('')
-    const [debouncedSearch, setDebouncedSearch] = useState('')
-    const [sortField, setSortField] = useState<MarketListSortField>('changePct')
-    const [sortDirection, setSortDirection] = useState<ListSortDirection>('desc')
-    const [selectedPresetId, setSelectedPresetId] = useState('')
-    const [presetName, setPresetName] = useState('')
-    const [presetFeedback, setPresetFeedback] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [sortField, setSortField] = useState<MarketListSortField>('changePct')
+  const [sortDirection, setSortDirection] = useState<ListSortDirection>('desc')
+  const [filters, setFilters] = useState<ScreenerFilter[]>([])
+  const [filterLogic, setFilterLogic] = useState<FilterLogic>('AND')
+  const [timeframe, setTimeframe] = useState<ScreenerTimeframe>('1d')
+  const [sectors, setSectors] = useState<string[]>([])
+  const [lookbackBars, setLookbackBars] = useState(100)
+  const [scanResponse, setScanResponse] = useState<ScanResponse | null>(null)
+  const [activeChipId, setActiveChipId] = useState<string | undefined>()
+  const [selectedPresetId, setSelectedPresetId] = useState('')
+  const [presetName, setPresetName] = useState('')
+  const [presetFeedback, setPresetFeedback] = useState<string | null>(null)
 
-    const { data: screenerPresets = [] } = useScreenerPresets()
-    const savePresetMutation = useSaveScreenerPreset()
-    const deletePresetMutation = useDeleteScreenerPreset()
+  const { data: screenerPresets = [] } = useScreenerPresets()
+  const savePresetMutation = useSaveScreenerPreset()
+  const deletePresetMutation = useDeleteScreenerPreset()
+  const scanMutation = useScreenerScan()
 
-    useEffect(() => {
-        const timeout = setTimeout(() => {
-            setDebouncedSearch(searchTerm.trim())
-        }, 300)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300)
+    return () => clearTimeout(t)
+  }, [searchTerm])
 
-        return () => clearTimeout(timeout)
-    }, [searchTerm])
+  const { data, hasNextPage, isFetchingNextPage, fetchNextPage, isFetching, marketStatus, retryNow } = useMarketList({
+    view: 'screener', limit: 50, sortBy: sortField, sortDir: sortDirection, q: debouncedSearch,
+  })
 
-    const {
-        data,
-        hasNextPage,
-        isFetchingNextPage,
-        fetchNextPage,
-        isFetching,
-        marketStatus,
-        retryNow,
-    } = useMarketList({
-        view: 'screener',
-        limit: 10,
-        sortBy: sortField,
-        sortDir: sortDirection,
-        q: debouncedSearch,
-    })
+  const rows = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data])
 
-    const rows = useMemo(() => data?.pages.flatMap((page) => page.items) || [], [data])
-    const total = data?.pages[0]?.total ?? 0
+  const handleLoadMore = useCallback(() => {
+    if (!hasNextPage || isFetchingNextPage) return
+    void fetchNextPage()
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage])
 
-    const handleLoadMore = useCallback(() => {
-        if (!hasNextPage || isFetchingNextPage) return
-        void fetchNextPage()
-    }, [fetchNextPage, hasNextPage, isFetchingNextPage])
+  const { sentinelRef } = useInfiniteLoad({
+    canLoadMore: Boolean(hasNextPage),
+    isLoadingMore: isFetchingNextPage,
+    onLoadMore: handleLoadMore,
+  })
 
-    const { sentinelRef } = useInfiniteLoad({
-        canLoadMore: Boolean(hasNextPage),
-        isLoadingMore: isFetchingNextPage,
-        onLoadMore: handleLoadMore,
-    })
+  const handleSort = (field: MarketListSortField) => {
+    if (sortField === field) setSortDirection((prev) => prev === 'asc' ? 'desc' : 'asc')
+    else { setSortField(field); setSortDirection('desc') }
+  }
 
-    const handleSort = (field: MarketListSortField) => {
-        if (sortField === field) {
-            setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-            return
-        }
-
-        setSortField(field)
-        setSortDirection('desc')
+  async function handleScan() {
+    const req: ScanRequest = {
+      tickers: 'all',
+      sectors: sectors.length > 0 ? sectors : undefined,
+      timeframe,
+      lookback_bars: lookbackBars,
+      filters,
+      logic: filterLogic,
+      sort_by: 'change_pct',
+      sort_dir: 'desc',
+      limit: 200,
     }
+    try { setScanResponse(await scanMutation.mutateAsync(req)) } catch { /* handled via isError */ }
+  }
 
-    const handleSavePreset = async () => {
-        setPresetFeedback(null)
-        const normalizedName = presetName.trim()
-        if (!normalizedName) {
-            setPresetFeedback('Preset name is required.')
-            return
-        }
+  function handleQuickApply(newFilters: ScreenerFilter[], tf?: ScreenerTimeframe, lg?: FilterLogic) {
+    setFilters(newFilters)
+    if (tf) setTimeframe(tf)
+    if (lg) setFilterLogic(lg)
+  }
 
-        try {
-            const nextPresets = await savePresetMutation.mutateAsync({
-                name: normalizedName,
-                search: searchTerm.trim(),
-                sortBy: sortField,
-                sortDir: sortDirection,
-            })
+  const handleSavePreset = async () => {
+    setPresetFeedback(null)
+    const name = presetName.trim()
+    if (!name) { setPresetFeedback('Name required.'); return }
+    try {
+      const saved = await savePresetMutation.mutateAsync({
+        name, search: searchTerm.trim(), sortBy: sortField, sortDir: sortDirection,
+      })
+      const found = saved.find((p) => p.name.toLowerCase() === name.toLowerCase())
+      if (found) setSelectedPresetId(found.id)
+      setPresetFeedback('Saved.')
+    } catch (e) { setPresetFeedback(e instanceof Error ? e.message : 'Could not save.') }
+  }
 
-            const savedPreset = nextPresets.find(
-                (preset) =>
-                    preset.name.toLocaleLowerCase('tr-TR') ===
-                    normalizedName.toLocaleLowerCase('tr-TR')
-            )
-            if (savedPreset) {
-                setSelectedPresetId(savedPreset.id)
-            }
-            setPresetFeedback('Preset saved.')
-        } catch (mutationError) {
-            setPresetFeedback(
-                mutationError instanceof Error
-                    ? mutationError.message
-                    : 'Preset could not be saved.'
-            )
-        }
-    }
+  const handleDeletePreset = async () => {
+    if (!selectedPresetId) return
+    setPresetFeedback(null)
+    try {
+      await deletePresetMutation.mutateAsync(selectedPresetId)
+      setSelectedPresetId('')
+      setPresetName('')
+      setPresetFeedback('Deleted.')
+    } catch (e) { setPresetFeedback(e instanceof Error ? e.message : 'Could not delete.') }
+  }
 
-    const handleDeletePreset = async () => {
-        if (!selectedPresetId) return
-        setPresetFeedback(null)
-        try {
-            await deletePresetMutation.mutateAsync(selectedPresetId)
-            setSelectedPresetId('')
-            setPresetName('')
-            setPresetFeedback('Preset deleted.')
-        } catch (mutationError) {
-            setPresetFeedback(
-                mutationError instanceof Error
-                    ? mutationError.message
-                    : 'Preset could not be deleted.'
-            )
-        }
-    }
+  const handlePresetChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value
+    setSelectedPresetId(id)
+    setPresetFeedback(null)
+    if (!id) { setPresetName(''); return }
+    const p = screenerPresets.find((x) => x.id === id)
+    if (!p) return
+    setSearchTerm(p.search)
+    setDebouncedSearch(p.search)
+    setSortField(p.sortBy)
+    setSortDirection(p.sortDir)
+    setPresetName(p.name)
+  }
 
-    const handlePresetChange = (event: ChangeEvent<HTMLSelectElement>) => {
-        const presetId = event.target.value
-        setSelectedPresetId(presetId)
-        setPresetFeedback(null)
-
-        if (!presetId) {
-            setPresetName('')
-            return
-        }
-
-        const selected = screenerPresets.find((preset) => preset.id === presetId)
-        if (!selected) return
-
-        setSearchTerm(selected.search)
-        setDebouncedSearch(selected.search)
-        setSortField(selected.sortBy)
-        setSortDirection(selected.sortDir)
-        setPresetName(selected.name)
-    }
-
-    if (isWidget) {
-        return (
-            <div className="flex flex-col h-full bg-background">
-                <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border sticky top-0 bg-background z-10 shrink-0">
-                    <span className="font-semibold text-sm flex items-center gap-2">
-                        <SlidersHorizontal size={16} />
-                        Screener
-                    </span>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => {
-                            void retryNow()
-                        }}
-                    >
-                        <RefreshCcw size={14} className={cn(isFetching && 'animate-spin')} />
-                    </Button>
-                    <MarketDataStatusChip
-                        status={marketStatus}
-                        labels={{
-                            refreshing: 'Yenileniyor',
-                            warming: 'Hazirlaniyor',
-                            stale: 'Gecikmeli',
-                            partial: 'Kismi veri',
-                            error: 'Baglanti sorunu',
-                        }}
-                    />
-                </div>
-
-                <div className="flex-1 overflow-auto p-0">
-                    {marketStatus.isInitialLoading ? (
-                        <div className="flex items-center justify-center h-full">
-                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                        </div>
-                    ) : marketStatus.source === 'error' && !marketStatus.hasUsableData ? (
-                        <div className="px-4 py-6 text-xs text-destructive text-center">
-                            <div className="flex flex-col items-center gap-3">
-                                <span>{marketStatus.errorMessage || 'Screener yüklenemedi'}</span>
-                                <Button size="sm" variant="outline" onClick={() => void retryNow()}>
-                                    <RefreshCcw size={14} className="mr-1.5" />
-                                    Tekrar Dene
-                                </Button>
-                            </div>
-                        </div>
-                    ) : (
-                        <>
-                            {rows.map((item) => (
-                                <div
-                                    key={item.ticker}
-                                    className="flex items-center justify-between py-2 px-4 hover:bg-accent/50 cursor-pointer border-b border-border last:border-0"
-                                >
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-bold">{item.ticker}</span>
-                                        <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">{item.name}</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-sm">{formatNullableNumber(item.price)}</div>
-                                        <div
-                                            className={cn(
-                                                'text-[10px] font-medium',
-                                                (item.changePct ?? 0) >= 0 ? 'text-chart-2' : 'text-destructive'
-                                            )}
-                                        >
-                                            {item.changePct !== null && item.changePct !== undefined
-                                                ? `${item.changePct > 0 ? '+' : ''}${item.changePct.toFixed(2)}%`
-                                                : '-'}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-
-                            <div className="p-3 border-t border-border flex items-center justify-between text-[10px] text-muted-foreground">
-                                <span>
-                                    {rows.length} / {total}
-                                </span>
-                                {hasNextPage ? (
-                                    <button
-                                        type="button"
-                                        onClick={handleLoadMore}
-                                        disabled={isFetchingNextPage}
-                                        className="underline-offset-2 hover:underline disabled:opacity-60"
-                                    >
-                                        {isFetchingNextPage ? 'Loading...' : 'Load More'}
-                                    </button>
-                                ) : (
-                                    <span>Done</span>
-                                )}
-                            </div>
-                            <div ref={sentinelRef} className="h-2" aria-hidden="true" />
-                        </>
-                    )}
-                </div>
-            </div>
-        )
-    }
-
+  // ── Widget mode ──────────────────────────────────────────────────────────────
+  if (isWidget) {
     return (
-        <div className="flex flex-col h-full bg-background">
-            <div className="flex flex-col border-b border-border bg-background p-4 gap-4">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                        Stock Screener <Badge variant="secondary" className="text-xs">LIVE</Badge>
-                    </h1>
-                    <div className="flex items-center gap-2">
-                        <MarketDataStatusChip
-                            status={marketStatus}
-                            labels={{
-                                refreshing: 'Yenileniyor',
-                                warming: 'Hazirlaniyor',
-                                stale: 'Gecikmeli',
-                                partial: 'Kismi veri',
-                                error: 'Baglanti sorunu',
-                            }}
-                        />
-                        <Button variant="outline" size="sm" className="h-8 gap-2 border-border text-muted-foreground hover:text-foreground" disabled>
-                            <Download size={14} />
-                            Export
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-2 border-border text-muted-foreground hover:text-foreground"
-                            onClick={() => {
-                                void retryNow()
-                            }}
-                            disabled={isFetching}
-                        >
-                            <RefreshCcw size={14} className={cn(isFetching && 'animate-spin')} />
-                            Refresh
-                        </Button>
-                    </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                    <div className="relative w-full max-w-xs">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <Input
-                            placeholder="Symbol or Name..."
-                            className="pl-9 h-9 bg-secondary/50 border-border"
-                            value={searchTerm}
-                            onChange={(event) => setSearchTerm(event.target.value)}
-                        />
-                    </div>
-
-                    <Badge variant="outline" className="h-9 px-3 gap-2 text-muted-foreground border-border">
-                        <Filter size={14} />
-                        Server-side filters active
-                    </Badge>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground">
-                        <SlidersHorizontal size={16} />
-                    </Button>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                    <Select
-                        value={selectedPresetId}
-                        onChange={handlePresetChange}
-                        className="h-9 w-[220px] bg-secondary/50 border-border text-sm"
-                    >
-                        <option value="">Select preset</option>
-                        {screenerPresets.map((preset) => (
-                            <option key={preset.id} value={preset.id}>
-                                {preset.name}
-                            </option>
-                        ))}
-                    </Select>
-
-                    <Input
-                        value={presetName}
-                        onChange={(event) => setPresetName(event.target.value)}
-                        placeholder="Preset name"
-                        className="h-9 w-[200px]"
-                    />
-
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-9"
-                        onClick={() => {
-                            void handleSavePreset()
-                        }}
-                        disabled={savePresetMutation.isPending}
-                    >
-                        {savePresetMutation.isPending ? 'Saving...' : 'Save Preset'}
-                    </Button>
-
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-9"
-                        onClick={() => {
-                            void handleDeletePreset()
-                        }}
-                        disabled={!selectedPresetId || deletePresetMutation.isPending}
-                    >
-                        {deletePresetMutation.isPending ? 'Deleting...' : 'Delete Preset'}
-                    </Button>
-
-                    {presetFeedback && (
-                        <span className="text-xs text-muted-foreground">{presetFeedback}</span>
-                    )}
-                </div>
-            </div>
-
-            <div className="flex-1 overflow-auto bg-background p-4">
-                <Card className="bg-card border-border overflow-hidden rounded-md">
-                    <Table>
-                        <TableHeader className="bg-secondary/30 sticky top-0 z-10 backdrop-blur-sm">
-                            <TableRow className="border-border hover:bg-transparent">
-                                <SortableHeadCell
-                                    field="ticker"
-                                    label="Ticker"
-                                    align="left"
-                                    activeField={sortField}
-                                    sortDirection={sortDirection}
-                                    onSort={handleSort}
-                                />
-                                <SortableHeadCell
-                                    field="price"
-                                    label="Price"
-                                    activeField={sortField}
-                                    sortDirection={sortDirection}
-                                    onSort={handleSort}
-                                />
-                                <SortableHeadCell
-                                    field="changePct"
-                                    label="Change %"
-                                    activeField={sortField}
-                                    sortDirection={sortDirection}
-                                    onSort={handleSort}
-                                />
-                                <SortableHeadCell
-                                    field="vol"
-                                    label="Volume"
-                                    activeField={sortField}
-                                    sortDirection={sortDirection}
-                                    onSort={handleSort}
-                                />
-                                <SortableHeadCell
-                                    field="marketCap"
-                                    label="Market Cap"
-                                    activeField={sortField}
-                                    sortDirection={sortDirection}
-                                    onSort={handleSort}
-                                />
-                                <SortableHeadCell
-                                    field="pe"
-                                    label="P/E"
-                                    activeField={sortField}
-                                    sortDirection={sortDirection}
-                                    onSort={handleSort}
-                                />
-                                <SortableHeadCell
-                                    field="eps"
-                                    label="EPS (TTM)"
-                                    activeField={sortField}
-                                    sortDirection={sortDirection}
-                                    onSort={handleSort}
-                                />
-                                <SortableHeadCell
-                                    field="sector"
-                                    label="Sector"
-                                    activeField={sortField}
-                                    sortDirection={sortDirection}
-                                    onSort={handleSort}
-                                />
-                                <SortableHeadCell
-                                    field="rating"
-                                    label="Rating"
-                                    activeField={sortField}
-                                    sortDirection={sortDirection}
-                                    onSort={handleSort}
-                                />
-                            </TableRow>
-                        </TableHeader>
-
-                        <TableBody>
-                            {marketStatus.isInitialLoading ? (
-                                <TableRow>
-                                    <TableCell colSpan={9} className="py-10 text-center">
-                                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mx-auto" />
-                                    </TableCell>
-                                </TableRow>
-                            ) : marketStatus.source === 'error' && !marketStatus.hasUsableData ? (
-                                <TableRow>
-                                    <TableCell colSpan={9} className="py-10 text-center text-sm text-destructive">
-                                        <div className="flex flex-col items-center gap-3">
-                                            <span>{marketStatus.errorMessage || 'Screener yüklenemedi'}</span>
-                                            <Button size="sm" variant="outline" onClick={() => void retryNow()}>
-                                                <RefreshCcw size={14} className="mr-1.5" />
-                                                Tekrar Dene
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ) : rows.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
-                                        {marketStatus.isWarming ? 'Piyasa verisi hazirlaniyor.' : 'No data found'}
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                rows.map((item) => (
-                                    <TableRow
-                                        key={item.ticker}
-                                        className="border-border hover:bg-muted/50 transition-colors group cursor-pointer h-12"
-                                    >
-                                        <TableCell className="font-medium pl-4 py-2">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-7 w-7 rounded-sm bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground">
-                                                    {item.ticker[0]}
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
-                                                        {item.ticker}
-                                                    </span>
-                                                    <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">
-                                                        {item.name}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right font-mono text-sm font-medium">
-                                            {formatNullableNumber(item.price)}
-                                        </TableCell>
-                                        <TableCell
-                                            className={cn(
-                                                'text-right font-medium text-sm',
-                                                (item.changePct ?? 0) >= 0 ? 'text-chart-2' : 'text-destructive'
-                                            )}
-                                        >
-                                            {item.changePct !== null && item.changePct !== undefined
-                                                ? `${item.changePct > 0 ? '+' : ''}${item.changePct.toFixed(2)}%`
-                                                : '-'}
-                                        </TableCell>
-                                        <TableCell className="text-right text-sm text-muted-foreground">{formatVolume(item.vol)}</TableCell>
-                                        <TableCell className="text-right text-sm text-muted-foreground">
-                                            {formatNullableNumber(item.marketCap)}
-                                        </TableCell>
-                                        <TableCell className="text-right text-sm text-muted-foreground">
-                                            {formatNullableNumber(item.pe)}
-                                        </TableCell>
-                                        <TableCell className="text-right text-sm text-muted-foreground">
-                                            {formatNullableNumber(item.eps)}
-                                        </TableCell>
-                                        <TableCell className="text-right text-sm text-muted-foreground">{item.sector || '-'}</TableCell>
-                                        <TableCell className="text-center pr-4">
-                                            <div className="flex justify-center">
-                                                <RatingBadge rating={item.rating || 'Neutral'} />
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-
-                    <div className="p-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground bg-secondary/10">
-                        <span>
-                            Showing {rows.length} / {total}
-                        </span>
-                        <div className="flex items-center gap-2">
-                            {hasNextPage ? (
-                                <button
-                                    type="button"
-                                    onClick={handleLoadMore}
-                                    disabled={isFetchingNextPage}
-                                    className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 hover:bg-muted disabled:opacity-60"
-                                >
-                                    {isFetchingNextPage ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                                    Load More
-                                </button>
-                            ) : (
-                                <span>All rows loaded</span>
-                            )}
-                            <MoreHorizontal size={14} />
-                        </div>
-                    </div>
-                    <div ref={sentinelRef} className="h-2" aria-hidden="true" />
-                </Card>
-            </div>
+      <div className="flex flex-col h-full bg-background">
+        <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border sticky top-0 bg-background z-10 shrink-0">
+          <span className="font-semibold text-sm flex items-center gap-2">
+            <SlidersHorizontal size={16} />
+            Stock Screener
+          </span>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => void retryNow()}>
+            <div className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')}>↻</div>
+          </Button>
         </div>
+        <div className="flex-1 overflow-auto">
+          {rows.map((item) => (
+            <div key={item.ticker} className="flex items-center justify-between py-2 px-4 hover:bg-accent/50 cursor-pointer border-b border-border last:border-0">
+              <div className="flex flex-col">
+                <span className="text-sm font-bold">{item.ticker}</span>
+                <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">{item.name}</span>
+              </div>
+              <div className="text-right">
+                <div className="text-sm">{fmt(item.price)}</div>
+                <div className={cn('text-[10px] font-medium', (item.changePct ?? 0) >= 0 ? 'text-chart-2' : 'text-destructive')}>
+                  {item.changePct != null ? `${item.changePct > 0 ? '+' : ''}${item.changePct.toFixed(2)}%` : '-'}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     )
+  }
+
+  // ── Full page ────────────────────────────────────────────────────────────────
+  return (
+    <div className="flex flex-col h-full bg-background">
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background shrink-0">
+        <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+          Stock Screener
+          <Badge variant="secondary" className="text-xs font-medium">BIST</Badge>
+        </h1>
+        <MarketDataStatusChip
+          status={marketStatus}
+          labels={{
+            refreshing: 'Refreshing',
+            warming: 'Loading',
+            stale: 'Delayed',
+            partial: 'Partial data',
+            error: 'Connection error',
+          }}
+        />
+      </div>
+
+      <Tabs defaultValue="scan" className="flex flex-col flex-1 overflow-hidden">
+
+        {/* Tab list */}
+        <div className="px-6 pt-3 shrink-0 border-b border-border bg-background">
+          <TabsList className="h-9 bg-muted/50">
+            <TabsTrigger value="browse" className="text-sm px-5">Browse</TabsTrigger>
+            <TabsTrigger value="scan" className="text-sm px-5">Scan</TabsTrigger>
+          </TabsList>
+        </div>
+
+        {/* ── Browse tab ─────────────────────────────────────────────────────── */}
+        <TabsContent value="browse" className="flex flex-col flex-1 overflow-hidden mt-0">
+
+          {/* Toolbar */}
+          <div className="px-6 py-3 flex flex-wrap items-center gap-2 border-b border-border bg-background shrink-0">
+            <div className="relative w-56">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Search symbol..."
+                className="pl-9 h-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <Select
+              value={selectedPresetId}
+              onChange={handlePresetChange}
+              className="h-9 w-44 text-sm"
+            >
+              <option value="">Select preset</option>
+              {screenerPresets.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </Select>
+            <Input
+              value={presetName}
+              onChange={(e) => setPresetName(e.target.value)}
+              placeholder="Preset name"
+              className="h-9 w-36"
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              className="h-9 px-4"
+              onClick={() => void handleSavePreset()}
+              disabled={savePresetMutation.isPending}
+            >
+              Save
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 px-4"
+              onClick={() => void handleDeletePreset()}
+              disabled={!selectedPresetId || deletePresetMutation.isPending}
+            >
+              Delete
+            </Button>
+            {presetFeedback && (
+              <span className="text-xs text-muted-foreground">{presetFeedback}</span>
+            )}
+          </div>
+
+          {/* Data table */}
+          <div className="flex-1 overflow-auto p-4">
+            <div className="rounded-lg border border-border overflow-hidden">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow className="hover:bg-transparent">
+                    <SortHead field="ticker" label="Symbol" align="left" activeField={sortField} dir={sortDirection} onSort={handleSort} />
+                    <SortHead field="price" label="Price" activeField={sortField} dir={sortDirection} onSort={handleSort} />
+                    <SortHead field="changePct" label="Chg%" activeField={sortField} dir={sortDirection} onSort={handleSort} />
+                    <SortHead field="vol" label="Volume" activeField={sortField} dir={sortDirection} onSort={handleSort} />
+                    <TableHead className="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Name</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {marketStatus.isInitialLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-12 text-center">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mx-auto" />
+                      </TableCell>
+                    </TableRow>
+                  ) : rows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-12 text-center text-sm text-muted-foreground">
+                        No results found.
+                      </TableCell>
+                    </TableRow>
+                  ) : rows.map((item) => (
+                    <TableRow key={item.ticker} className="hover:bg-accent/40">
+                      <TableCell className="font-bold text-sm">
+                        <Link href={`/dashboard/charts/${item.ticker}`} className="hover:text-primary transition-colors">
+                          {item.ticker}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-sm">{fmt(item.price)}</TableCell>
+                      <TableCell className={cn('text-right tabular-nums text-sm font-medium', (item.changePct ?? 0) >= 0 ? 'text-chart-2' : 'text-destructive')}>
+                        {item.changePct != null ? `${item.changePct > 0 ? '+' : ''}${item.changePct.toFixed(2)}%` : '-'}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
+                        {formatVolume(item.vol)}
+                      </TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground truncate max-w-[180px]">
+                        {item.name}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div ref={sentinelRef} className="h-4" aria-hidden />
+          </div>
+        </TabsContent>
+
+        {/* ── Scan tab ───────────────────────────────────────────────────────── */}
+        <TabsContent value="scan" className="flex flex-row flex-1 overflow-hidden mt-0">
+
+          {/* Left sidebar: filters + scan controls */}
+          <aside className="w-72 shrink-0 border-r border-border bg-card/20 flex flex-col overflow-y-auto">
+            <div className="p-4 flex flex-col gap-5">
+
+              <FilterPanel
+                filters={filters}
+                logic={filterLogic}
+                activeChipId={activeChipId}
+                onFiltersChange={setFilters}
+                onLogicChange={setFilterLogic}
+                onQuickApply={handleQuickApply}
+              />
+
+              <ScanControls
+                timeframe={timeframe}
+                sectors={sectors}
+                lookbackBars={lookbackBars}
+                isScanning={scanMutation.isPending}
+                onTimeframeChange={setTimeframe}
+                onSectorsChange={setSectors}
+                onLookbackChange={setLookbackBars}
+                onScan={() => void handleScan()}
+              />
+
+              {scanMutation.isError && (
+                <p className="text-xs text-destructive bg-destructive/10 rounded-md px-3 py-2 leading-relaxed">
+                  Scan failed:{' '}
+                  {scanMutation.error instanceof Error
+                    ? scanMutation.error.message
+                    : 'Unknown error'}
+                </p>
+              )}
+            </div>
+          </aside>
+
+          {/* Right: results */}
+          <main className="flex-1 overflow-auto">
+            {scanMutation.isPending ? (
+              <div className="flex flex-col items-center justify-center h-full min-h-[300px] gap-3 text-muted-foreground">
+                <Loader2 className="h-9 w-9 animate-spin" />
+                <p className="text-sm font-medium">Scanning BIST...</p>
+                <p className="text-xs opacity-70">This may take up to 60 seconds</p>
+              </div>
+            ) : scanResponse ? (
+              <div className="p-5">
+                <ResultsTable response={scanResponse} onExportCsv={() => exportCsv(scanResponse)} />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full min-h-[300px] gap-3 text-muted-foreground">
+                <SlidersHorizontal className="h-10 w-10 opacity-20" />
+                <p className="text-sm font-medium">No scan results yet</p>
+                <p className="text-xs opacity-70 text-center max-w-xs">
+                  Set your filters on the left and click <span className="font-semibold text-foreground">Scan</span> to find matching stocks
+                </p>
+              </div>
+            )}
+          </main>
+
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
 }
