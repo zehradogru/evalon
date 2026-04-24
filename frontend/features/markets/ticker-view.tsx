@@ -4,8 +4,9 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts'
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts'
 import { AlertCircle, ArrowDown, ArrowLeft, ArrowUp, BarChart3, Bell, Clock, LineChart as LineChartIcon, Loader2, Maximize2, RefreshCw, Share2, Star, TrendingDown, TrendingUp, Waves } from 'lucide-react'
+import { CandlestickChart } from '@/components/candlestick-chart'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MarketDataStatusChip } from '@/components/market-data-status-chip'
@@ -316,11 +317,11 @@ export function TickerView({ ticker }: TickerViewProps) {
           </div>
 
           {/* Chart + side panel */}
-          <div className="grid gap-4 p-3 sm:p-4 xl:grid-cols-[1fr_320px]">
+          <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-[1fr_300px] lg:items-start">
 
-            {/* Price chart */}
-            <div className="relative h-[260px] overflow-hidden rounded-xl border border-border/60 bg-background/40 sm:h-[420px]">
-              {showInitialLoading ? (
+            {/* Price chart - candlestick */}
+            <div className="relative h-[340px] overflow-hidden rounded-xl border border-border/60 bg-background/40 sm:h-[460px] lg:h-[560px]">
+              {showInitialLoading && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/80 backdrop-blur-sm">
                   <div className="flex flex-col items-center gap-3">
                     <div className="relative">
@@ -329,66 +330,24 @@ export function TickerView({ ticker }: TickerViewProps) {
                     </div>
                     <div className="flex flex-col items-center gap-1">
                       <span className="text-sm font-medium">Loading chart</span>
-                      <span className="text-xs text-muted-foreground">{normalizedTicker} - {formatTimeframeLabel(timeframe)}</span>
+                      <span className="text-xs text-muted-foreground">{normalizedTicker} · {formatTimeframeLabel(timeframe)}</span>
                     </div>
                   </div>
                 </div>
-              ) : null}
-              {showHardFailure ? (
-                <div className="absolute inset-0 flex items-center justify-center p-4">
-                  <div className="flex max-w-xs flex-col items-center gap-3 text-center">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10"><AlertCircle className="h-6 w-6 text-destructive" /></div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-medium">Failed to load price data</span>
-                      <span className="text-xs text-muted-foreground">{marketStatus.errorMessage || 'Service is temporarily unavailable.'}</span>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => void retryNow()}><RefreshCw size={14} className="mr-1.5" />Retry</Button>
-                  </div>
-                </div>
-              ) : showEmptyState ? (
-                <div className="absolute inset-0 flex items-center justify-center p-4">
-                  <div className="flex max-w-xs flex-col items-center gap-3 text-center">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary"><LineChartIcon className="h-6 w-6 text-muted-foreground" /></div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-medium">No data found</span>
-                      <span className="text-xs text-muted-foreground">{chartEmptyMessage}</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={data} margin={{ top: 10, right: 8, left: 8, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorPricePos" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorPriceNeg" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333333" opacity={0.4} />
-                    <XAxis dataKey="t" tickFormatter={(value) => formatAxisTime(timeframe, String(value))} stroke="#888888" fontSize={11} tickLine={false} axisLine={false} dy={10} minTickGap={30} />
-                    <YAxis domain={yDomain} stroke="#888888" fontSize={11} tickLine={false} axisLine={false} width={yAxisWidth} tickFormatter={(value) => typeof value === 'number' ? formatYAxisTick(value) : String(value)} />
-                    <RechartsTooltip
-                      contentStyle={{ backgroundColor: '#111111', borderColor: '#333333', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                      itemStyle={{ color: '#ffffff' }}
-                      labelStyle={{ color: '#888888', marginBottom: '4px' }}
-                      labelFormatter={(label) => new Date(String(label)).toLocaleString('en-US')}
-                      formatter={(value, name) => [typeof value === 'number' ? value.toFixed(2) : String(value ?? ''), name === 'c' ? 'Price' : String(name ?? '')]}
-                    />
-                    <Area type="monotone" dataKey="c" stroke={headerStats?.isPositive ? '#22c55e' : '#ef4444'} strokeWidth={2} fillOpacity={1} fill={headerStats?.isPositive ? 'url(#colorPricePos)' : 'url(#colorPriceNeg)'} animationDuration={500} />
-                  </AreaChart>
-                </ResponsiveContainer>
               )}
-              {showChart && marketStatus.isBackgroundRefreshing ? (
-                <div className="absolute right-3 top-3 rounded-full border border-border/70 bg-background/90 px-2 py-1 text-[10px] text-muted-foreground backdrop-blur">Refreshing data...</div>
-              ) : null}
+              {showHardFailure && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-2 text-center">
+                    <AlertCircle className="h-8 w-8 text-destructive" />
+                    <span className="text-sm text-muted-foreground">Chart data unavailable</span>
+                  </div>
+                </div>
+              )}
+              <CandlestickChart data={data} className="h-full w-full" />
             </div>
 
             {/* Side panel */}
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 lg:sticky lg:top-4">
               <Card className="rounded-xl border border-border/60 bg-background/40 p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <Waves className="h-4 w-4 shrink-0 text-primary" />

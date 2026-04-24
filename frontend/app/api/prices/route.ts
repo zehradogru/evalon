@@ -583,8 +583,37 @@ export async function GET(request: NextRequest) {
                 return benchmarkResult
             }
 
-            // Crypto — fetch from Yahoo Finance directly
+            // Crypto — try Evalon (Oracle) first, fallback to Yahoo Finance
             if (isCryptoTicker(ticker)) {
+                // 1. Try Evalon backend (Oracle DB has 2.6M rows per ticker, 2021–2026)
+                try {
+                    const evalonResponse = await fetchWithTimeout(
+                        buildEvalonUrl('/v1/prices', {
+                            ticker,
+                            timeframe,
+                            limit: params.fetchLimit,
+                            start: params.start,
+                            end,
+                        }),
+                        15_000
+                    )
+                    if (evalonResponse.ok) {
+                        const evalonPayload = (await evalonResponse.json()) as { data?: PriceBar[]; rows?: number }
+                        const evalonData: PriceBar[] = Array.isArray(evalonPayload.data) ? evalonPayload.data : []
+                        if (evalonData.length > 0) {
+                            evalonData.sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime())
+                            const sliced = evalonData.length > requestedLimit ? evalonData.slice(-requestedLimit) : evalonData
+                            const oracleResult: PriceApiResponse = {
+                                ticker, timeframe, rows: sliced.length, data: sliced,
+                                meta: buildMeta({ hasUsableData: true, source: 'live' }),
+                            }
+                            setCache(cacheKey, oracleResult)
+                            return oracleResult
+                        }
+                    }
+                } catch { /* Oracle unavailable, fall through to Yahoo */ }
+
+                // 2. Fallback: Yahoo Finance
                 const yahooSymbol = CRYPTO_YAHOO_SYMBOLS[ticker.toUpperCase()]
                 const bars = await fetchYahooBarsForSymbolCached(yahooSymbol, timeframe, requestedLimit)
                 const cryptoResult: PriceApiResponse = {

@@ -1,15 +1,18 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Share2, Bookmark, Clock, ExternalLink, Zap, TrendingUp, Filter } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Search, Share2, Bookmark, Clock, ExternalLink, Zap, Filter, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select } from '@/components/ui/select-native';
 import { fetchNews } from '@/services/news.service';
 import type { NewsItem } from '@/types/news';
+
+const PAGE_SIZE = 10;
 
 function formatRelativeTime(dateStr: string | null): string {
     if (!dateStr) return '—';
@@ -42,19 +45,56 @@ interface NewsViewProps {
 export function NewsView({ isWidget = false }: NewsViewProps) {
     const [selectedNews, setSelectedNews] = useState<number | null>(null);
     const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [searchQ, setSearchQ] = useState('');
+    const sentinelRef = useRef<HTMLDivElement>(null);
 
+    // Reset + fetch first page when searchQ changes
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLoading(true);
         setError(null);
-        fetchNews({ limit: 50, q: searchQ || undefined })
-            .then(res => setNewsItems(res.items))
+        setNewsItems([]);
+        setPage(1);
+        setHasMore(true);
+        fetchNews({ limit: PAGE_SIZE, page: 1, q: searchQ || undefined })
+            .then(res => {
+                setNewsItems(res.items);
+                setHasMore(res.items.length === PAGE_SIZE);
+            })
             .catch(err => setError(err.message))
             .finally(() => setLoading(false));
     }, [searchQ]);
+
+    // Load next page
+    const loadMore = useCallback(() => {
+        if (loadingMore || !hasMore) return;
+        const nextPage = page + 1;
+        setLoadingMore(true);
+        fetchNews({ limit: PAGE_SIZE, page: nextPage, q: searchQ || undefined })
+            .then(res => {
+                setNewsItems(prev => [...prev, ...res.items]);
+                setPage(nextPage);
+                setHasMore(res.items.length === PAGE_SIZE);
+            })
+            .catch(() => { /* silently ignore load-more errors */ })
+            .finally(() => setLoadingMore(false));
+    }, [loadingMore, hasMore, page, searchQ]);
+
+    // IntersectionObserver — fires loadMore when sentinel scrolls into view
+    useEffect(() => {
+        const el = sentinelRef.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(
+            (entries) => { if (entries[0].isIntersecting) loadMore(); },
+            { threshold: 0.1 }
+        );
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [loadMore]);
 
     if (isWidget) {
         return (
@@ -66,7 +106,17 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
                     <Button variant="ghost" size="icon" className="h-6 w-6"><Filter size={14} /></Button>
                 </div>
                 <div className="flex-1 overflow-auto p-0">
-                    {loading && <p className="text-xs text-muted-foreground p-4">Loading...</p>}
+                    {loading && (
+                        <div className="divide-y divide-border">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className="flex flex-col gap-1.5 py-2 px-4">
+                                    <Skeleton className="h-2.5 w-24" />
+                                    <Skeleton className="h-3 w-full" />
+                                    <Skeleton className="h-3 w-3/4" />
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     {error && <p className="text-xs text-destructive p-4">{error}</p>}
                     {newsItems.slice(0, 8).map((item) => (
                         <div key={item.id} className="flex flex-col py-2 px-4 hover:bg-accent/50 cursor-pointer border-b border-border last:border-0 gap-1">
@@ -115,7 +165,18 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
                 {/* News List */}
                 <ScrollArea className="flex-1">
                     <div className="divide-y divide-border">
-                        {loading && <p className="p-6 text-sm text-muted-foreground">Haberler Loading...</p>}
+                        {loading && (
+                            <>
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                    <div key={i} className="p-4 space-y-2">
+                                        <Skeleton className="h-3 w-32" />
+                                        <Skeleton className="h-5 w-full" />
+                                        <Skeleton className="h-4 w-5/6" />
+                                        <Skeleton className="h-4 w-2/3" />
+                                    </div>
+                                ))}
+                            </>
+                        )}
                         {error && <p className="p-6 text-sm text-destructive">{error}</p>}
                         {!loading && !error && newsItems.length === 0 && (
                             <p className="p-6 text-sm text-muted-foreground">No news found.</p>
@@ -159,72 +220,137 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
                                 </div>
                             </div>
                         ))}
+                        {/* Sentinel — triggers loadMore when scrolled into view */}
+                        <div ref={sentinelRef} className="py-4 flex justify-center">
+                            {loadingMore && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                            {!loadingMore && !hasMore && newsItems.length > 0 && (
+                                <span className="text-[11px] text-muted-foreground">Tüm haberler yüklendi</span>
+                            )}
+                        </div>
                     </div>
                 </ScrollArea>
             </div>
 
             {/* Reading Pane (Conditional) */}
-            {selectedNews && (
-                <div className="flex-1 bg-card border-l border-border h-full overflow-hidden flex flex-col animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className="p-6 border-b border-border flex items-center justify-between">
-                        <Button variant="ghost" onClick={() => setSelectedNews(null)} className="gap-2">
-                            Kapat
-                        </Button>
-                        <div className="flex gap-2">
-                            {newsItems.find(n => n.id === selectedNews)?.news_url && (
+            {selectedNews && (() => {
+                const item = newsItems.find(n => n.id === selectedNews);
+                if (!item) return null;
+                const sentimentColor =
+                    item.sentiment?.toUpperCase() === 'OLUMLU' ? 'text-emerald-400 bg-emerald-400/10' :
+                    item.sentiment?.toUpperCase() === 'OLUMSUZ' ? 'text-red-400 bg-red-400/10' :
+                    'text-muted-foreground bg-secondary';
+                const scoreDisplay = item.sentiment_score != null
+                    ? `${(item.sentiment_score * 100).toFixed(0)}%`
+                    : null;
+
+                return (
+                    <div className="flex-1 bg-card border-l border-border h-full overflow-hidden flex flex-col animate-in fade-in slide-in-from-right-4 duration-300">
+                        {/* Top bar */}
+                        <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
+                            <Button variant="ghost" size="sm" onClick={() => setSelectedNews(null)}>
+                                ← Kapat
+                            </Button>
+                            {item.news_url && (
                                 <Button variant="outline" size="sm" className="gap-2" asChild>
-                                    <a href={newsItems.find(n => n.id === selectedNews)!.news_url!} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink size={14} /> Go to Source
+                                    <a href={item.news_url} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink size={14} /> Kaynağa Git
                                     </a>
                                 </Button>
                             )}
-                            <Button variant="default" size="sm">Trade on News</Button>
                         </div>
-                    </div>
-                    <ScrollArea className="flex-1 p-8">
-                        <article className="prose dark:prose-invert max-w-none">
-                            <div className="flex items-center gap-4 mb-6">
-                                <span className="text-sm text-muted-foreground">{newsItems.find(n => n.id === selectedNews)?.news_source ?? '—'}</span>
-                                <span className="h-1 w-1 rounded-full bg-border"></span>
-                                <span className="text-sm text-muted-foreground">{formatRelativeTime(newsItems.find(n => n.id === selectedNews)?.published_at ?? null)}</span>
-                                {newsItems.find(n => n.id === selectedNews)?.symbol && (
-                                    <>
-                                        <span className="h-1 w-1 rounded-full bg-border"></span>
-                                        <span className="text-sm font-mono text-primary">{newsItems.find(n => n.id === selectedNews)?.symbol}</span>
-                                    </>
-                                )}
-                            </div>
-                            <h1 className="text-4xl font-extrabold mb-6 leading-tight tracking-tight">
-                                {newsItems.find(n => n.id === selectedNews)?.title}
-                            </h1>
-                            <div className="p-4 bg-secondary/30 rounded-lg border-l-4 border-primary mb-8 italic text-lg text-muted-foreground">
-                                {newsItems.find(n => n.id === selectedNews)?.summary ?? ''}
-                            </div>
-                            <p className="text-lg leading-relaxed text-foreground/90">
-                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-                            </p>
-                            <p className="text-lg leading-relaxed text-foreground/90 mt-4">
-                                Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-                            </p>
-                            <div className="my-8 p-6 border border-border rounded-xl bg-background">
-                                <h4 className="font-bold flex items-center gap-2 mb-4">
-                                    <TrendingUp size={20} className="text-chart-2" /> Market Impact
-                                </h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-4 bg-secondary/50 rounded-lg">
-                                        <div className="text-sm text-muted-foreground mb-1">Hisse</div>
-                                        <div className="font-bold text-lg">{newsItems.find(n => n.id === selectedNews)?.symbol ?? '—'}</div>
+
+                        <ScrollArea className="flex-1">
+                            <div className="p-8 max-w-2xl mx-auto space-y-6">
+                                {/* Meta row */}
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                    {item.news_source && (
+                                        <span className="font-semibold text-foreground bg-secondary px-2 py-0.5 rounded">
+                                            {item.news_source}
+                                        </span>
+                                    )}
+                                    {item.symbol && (
+                                        <span className="font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">
+                                            {item.symbol}
+                                        </span>
+                                    )}
+                                    <span className="flex items-center gap-1">
+                                        <Clock size={11} /> {formatRelativeTime(item.published_at)}
+                                    </span>
+                                    {item.author && (
+                                        <>
+                                            <span className="text-border">·</span>
+                                            <span>{item.author}</span>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Title */}
+                                <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-foreground">
+                                    {item.title}
+                                </h1>
+
+                                {/* Sentiment badge */}
+                                {item.sentiment && (
+                                    <div className="flex items-center gap-2">
+                                        <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full', sentimentColor)}>
+                                            {mapSentiment(item.sentiment)}
+                                        </span>
+                                        {scoreDisplay && (
+                                            <span className="text-xs text-muted-foreground">güven: {scoreDisplay}</span>
+                                        )}
                                     </div>
-                                    <div className="p-4 bg-secondary/50 rounded-lg">
-                                        <div className="text-sm text-muted-foreground mb-1">Duygu</div>
-                                        <div className="font-bold text-lg">{mapSentiment(newsItems.find(n => n.id === selectedNews)?.sentiment ?? null)}</div>
+                                )}
+
+                                {/* Summary */}
+                                {item.summary ? (
+                                    <div className="border-l-4 border-primary pl-4 py-1">
+                                        <p className="text-base leading-relaxed text-foreground/90 whitespace-pre-line">
+                                            {item.summary}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground italic">Özet mevcut değil.</p>
+                                )}
+
+                                {/* Market info grid */}
+                                <div className="grid grid-cols-2 gap-3 pt-2">
+                                    <div className="p-3 rounded-xl bg-secondary/50 border border-border/50">
+                                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Hisse</div>
+                                        <div className="font-bold">{item.symbol ?? '—'}</div>
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-secondary/50 border border-border/50">
+                                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Duygu</div>
+                                        <div className={cn('font-bold', sentimentColor.split(' ')[0])}>
+                                            {mapSentiment(item.sentiment ?? null)}
+                                            {scoreDisplay && <span className="text-xs font-normal text-muted-foreground ml-1">({scoreDisplay})</span>}
+                                        </div>
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-secondary/50 border border-border/50">
+                                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Kaynak</div>
+                                        <div className="font-medium text-sm">{item.news_source ?? '—'}</div>
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-secondary/50 border border-border/50">
+                                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Yazar</div>
+                                        <div className="font-medium text-sm truncate">{item.author ?? '—'}</div>
                                     </div>
                                 </div>
+
+                                {/* External link button at bottom */}
+                                {item.news_url && (
+                                    <a
+                                        href={item.news_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-border/50 text-sm text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+                                    >
+                                        <ExternalLink size={14} /> Haberin tamamını oku
+                                    </a>
+                                )}
                             </div>
-                        </article>
-                    </ScrollArea>
-                </div>
-            )}
+                        </ScrollArea>
+                    </div>
+                );
+            })()}
         </div>
     );
 }

@@ -278,6 +278,11 @@ const chartContainer = document.getElementById('chart')!;
 const overlayCanvas = document.getElementById('overlay-canvas') as HTMLCanvasElement;
 const toolbar = document.getElementById('toolbar')!;
 
+// ─── Embed mode: hide toolbar when ?embed=1 ────────────────────
+if (new URLSearchParams(window.location.search).get('embed') === '1') {
+    toolbar.style.display = 'none';
+}
+
 // ─── Core Instances ────────────────────────────────────────────
 const chartManager = new ChartManager({ container: chartContainer, theme: 'dark' });
 const dataLoader = new DataLoader(chartManager);
