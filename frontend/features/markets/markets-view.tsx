@@ -113,7 +113,7 @@ function useCryptoList() {
                 }
             })
         )
-            .then(results => setItems(results.filter((r): r is MarketListItem => r !== null)))
+            .then((results: (MarketListItem | null)[]) => setItems(results.filter((r): r is MarketListItem => r !== null)))
             .catch(() => setIsError(true))
             .finally(() => setIsLoading(false))
     }, [])
