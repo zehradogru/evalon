@@ -257,7 +257,7 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
     <div className="flex flex-col h-full bg-background">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background shrink-0">
+      <div className="flex items-center justify-between px-8 py-4 bg-background shrink-0">
         <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
           Stock Screener
           <Badge variant="secondary" className="text-xs font-medium">BIST</Badge>
@@ -277,7 +277,7 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
       <Tabs defaultValue="scan" className="flex flex-col flex-1 overflow-hidden">
 
         {/* Tab list */}
-        <div className="px-6 pt-3 shrink-0 border-b border-border bg-background">
+        <div className="px-8 pt-3 shrink-0 bg-background">
           <TabsList className="h-9 bg-muted/50">
             <TabsTrigger value="browse" className="text-sm px-5">Browse</TabsTrigger>
             <TabsTrigger value="scan" className="text-sm px-5">Scan</TabsTrigger>
@@ -288,7 +288,7 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
         <TabsContent value="browse" className="flex flex-col flex-1 overflow-hidden mt-0">
 
           {/* Toolbar */}
-          <div className="px-6 py-3 flex flex-wrap items-center gap-2 border-b border-border bg-background shrink-0">
+          <div className="px-8 py-3 flex flex-wrap items-center gap-2 bg-background shrink-0">
             <div className="relative w-56">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
@@ -338,8 +338,8 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
           </div>
 
           {/* Data table */}
-          <div className="flex-1 overflow-auto p-4">
-            <div className="rounded-lg border border-border overflow-hidden">
+          <div className="flex-1 overflow-auto px-8 py-4">
+            <div className="rounded-lg overflow-hidden">
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow className="hover:bg-transparent">
@@ -393,9 +393,11 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
         <TabsContent value="scan" className="flex flex-row flex-1 overflow-hidden mt-0">
 
           {/* Left sidebar: filters + scan controls */}
-          <aside className="w-72 shrink-0 border-r border-border bg-card/20 flex flex-col overflow-y-auto">
-            <div className="p-4 flex flex-col gap-5">
+          <aside className="w-80 shrink-0 border-r border-border/40 flex flex-col overflow-y-auto">
 
+            {/* Filters section */}
+            <div className="px-5 pt-5 pb-4">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Filters</p>
               <FilterPanel
                 filters={filters}
                 logic={filterLogic}
@@ -404,7 +406,13 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
                 onLogicChange={setFilterLogic}
                 onQuickApply={handleQuickApply}
               />
+            </div>
 
+            <div className="mx-5 border-t border-border/40" />
+
+            {/* Scan controls section */}
+            <div className="px-5 pt-4 pb-5">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Scan Settings</p>
               <ScanControls
                 timeframe={timeframe}
                 sectors={sectors}
@@ -417,7 +425,7 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
               />
 
               {scanMutation.isError && (
-                <p className="text-xs text-destructive bg-destructive/10 rounded-md px-3 py-2 leading-relaxed">
+                <p className="mt-3 text-xs text-destructive bg-destructive/10 rounded-md px-3 py-2 leading-relaxed">
                   Scan failed:{' '}
                   {scanMutation.error instanceof Error
                     ? scanMutation.error.message
@@ -436,7 +444,7 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
                 <p className="text-xs opacity-70">This may take up to 60 seconds</p>
               </div>
             ) : scanResponse ? (
-              <div className="p-5">
+              <div className="px-8 py-5">
                 <ResultsTable response={scanResponse} onExportCsv={() => exportCsv(scanResponse)} />
               </div>
             ) : (

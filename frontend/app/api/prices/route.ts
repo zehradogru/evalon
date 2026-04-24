@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { getRecentFetchParams } from '@/lib/evalon'
 import { buildEvalonUrl } from '@/lib/server/evalon-proxy'
 import type { MarketDataMeta, PriceBar, PriceResponse } from '@/types'
@@ -127,6 +128,90 @@ function isYahooBenchmarkTicker(ticker: string): boolean {
     return Boolean(BENCHMARK_YAHOO_SYMBOLS[ticker.toUpperCase()])
 }
 
+// ─── Twelve Data ────────────────────────────────────────────────────────────
+
+const TWELVE_DATA_SYMBOLS: Record<string, string> = {
+    XU100: 'XU100:BIST',
+    XU030: 'XU030:BIST',
+}
+
+function mapTwelveDataInterval(timeframe: string): string {
+    switch (timeframe) {
+        case '1m':  return '1min'
+        case '5m':  return '5min'
+        case '15m': return '15min'
+        case '30m': return '30min'
+        case '1h':  return '1h'
+        case '1w':  return '1week'
+        case '1M':
+        case '1mo': return '1month'
+        case '1d':
+        case '1g':
+        default:    return '1day'
+    }
+}
+
+async function fetchTwelveDataBars(
+    ticker: string,
+    timeframe: string,
+    limit: number
+): Promise<PriceBar[]> {
+    const apiKey = process.env.TWELVE_DATA_API_KEY
+    if (!apiKey) throw new Error('TWELVE_DATA_API_KEY not set')
+
+    const symbol = TWELVE_DATA_SYMBOLS[ticker.toUpperCase()]
+    if (!symbol) throw new Error(`No Twelve Data symbol for ${ticker}`)
+
+    const interval = mapTwelveDataInterval(timeframe)
+    const outputsize = Math.min(limit + 10, 5000)
+    const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=${interval}&outputsize=${outputsize}&order=ASC&apikey=${apiKey}`
+
+    const response = await fetchWithTimeout(url, 15_000, {
+        headers: { Accept: 'application/json' },
+    })
+
+    if (!response.ok) throw new Error(`Twelve Data HTTP ${response.status}`)
+
+    const payload = await response.json() as {
+        status?: string
+        code?: number
+        message?: string
+        values?: Array<{
+            datetime: string
+            open: string
+            high: string
+            low: string
+            close: string
+            volume?: string
+        }>
+    }
+
+    if (payload.status === 'error' || payload.code) {
+        throw new Error(`Twelve Data error: ${payload.message || payload.code}`)
+    }
+
+    const values = payload.values || []
+    const bars: PriceBar[] = values.map((v) => ({
+        t: new Date(v.datetime).toISOString(),
+        o: parseFloat(v.open),
+        h: parseFloat(v.high),
+        l: parseFloat(v.low),
+        c: parseFloat(v.close),
+        v: v.volume ? Math.max(0, parseInt(v.volume, 10) || 0) : 0,
+    })).filter((b) => !isNaN(b.o) && !isNaN(b.c))
+
+    return bars.length > limit ? bars.slice(-limit) : bars
+}
+
+const fetchTwelveDataBarsCached = unstable_cache(
+    async (ticker: string, timeframe: string, limit: number): Promise<PriceBar[]> => {
+        return fetchTwelveDataBars(ticker, timeframe, limit)
+    },
+    ['twelve-data-bars'],
+    { revalidate: 3600 }
+)
+
+// ─── Yahoo interval/range ────────────────────────────────────────────────────
 function mapYahooIntervalAndRange(timeframe: string): {
     interval: string
     range: string
@@ -214,35 +299,192 @@ function parseYahooChartToPriceBars(payload: unknown): PriceBar[] {
     return bars
 }
 
-async function fetchYahooBenchmarkBars(
-    ticker: string,
+// ─── Yahoo crumb/cookie cache ────────────────────────────────────────────────
+
+let yahooCrumbCache: { crumb: string; cookie: string; expiresAt: number } | null = null
+
+async function getYahooCrumb(): Promise<{ crumb: string; cookie: string }> {
+    const now = Date.now()
+    if (yahooCrumbCache && yahooCrumbCache.expiresAt > now) {
+        return { crumb: yahooCrumbCache.crumb, cookie: yahooCrumbCache.cookie }
+    }
+
+    // Step 1: Get cookies from fc.yahoo.com
+    const fcRes = await fetchWithTimeout('https://fc.yahoo.com', 10_000, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            Accept: 'text/html',
+        },
+        redirect: 'follow',
+    })
+    const rawCookies = fcRes.headers.get('set-cookie') || ''
+    // Extract all cookie name=value pairs
+    const cookieHeader = rawCookies
+        .split(/,(?=[^;]+=[^;]+)/)
+        .map((c) => c.split(';')[0].trim())
+        .filter(Boolean)
+        .join('; ')
+
+    // Step 2: Get crumb
+    const crumbRes = await fetchWithTimeout(
+        'https://query1.finance.yahoo.com/v1/test/getcrumb',
+        10_000,
+        {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+                Accept: 'text/plain',
+                Cookie: cookieHeader,
+            },
+        }
+    )
+
+    if (!crumbRes.ok) throw new Error(`Yahoo crumb fetch failed: ${crumbRes.status}`)
+    const crumb = await crumbRes.text()
+    if (!crumb || crumb.length < 3) throw new Error('Empty crumb')
+
+    yahooCrumbCache = { crumb, cookie: cookieHeader, expiresAt: now + 50 * 60 * 1000 } // 50 min
+    return { crumb, cookie: cookieHeader }
+}
+
+async function fetchYahooBarsForSymbol(
+    symbol: string,
     timeframe: string,
     limit: number
 ): Promise<PriceBar[]> {
-    const symbol = BENCHMARK_YAHOO_SYMBOLS[ticker.toUpperCase()]
-    if (!symbol) return []
-
     const { interval, range } = mapYahooIntervalAndRange(timeframe)
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${encodeURIComponent(interval)}&range=${encodeURIComponent(range)}`
+
+    let crumb = ''
+    let cookie = ''
+    try {
+        const auth = await getYahooCrumb()
+        crumb = auth.crumb
+        cookie = auth.cookie
+    } catch { /* proceed without crumb */ }
+
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${encodeURIComponent(interval)}&range=${encodeURIComponent(range)}${crumb ? `&crumb=${encodeURIComponent(crumb)}` : ''}`
 
     const response = await fetchWithTimeout(url, 12_000, {
         headers: {
             Accept: 'application/json',
-            'User-Agent':
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            ...(cookie ? { Cookie: cookie } : {}),
         },
     })
 
     if (!response.ok) {
-        if (response.status === 429) {
-            throw new Error('Yahoo benchmark rate limited (429)')
+        if (response.status === 401 || response.status === 403) {
+            // Crumb may be stale — invalidate cache and retry once
+            yahooCrumbCache = null
         }
-        throw new Error(`Yahoo benchmark request failed with status ${response.status}`)
+        if (response.status === 429) {
+            throw new Error('Yahoo rate limited (429)')
+        }
+        throw new Error(`Yahoo request failed with status ${response.status}`)
     }
 
     const payload = await response.json()
     const bars = parseYahooChartToPriceBars(payload)
     return bars.length > limit ? bars.slice(-limit) : bars
+}
+
+const BENCHMARK_STOOQ_SYMBOLS: Record<string, string> = {
+    XU100: 'xu100.is',
+    XU030: 'xu030.is',
+}
+
+function stooqInterval(timeframe: string): string | null {
+    switch (timeframe) {
+        case '1d':
+        case '1g': return 'd'
+        case '1w': return 'w'
+        case '1M':
+        case '1mo': return 'm'
+        default: return null // intraday not supported by Stooq
+    }
+}
+
+async function fetchStooqBarsForSymbol(
+    symbol: string,
+    timeframe: string,
+    limit: number
+): Promise<PriceBar[]> {
+    const interval = stooqInterval(timeframe)
+    if (!interval) return []
+
+    const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(symbol)}&i=${interval}`
+    const response = await fetchWithTimeout(url, 12_000, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            Accept: 'text/csv,text/plain,*/*',
+        },
+    })
+
+    if (!response.ok) throw new Error(`Stooq ${response.status}`)
+
+    const csv = await response.text()
+    if (!csv.trim().startsWith('Date') && !csv.trim().startsWith('date')) {
+        throw new Error('Stooq returned non-CSV response')
+    }
+
+    const lines = csv.trim().split('\n')
+    const bars: PriceBar[] = []
+    for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(',')
+        if (parts.length < 5) continue
+        const [date, open, high, low, close, volume] = parts
+        const o = parseFloat(open), h = parseFloat(high), l = parseFloat(low), c = parseFloat(close)
+        if (!date || isNaN(o) || isNaN(h) || isNaN(l) || isNaN(c)) continue
+        bars.push({
+            t: new Date(date).toISOString(),
+            o, h, l, c,
+            v: volume ? Math.max(0, parseInt(volume, 10) || 0) : 0,
+        })
+    }
+
+    bars.sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime())
+    return bars.length > limit ? bars.slice(-limit) : bars
+}
+
+const fetchStooqBarsForSymbolCached = unstable_cache(
+    async (symbol: string, timeframe: string, limit: number): Promise<PriceBar[]> => {
+        return fetchStooqBarsForSymbol(symbol, timeframe, limit)
+    },
+    ['stooq-bars'],
+    { revalidate: 3600 }
+)
+
+const fetchYahooBarsForSymbolCached = unstable_cache(
+    async (symbol: string, timeframe: string, limit: number): Promise<PriceBar[]> => {
+        return fetchYahooBarsForSymbol(symbol, timeframe, limit)
+    },
+    ['yahoo-bars'],
+    { revalidate: 3600 } // cache for 1 hour across serverless invocations
+)
+
+async function fetchYahooBenchmarkBars(
+    ticker: string,
+    timeframe: string,
+    limit: number
+): Promise<PriceBar[]> {
+    // 1. Twelve Data (primary — no rate limits)
+    try {
+        const bars = await fetchTwelveDataBarsCached(ticker, timeframe, limit)
+        if (bars.length > 0) return bars
+    } catch { /* fall through */ }
+
+    // 2. Stooq CSV (daily/weekly/monthly only)
+    const stooqSymbol = BENCHMARK_STOOQ_SYMBOLS[ticker.toUpperCase()]
+    if (stooqSymbol) {
+        try {
+            const bars = await fetchStooqBarsForSymbolCached(stooqSymbol, timeframe, limit)
+            if (bars.length > 0) return bars
+        } catch { /* fall through */ }
+    }
+
+    // 3. Yahoo Finance (last resort)
+    const yahooSymbol = BENCHMARK_YAHOO_SYMBOLS[ticker.toUpperCase()]
+    if (!yahooSymbol) return []
+    return fetchYahooBarsForSymbolCached(yahooSymbol, timeframe, limit)
 }
 
 export async function GET(request: NextRequest) {
@@ -357,6 +599,19 @@ export async function GET(request: NextRequest) {
                     }
                 }
 
+                // Try Yahoo Finance as fallback for Turkish stocks
+                try {
+                    const yahooBars = await fetchYahooBarsForSymbolCached(`${ticker.toUpperCase()}.IS`, timeframe, requestedLimit)
+                    if (yahooBars.length > 0) {
+                        const yahooResult: PriceApiResponse = {
+                            ticker, timeframe, rows: yahooBars.length, data: yahooBars,
+                            meta: buildMeta({ hasUsableData: true, source: 'live' }),
+                        }
+                        setCache(cacheKey, yahooResult)
+                        return yahooResult
+                    }
+                } catch { /* Yahoo de basarisiz, devam et */ }
+
                 return buildEmptyResponse(
                     ticker,
                     timeframe,
@@ -423,6 +678,19 @@ export async function GET(request: NextRequest) {
                     }),
                 }
             }
+
+            // Try Yahoo Finance as fallback for Turkish stocks
+            try {
+                const yahooBars = await fetchYahooBarsForSymbol(`${ticker.toUpperCase()}.IS`, timeframe, requestedLimit)
+                if (yahooBars.length > 0) {
+                    const yahooResult: PriceApiResponse = {
+                        ticker, timeframe, rows: yahooBars.length, data: yahooBars,
+                        meta: buildMeta({ hasUsableData: true, source: 'live' }),
+                    }
+                    setCache(cacheKey, yahooResult)
+                    return yahooResult
+                }
+            } catch { /* Yahoo de basarisiz */ }
 
             return buildEmptyResponse(
                 ticker,

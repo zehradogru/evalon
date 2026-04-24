@@ -535,6 +535,103 @@ def get_indicators(
     )
 
 
+class NewsItem(BaseModel):
+    id: int
+    symbol: Optional[str] = None
+    news_source: Optional[str] = None
+    title: str
+    summary: Optional[str] = None
+    sentiment: Optional[str] = None
+    sentiment_score: Optional[float] = None
+    news_url: Optional[str] = None
+    author: Optional[str] = None
+    published_at: Optional[datetime] = None
+
+
+class NewsResponse(BaseModel):
+    items: List[NewsItem]
+    total: int
+    page: int
+    limit: int
+
+
+@app.get("/v1/news", response_model=NewsResponse)
+def get_news(
+    symbol: Optional[str] = Query(None, max_length=20),
+    sentiment: Optional[str] = Query(None, max_length=20),
+    q: Optional[str] = Query(None, max_length=200, description="Başlık/özet metin araması"),
+    limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1),
+) -> NewsResponse:
+    cfg = _config_status()
+    if not cfg["has_oracle_password"]:
+        raise HTTPException(status_code=500, detail="Oracle DB yapılandırılmamış (ORACLE_DB_PASSWORD eksik).")
+
+    offset = (page - 1) * limit
+
+    where_clauses: List[str] = []
+    bind_params: Dict[str, Any] = {}
+
+    if symbol:
+        where_clauses.append("UPPER(SYMBOL) = :symbol")
+        bind_params["symbol"] = symbol.strip().upper()
+
+    if sentiment:
+        where_clauses.append("UPPER(SENTIMENT) = :sentiment")
+        bind_params["sentiment"] = sentiment.strip().upper()
+
+    if q:
+        where_clauses.append("(UPPER(TITLE) LIKE :q OR UPPER(SUMMARY) LIKE :q)")
+        bind_params["q"] = f"%{q.strip().upper()}%"
+
+    where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+    count_sql = f"SELECT COUNT(*) FROM BIST_NEWS {where_sql}"
+    select_sql = f"""
+        SELECT ID, SYMBOL, NEWS_SOURCE, TITLE, SUMMARY,
+               SENTIMENT, SENTIMENT_SCORE, NEWS_URL, AUTHOR, PUBLISHED_AT
+        FROM BIST_NEWS
+        {where_sql}
+        ORDER BY PUBLISHED_AT DESC NULLS LAST
+        OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
+    """
+    bind_select = {**bind_params, "offset": offset, "limit": limit}
+
+    try:
+        conn = client._connect()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(count_sql, bind_params)
+                row_count = cur.fetchone()
+                total = int(row_count[0]) if row_count else 0
+
+                cur.execute(select_sql, bind_select)
+                rows = cur.fetchall()
+        finally:
+            conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Haber verisi alınamadı: {e}")
+
+    items: List[NewsItem] = []
+    for row in rows:
+        items.append(
+            NewsItem(
+                id=int(row[0]),
+                symbol=row[1],
+                news_source=row[2],
+                title=row[3] or "",
+                summary=row[4],
+                sentiment=row[5],
+                sentiment_score=float(row[6]) if row[6] is not None else None,
+                news_url=row[7],
+                author=row[8],
+                published_at=row[9],
+            )
+        )
+
+    return NewsResponse(items=items, total=total, page=page, limit=limit)
+
+
 @app.on_event("shutdown")
 def _shutdown() -> None:
     try:

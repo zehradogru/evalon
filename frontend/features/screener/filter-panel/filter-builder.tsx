@@ -16,13 +16,13 @@ const FILTER_TYPE_OPTIONS = [
 ] as const
 
 function defaultFilter(type: string): ScreenerFilter {
-  if (type === 'price') return { type: 'price', op: 'gt', value: 10, label: 'Price' }
-  if (type === 'change_pct') return { type: 'change_pct', op: 'gt', value: 2, label: 'Change %' }
-  if (type === 'volume') return { type: 'volume', op: 'gt', value: 1_000_000, label: 'Volume' }
-  if (type === 'cross') return { type: 'cross', indicator: 'rsi', op: 'above', direction: 'above', target: 30, label: 'Crossover' }
-  if (type === 'high_low') return { type: 'high_low', side: 'high', bars: 52, pct_tolerance: 5, label: '52W High' }
+  if (type === 'price') return { type: 'price', op: 'gt', value: 10 }
+  if (type === 'change_pct') return { type: 'change_pct', op: 'gt', value: 2 }
+  if (type === 'volume') return { type: 'volume', op: 'gt', value: 1_000_000 }
+  if (type === 'cross') return { type: 'cross', indicator: 'rsi', direction: 'above', target: 30 }
+  if (type === 'high_low') return { type: 'high_low', side: 'high', bars: 52, pct_tolerance: 5 }
   // indicator
-  return { type: 'indicator', indicator: 'rsi', op: 'lt', value: 30, label: 'RSI' }
+  return { type: 'indicator', indicator: 'rsi', op: 'lt', value: 30 }
 }
 
 interface FilterBuilderProps {

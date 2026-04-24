@@ -81,6 +81,24 @@ export const BIST_POPULAR = [
     'TAVHL', 'PETKM', 'EKGYO', 'TTKOM', 'SASA', 'MAVI', 'ARCLK', 'ENJSA'
 ] as const;
 
+// XU100 (BIST 100) constituents — used for dashboard snapshot to stay within API limits
+// Source: Borsa Istanbul XU100 index, verified April 2026
+export const BIST_100 = [
+    'AEFES', 'AGESA', 'AGHOL', 'AKBNK', 'AKCNS', 'AKENR', 'AKSA',  'AKSEN',
+    'ALARK', 'ALBRK', 'ARCLK', 'ARDYZ', 'ASELS', 'ASTOR', 'ASUZU', 'AYDEM',
+    'AYGAZ', 'BAGFS', 'BIMAS', 'BORSK', 'BRISA', 'BRSAN', 'BTCIM', 'CCOLA',
+    'CIMSA', 'CLEBI', 'DEVA',  'DOAS',  'DOHOL', 'ECILC', 'ECZYT', 'EKGYO',
+    'EKOS',  'ENJSA', 'ENKAI', 'EREGL', 'FROTO', 'GARAN', 'GUBRF', 'GWIND',
+    'HALKB', 'HEKTS', 'HLGYO', 'HUBVC', 'ISCTR', 'ISDMR', 'ISFIN', 'ISGYO',
+    'KAREL', 'KARTN', 'KCHOL', 'KLRHO', 'KONTR', 'KORDS', 'KRDMA', 'KRDMD',
+    'KTLEV', 'LOGO',  'MAVI',  'MGROS', 'MPARK', 'NATEN', 'NETAS', 'ODAS',
+    'OTKAR', 'OYAKC', 'PETKM', 'PETUN', 'PGSUS', 'PRKME', 'QNBFK', 'SAHOL',
+    'SARKY', 'SASA',  'SELEC', 'SISE',  'SKBNK', 'SKTAS', 'SOKM',  'TATGD',
+    'TAVHL', 'TBORG', 'TCELL', 'THYAO', 'TKFEN', 'TMSN',  'TOASO', 'TSKB',
+    'TTKOM', 'TTRAK', 'TUPRS', 'TUREX', 'TURSG', 'ULKER', 'VAKBN', 'VESBE',
+    'VESTL', 'YEOTK', 'YKBNK', 'ZOREN',
+] as const;
+
 // ============================================================================
 // US Markets (NASDAQ/NYSE)
 // ============================================================================

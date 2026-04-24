@@ -189,14 +189,14 @@ export interface FilterBuilderRow {
 // ---------------------------------------------------------------------------
 
 export const SCREENER_TIMEFRAMES: { value: ScreenerTimeframe; label: string }[] = [
-  { value: '1m', label: '1 Dakika' },
-  { value: '5m', label: '5 Dakika' },
-  { value: '15m', label: '15 Dakika' },
-  { value: '30m', label: '30 Dakika' },
-  { value: '1h', label: '1 Saat' },
-  { value: '4h', label: '4 Saat' },
-  { value: '1d', label: 'Günlük' },
-  { value: '1w', label: 'Haftalık' },
+  { value: '1m', label: '1 Min' },
+  { value: '5m', label: '5 Min' },
+  { value: '15m', label: '15 Min' },
+  { value: '30m', label: '30 Min' },
+  { value: '1h', label: '1 Hour' },
+  { value: '4h', label: '4 Hours' },
+  { value: '1d', label: 'Daily' },
+  { value: '1w', label: 'Weekly' },
 ]
 
 export const NUMERIC_OPS: { value: NumericOp; label: string }[] = [

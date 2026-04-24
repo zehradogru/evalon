@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import {
+  BarChart2,
   Loader2,
   Plus,
   RefreshCw,
@@ -169,6 +170,36 @@ export function LiveWatchlist({ onSelectTicker, activeTicker }: LiveWatchlistPro
         {feedback ? (
           <p className="mt-2 text-[10px] text-destructive">{feedback}</p>
         ) : null}
+      </div>
+
+      {/* Pinned Indices */}
+      <div className="border-b border-border/40">
+        <div className="px-4 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+          Endeksler
+        </div>
+        {([{ ticker: 'XU100', name: 'BIST 100' }, { ticker: 'XU030', name: 'BIST 30' }] as const).map((idx) => {
+          const isActive = idx.ticker === activeTicker
+          return (
+            <div
+              key={idx.ticker}
+              onClick={() => onSelectTicker?.(idx.ticker, idx.name)}
+              className={cn(
+                'flex items-center gap-2.5 border-b border-border/20 px-4 py-2.5 cursor-pointer transition-all duration-150',
+                isActive
+                  ? 'bg-primary/10 border-l-2 border-l-primary'
+                  : 'hover:bg-muted/50'
+              )}
+            >
+              <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 bg-primary/10">
+                <BarChart2 className="h-3 w-3 text-primary" />
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-foreground">{idx.name}</div>
+                <div className="text-[10px] text-muted-foreground">{idx.ticker}</div>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {/* List */}
