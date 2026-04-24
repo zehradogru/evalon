@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useWatchlist } from '@/hooks/use-prices'
 import { MiniChart } from './mini-chart'
@@ -24,7 +24,7 @@ export function WatchlistWidget() {
                                 Watchlist
                             </CardTitle>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                                Takip ettiğin hisseler
+                                Your watchlist
                             </p>
                         </div>
                     </div>
@@ -62,7 +62,7 @@ export function WatchlistWidget() {
                 ) : marketStatus.source === 'error' && !marketStatus.hasUsableData ? (
                     <div className="flex flex-col items-center gap-3 py-8 text-center">
                         <div className="text-destructive text-sm">
-                            {marketStatus.errorMessage || 'Veri yüklenemedi'}
+                            {marketStatus.errorMessage || 'Failed to load data'}
                         </div>
                         <Button size="sm" variant="outline" onClick={() => void retryNow()}>
                             <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
@@ -115,7 +115,7 @@ export function WatchlistWidget() {
                                 {/* Right: Price info */}
                                 <div className="text-right">
                                     <div className="font-semibold text-foreground text-sm">
-                                        ₺{item.price.toLocaleString('tr-TR', {
+                                        ₺{item.price.toLocaleString('en-US', {
                                             minimumFractionDigits: 2,
                                             maximumFractionDigits: 2
                                         })}

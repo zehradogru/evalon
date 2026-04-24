@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useId } from 'react'
 import { Trash2 } from 'lucide-react'
@@ -235,7 +235,7 @@ export function FilterRow({ index, filter, onChange, onRemove }: FilterRowProps)
             max={500}
             onChange={(e) => onChange({ ...f, bars: parseInt(e.target.value) || 20 })}
             className="w-16 h-8 text-xs"
-            title="Bar sayısı"
+            title="Bar count"
           />
           <span className="text-xs text-muted-foreground">bars within</span>
           <Input
@@ -265,7 +265,7 @@ export function FilterRow({ index, filter, onChange, onRemove }: FilterRowProps)
         size="icon"
         className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
         onClick={onRemove}
-        title="Filtreyi kaldır"
+        title="Remove filter"
       >
         <Trash2 size={14} />
       </Button>

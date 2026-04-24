@@ -21,8 +21,8 @@ const menuItems = [
       { href: '/backtest', label: 'Backtest', icon: Activity },
       { href: '/strategy', label: 'Strategy', icon: GitBranch },
       { href: '/paper-trade', label: 'Paper Trade', icon: Wallet },
-      { href: '/paper-trade/leaderboard', label: 'Liderlik Tablosu', icon: Trophy },
-      { href: '/tools/profit-loss', label: 'Kar/Zarar Hesap.', icon: Calculator },
+      { href: '/paper-trade/leaderboard', label: 'Leaderboard', icon: Trophy },
+      { href: '/tools/profit-loss', label: 'P&L Calculator', icon: Calculator },
     ]
   },
   {
@@ -58,7 +58,7 @@ const menuItems = [
 const SEARCH_INDEX = BIST_AVAILABLE.map(ticker => ({
   ticker,
   name: TICKER_NAMES[ticker] || ticker,
-  searchStr: `${ticker} ${(TICKER_NAMES[ticker] || '').toLowerCase()}`,
+  searchStr: `${ticker.toLowerCase()} ${(TICKER_NAMES[ticker] || '').toLowerCase()}`,
 }))
 
 function TickerSearch() {

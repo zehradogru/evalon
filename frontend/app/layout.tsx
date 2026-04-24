@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+﻿import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'EVALON - AI-Powered Trading Platform',
   description:
-    'Yapay Zeka Destekli Algoritmik İşlem ve Davranışsal Analiz Platformu',
+    'AI-Powered Algorithmic Trading and Behavioral Analysis Platform',
 }
 
 export default function RootLayout({

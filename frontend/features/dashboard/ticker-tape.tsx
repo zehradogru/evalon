@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useRouter } from 'next/navigation'
 import { useMarketMovers } from '@/hooks/use-dashboard-data'
@@ -32,7 +32,7 @@ export function TickerTape() {
                   {item.ticker}
                 </span>
                 <span className="text-xs text-foreground font-medium whitespace-nowrap">
-                  {item.price.toLocaleString('tr-TR', {
+                  {item.price.toLocaleString('en-US', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}

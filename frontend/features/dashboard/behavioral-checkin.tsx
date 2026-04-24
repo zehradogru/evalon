@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { Heart, SmilePlus } from 'lucide-react'
@@ -59,7 +59,7 @@ export function BehavioralCheckin() {
               {selected === 'focused' && 'Channel that focus into your best setups.'}
             </p>
             <div className="mt-3 px-2.5 py-1 rounded-full bg-[#089981]/10 text-[10px] text-[#089981] font-medium">
-              ✓ Logged at {new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+              ✓ Logged at {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
             </div>
           </div>
         ) : (

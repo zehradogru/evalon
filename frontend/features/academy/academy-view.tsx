@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useMemo } from 'react'
 import {
@@ -42,11 +42,11 @@ function TermIcon({ name, className }: { name: string; className?: string }) {
 
 // ── Category badge colours ───────────────────────────────────────────────────
 const categoryColors: Record<AcademyCategory, string> = {
-    'Teknik Analiz': 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-    'Temel Analiz': 'bg-purple-500/15 text-purple-400 border-purple-500/30',
-    'Genel Kavramlar': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    'Türev Ürünler': 'bg-orange-500/15 text-orange-400 border-orange-500/30',
-    'Piyasa Türleri': 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+    'Technical Analysis': 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+    'Fundamental Analysis': 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+    'General Concepts': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    'Derivatives': 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+    'Market Types': 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
 }
 
 // ── Term Card ────────────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ function TermCard({
 
             {/* Hover CTA */}
             <p className="mt-3 text-[10px] font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                Detayları gör →
+                View details →
             </p>
         </button>
     )
@@ -137,7 +137,7 @@ function TermDialog({
                             {term.formula && (
                                 <div className="rounded-lg bg-muted/50 border border-border px-4 py-3">
                                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                                        Formül
+                                        Formula
                                     </p>
                                     <code className="text-xs font-mono text-primary">{term.formula}</code>
                                 </div>
@@ -153,7 +153,7 @@ function TermDialog({
 // ── Main View ────────────────────────────────────────────────────────────────
 export function AcademyView() {
     const [query, setQuery] = useState('')
-    const [activeCategory, setActiveCategory] = useState<AcademyCategory | 'Tümü'>('Tümü')
+    const [activeCategory, setActiveCategory] = useState<AcademyCategory | 'All'>('All')
     const [selectedTerm, setSelectedTerm] = useState<AcademyTerm | null>(null)
     const [dialogOpen, setDialogOpen] = useState(false)
 
@@ -161,7 +161,7 @@ export function AcademyView() {
         const q = query.toLowerCase().trim()
         return academyTerms.filter((term) => {
             const matchesCategory =
-                activeCategory === 'Tümü' || term.category === activeCategory
+                activeCategory === 'All' || term.category === activeCategory
             if (!matchesCategory) return false
             if (!q) return true
             return (
@@ -186,9 +186,9 @@ export function AcademyView() {
                     <GraduationCap className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                    <h1 className="text-xl font-bold text-foreground">Borsa Akademisi</h1>
+                    <h1 className="text-xl font-bold text-foreground">Stock Market Academy</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                        {academyTerms.length} terim · Teknik, temel analiz ve piyasa kavramları
+                        {academyTerms.length} terms · Technical, fundamental analysis and market concepts
                     </p>
                 </div>
             </div>
@@ -196,14 +196,14 @@ export function AcademyView() {
             {/* Search + Filters */}
             <div className="space-y-3">
                 <Input
-                    placeholder="Terim veya kavram ara…"
+                    placeholder="Search terms or concepts…"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     className="bg-card border-border max-w-md"
                 />
 
                 <div className="flex flex-wrap gap-2">
-                    {(['Tümü', ...academyCategories] as const).map((cat) => (
+                    {(['All', ...academyCategories] as const).map((cat) => (
                         <Button
                             key={cat}
                             variant="outline"
@@ -224,7 +224,7 @@ export function AcademyView() {
             {/* Results count */}
             {query && (
                 <p className="text-xs text-muted-foreground">
-                    {filtered.length} sonuç bulundu
+                    {filtered.length} results found
                 </p>
             )}
 
@@ -233,13 +233,13 @@ export function AcademyView() {
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                     <GraduationCap className="h-10 w-10 text-muted-foreground/40 mb-3" />
                     <p className="text-sm text-muted-foreground">
-                        &quot;{query}&quot; için sonuç bulunamadı.
+                        &quot;{query}&quot; not found.
                     </p>
                     <Button
                         variant="ghost"
                         size="sm"
                         className="mt-2 text-xs"
-                        onClick={() => { setQuery(''); setActiveCategory('Tümü') }}
+                        onClick={() => { setQuery(''); setActiveCategory('All') }}
                     >
                         Filtreleri temizle
                     </Button>

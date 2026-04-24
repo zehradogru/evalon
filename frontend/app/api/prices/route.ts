@@ -22,6 +22,20 @@ const BENCHMARK_YAHOO_SYMBOLS: Record<string, string> = {
     XU030: 'XU030.IS',
 }
 
+// Crypto tickers mapped to Yahoo Finance symbols
+const CRYPTO_YAHOO_SYMBOLS: Record<string, string> = {
+    BTCUSDT_C: 'BTC-USD',
+    ETHUSDT_C: 'ETH-USD',
+    SOLUSDT_C: 'SOL-USD',
+    BNBUSDT_C: 'BNB-USD',
+    XRPUSDT_C: 'XRP-USD',
+    LINKUSDT_C: 'LINK-USD',
+}
+
+function isCryptoTicker(ticker: string): boolean {
+    return Boolean(CRYPTO_YAHOO_SYMBOLS[ticker.toUpperCase()])
+}
+
 async function readPayload(response: Response): Promise<unknown> {
     const contentType = response.headers.get('content-type') || ''
     if (contentType.includes('application/json')) {
@@ -567,6 +581,57 @@ export async function GET(request: NextRequest) {
                 }
 
                 return benchmarkResult
+            }
+
+            // Crypto — try Evalon (Oracle) first, fallback to Yahoo Finance
+            if (isCryptoTicker(ticker)) {
+                // 1. Try Evalon backend (Oracle DB has 2.6M rows per ticker, 2021–2026)
+                try {
+                    const evalonResponse = await fetchWithTimeout(
+                        buildEvalonUrl('/v1/prices', {
+                            ticker,
+                            timeframe,
+                            limit: params.fetchLimit,
+                            start: params.start,
+                            end,
+                        }),
+                        15_000
+                    )
+                    if (evalonResponse.ok) {
+                        const evalonPayload = (await evalonResponse.json()) as { data?: PriceBar[]; rows?: number }
+                        const evalonData: PriceBar[] = Array.isArray(evalonPayload.data) ? evalonPayload.data : []
+                        if (evalonData.length > 0) {
+                            evalonData.sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime())
+                            const sliced = evalonData.length > requestedLimit ? evalonData.slice(-requestedLimit) : evalonData
+                            const oracleResult: PriceApiResponse = {
+                                ticker, timeframe, rows: sliced.length, data: sliced,
+                                meta: buildMeta({ hasUsableData: true, source: 'live' }),
+                            }
+                            setCache(cacheKey, oracleResult)
+                            return oracleResult
+                        }
+                    }
+                } catch { /* Oracle unavailable, fall through to Yahoo */ }
+
+                // 2. Fallback: Yahoo Finance
+                const yahooSymbol = CRYPTO_YAHOO_SYMBOLS[ticker.toUpperCase()]
+                const bars = await fetchYahooBarsForSymbolCached(yahooSymbol, timeframe, requestedLimit)
+                const cryptoResult: PriceApiResponse = {
+                    ticker,
+                    timeframe,
+                    rows: bars.length,
+                    data: bars,
+                    meta: buildMeta({
+                        hasUsableData: bars.length > 0,
+                        source: 'live',
+                        emptyReason: bars.length > 0 ? undefined : 'no-data',
+                        message: bars.length > 0 ? undefined : 'Kripto fiyat verisi bulunamadi.',
+                    }),
+                }
+                if (cryptoResult.meta.hasUsableData) {
+                    setCache(cacheKey, cryptoResult)
+                }
+                return cryptoResult
             }
 
             const response = await fetchWithTimeout(

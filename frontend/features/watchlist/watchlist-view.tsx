@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -157,11 +157,11 @@ export function WatchlistView({ isWidget = false }: WatchlistViewProps) {
                                 <MarketDataStatusChip
                                     status={marketStatus}
                                     labels={{
-                                        refreshing: 'Yenileniyor',
-                                        warming: 'Hazirlaniyor',
-                                        stale: 'Gecikmeli',
-                                        partial: 'Kismi veri',
-                                        error: 'Baglanti sorunu',
+                                        refreshing: 'Refreshing',
+                                        warming: 'Warming up',
+                                        stale: 'Stale',
+                                        partial: 'Partial data',
+                                        error: 'Connection issue',
                                     }}
                                 />
                             </div>
@@ -226,11 +226,11 @@ export function WatchlistView({ isWidget = false }: WatchlistViewProps) {
                         <MarketDataStatusChip
                             status={marketStatus}
                             labels={{
-                                refreshing: 'Yenileniyor',
-                                warming: 'Hazirlaniyor',
-                                stale: 'Gecikmeli',
-                                partial: 'Kismi veri',
-                                error: 'Baglanti sorunu',
+                                refreshing: 'Refreshing',
+                                warming: 'Warming up',
+                                stale: 'Stale',
+                                partial: 'Partial data',
+                                error: 'Connection issue',
                             }}
                         />
                     </div>
@@ -392,7 +392,7 @@ export function WatchlistView({ isWidget = false }: WatchlistViewProps) {
                                         className="py-8 text-center text-muted-foreground text-sm"
                                     >
                                         {marketStatus.isWarming
-                                            ? 'Piyasa verisi hazirlaniyor.'
+                                            ? 'Market data warming up.'
                                             : 'Watchlist is empty. Add a ticker to begin.'}
                                     </td>
                                 </tr>

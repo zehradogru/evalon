@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { TrendingUp, TrendingDown, Target, Award, BarChart3, Activity, Zap, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -12,14 +12,14 @@ export function PerformanceMetrics({ metrics }: PerformanceMetricsProps) {
     const cards = [
         {
             label: 'Toplam P&L',
-            value: `${metrics.totalPnL >= 0 ? '+' : ''}₺${metrics.totalPnL.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`,
+            value: `${metrics.totalPnL >= 0 ? '+' : ''}₺${metrics.totalPnL.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
             sub: `${metrics.totalPnLPercent >= 0 ? '+' : ''}${metrics.totalPnLPercent.toFixed(2)}%`,
             icon: metrics.totalPnL >= 0 ? TrendingUp : TrendingDown,
             color: metrics.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400',
             bgColor: metrics.totalPnL >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10',
         },
         {
-            label: 'Kazanma Oranı',
+            label: 'Win Rate',
             value: `%${metrics.winRate.toFixed(1)}`,
             sub: `${metrics.winningTrades}W / ${metrics.losingTrades}L`,
             icon: Target,
@@ -37,22 +37,22 @@ export function PerformanceMetrics({ metrics }: PerformanceMetricsProps) {
         {
             label: 'Max Drawdown',
             value: `%${metrics.maxDrawdownPercent.toFixed(2)}`,
-            sub: `₺${metrics.maxDrawdown.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`,
+            sub: `₺${metrics.maxDrawdown.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
             icon: Shield,
             color: metrics.maxDrawdownPercent <= 5 ? 'text-emerald-400' : metrics.maxDrawdownPercent <= 15 ? 'text-amber-400' : 'text-red-400',
             bgColor: metrics.maxDrawdownPercent <= 5 ? 'bg-emerald-500/10' : metrics.maxDrawdownPercent <= 15 ? 'bg-amber-500/10' : 'bg-red-500/10',
         },
         {
-            label: 'En İyi Trade',
-            value: `+₺${metrics.bestTrade.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`,
+            label: 'Best Trade',
+            value: `+₺${metrics.bestTrade.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
             sub: '',
             icon: Award,
             color: 'text-emerald-400',
             bgColor: 'bg-emerald-500/10',
         },
         {
-            label: 'En Kötü Trade',
-            value: `₺${metrics.worstTrade.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`,
+            label: 'Worst Trade',
+            value: `₺${metrics.worstTrade.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
             sub: '',
             icon: Activity,
             color: 'text-red-400',
@@ -67,13 +67,13 @@ export function PerformanceMetrics({ metrics }: PerformanceMetricsProps) {
             bgColor: metrics.sharpeRatio >= 1 ? 'bg-emerald-500/10' : metrics.sharpeRatio >= 0 ? 'bg-amber-500/10' : 'bg-red-500/10',
         },
         {
-            label: 'İşlem Serisi',
+            label: 'Trade Streak',
             value: metrics.currentStreak > 0
-                ? `${metrics.currentStreak} kazanç 🔥`
+                ? `${metrics.currentStreak} wins 🔥`
                 : metrics.currentStreak < 0
-                    ? `${Math.abs(metrics.currentStreak)} kayıp`
+                    ? `${Math.abs(metrics.currentStreak)} losses`
                     : '—',
-            sub: `Toplam: ${metrics.totalTrades} işlem`,
+            sub: `Total: ${metrics.totalTrades} trades`,
             icon: Zap,
             color: metrics.currentStreak > 0 ? 'text-emerald-400' : metrics.currentStreak < 0 ? 'text-red-400' : 'text-muted-foreground',
             bgColor: metrics.currentStreak > 0 ? 'bg-emerald-500/10' : metrics.currentStreak < 0 ? 'bg-red-500/10' : 'bg-secondary/30',
@@ -84,7 +84,7 @@ export function PerformanceMetrics({ metrics }: PerformanceMetricsProps) {
         <div className="rounded-xl border border-border bg-card overflow-hidden">
             <div className="p-4 border-b border-border">
                 <h3 className="text-sm font-semibold text-foreground">Performans Metrikleri</h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Kararlarınızın detaylı analizi</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Detailed analysis of your decisions</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/30">
                 {cards.map((card, i) => (

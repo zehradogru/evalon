@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
@@ -29,14 +29,14 @@ export function ResetPortfolioDialog({ open, resetCount, onConfirm, onCancel }: 
 
                 {/* Title */}
                 <div className="text-center space-y-2">
-                    <h3 className="text-lg font-bold text-foreground">Portföyü Sıfırla</h3>
+                    <h3 className="text-lg font-bold text-foreground">Reset Portfolio</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                        Tüm açık pozisyonlar kapatılacak, emir geçmişi silinecek ve bakiyeniz{' '}
+                        All open positions will be closed, order history will be deleted, and your balance will be{' '}
                         <span className="text-foreground font-semibold">₺100.000</span>&apos;e
-                        sıfırlanacak.
+                        Resetnacak.
                     </p>
                     <p className="text-xs text-muted-foreground/60">
-                        Bu işlem geri alınamaz. • {resetCount}. reset
+                        This action cannot be undone. • {resetCount}. reset
                     </p>
                 </div>
 
@@ -46,14 +46,14 @@ export function ResetPortfolioDialog({ open, resetCount, onConfirm, onCancel }: 
                         onClick={onCancel}
                         className="py-2.5 rounded-xl text-sm font-medium text-foreground bg-secondary/50 hover:bg-secondary/80 transition-colors"
                     >
-                        İptal
+                        Cancel
                     </button>
                     <button
                         onClick={onConfirm}
                         className="py-2.5 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
                     >
                         <RefreshCw size={14} />
-                        Sıfırla
+                        Reset
                     </button>
                 </div>
             </div>

@@ -1,10 +1,56 @@
 'use client'
 
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { BIST_100, TICKER_NAMES } from '@/config/markets'
 import { useUserWatchlist } from '@/hooks/use-user-watchlist'
 import type { MarketDataMeta, MarketListItem, PaginatedListResponse } from '@/types'
 import { buildMarketQueryStatus, isRetriableMarketError } from '@/lib/market-data'
+
+// ---------------------------------------------------------------------------
+// localStorage cache helpers for market-snapshot
+// ---------------------------------------------------------------------------
+const MOVERS_CACHE_KEY = 'evalon_market_snapshot_v1'
+const MOVERS_CACHE_MAX_AGE_MS = 1000 * 60 * 60 // 1 hour
+
+function loadMoversCache(): MarketMoversPayload | undefined {
+    try {
+        const raw =
+            typeof window !== 'undefined'
+                ? window.localStorage.getItem(MOVERS_CACHE_KEY)
+                : null
+        if (!raw) return undefined
+        const parsed = JSON.parse(raw) as { data: MarketMoversPayload; ts: number }
+        if (Date.now() - parsed.ts > MOVERS_CACHE_MAX_AGE_MS) return undefined
+        return parsed.data
+    } catch {
+        return undefined
+    }
+}
+
+function saveMoversCache(data: MarketMoversPayload): void {
+    try {
+        window.localStorage.setItem(
+            MOVERS_CACHE_KEY,
+            JSON.stringify({ data, ts: Date.now() }),
+        )
+    } catch {
+        // ignore QuotaExceededError or SSR
+    }
+}
+
+function loadMoversCacheTimestamp(): number | undefined {
+    try {
+        const raw =
+            typeof window !== 'undefined'
+                ? window.localStorage.getItem(MOVERS_CACHE_KEY)
+                : null
+        if (!raw) return undefined
+        return (JSON.parse(raw) as { ts: number }).ts
+    } catch {
+        return undefined
+    }
+}
 
 export interface DashboardTicker {
     ticker: string
@@ -255,6 +301,9 @@ export function useMarketMovers() {
             }
         },
         staleTime: 1000 * 60, // 1 minute
+        // Show cached data immediately while re-fetching in background
+        initialData: loadMoversCache,
+        initialDataUpdatedAt: loadMoversCacheTimestamp,
         placeholderData: keepPreviousData,
         retry: (failureCount, error) =>
             isRetriableMarketError(error) && failureCount < 2,
@@ -263,6 +312,11 @@ export function useMarketMovers() {
             return isMarketCurrentlyOpen() ? 1000 * 60 * 2 : false
         },
     })
+
+    // Persist fresh data to localStorage for instant display on next visit
+    useEffect(() => {
+        if (query.data) saveMoversCache(query.data)
+    }, [query.data])
 
     const marketStatus = buildMarketQueryStatus({
         meta: query.data?.meta,

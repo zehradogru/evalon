@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -8,7 +8,6 @@ import {
     Activity,
     TrendingUp,
     TrendingDown,
-    Loader2,
     RefreshCw,
     ArrowUpRight,
     BarChart2,
@@ -16,14 +15,36 @@ import {
 import { useMarketMovers, type DashboardTicker } from '@/hooks/use-dashboard-data'
 import { MarketDataStatusChip } from '@/components/market-data-status-chip'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+
+function SkeletonRow({ index }: { index: number }) {
+    return (
+        <tr className="border-b border-border/50">
+            <td className="py-3 pl-4 pr-2 w-8">
+                <span className="text-xs text-muted-foreground/40 font-mono">{index + 1}</span>
+            </td>
+            <td className="py-3 px-2">
+                <div className="flex flex-col gap-1.5">
+                    <Skeleton className="h-3.5 w-16" />
+                    <Skeleton className="h-2.5 w-28" />
+                </div>
+            </td>
+            <td className="py-3 px-2 text-right"><Skeleton className="h-3.5 w-14 ml-auto" /></td>
+            <td className="py-3 px-2 text-right"><Skeleton className="h-3.5 w-12 ml-auto" /></td>
+            <td className="py-3 px-4 text-right"><Skeleton className="h-5 w-16 ml-auto rounded-md" /></td>
+            <td className="py-3 pl-2 pr-4 text-right hidden sm:table-cell"><Skeleton className="h-3 w-10 ml-auto" /></td>
+            <td className="py-3 pl-2 pr-4 hidden md:table-cell w-8" />
+        </tr>
+    )
+}
 
 type Tab = 'gainers' | 'losers' | 'active'
 
 const TABS: { id: Tab; label: string; icon: typeof Flame }[] = [
-    { id: 'gainers', label: 'En Çok Yükselenler', icon: Flame },
-    { id: 'losers', label: 'En Çok Düşenler', icon: Snowflake },
-    { id: 'active', label: 'En Aktif (Hacim)', icon: Activity },
+    { id: 'gainers', label: 'Top Gainers', icon: Flame },
+    { id: 'losers', label: 'Top Losers', icon: Snowflake },
+    { id: 'active', label: 'Most Active (Volume)', icon: Activity },
 ]
 
 function formatVolume(vol: number | null): string {
@@ -116,7 +137,7 @@ export function MoversView() {
                     </div>
                     <div>
                         <h1 className="text-xl font-bold text-foreground">Piyasa Hareketleri</h1>
-                        <p className="text-sm text-muted-foreground">BIST — günün en aktif hisseleri</p>
+                        <p className="text-sm text-muted-foreground">BIST — most active stocks of the day</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 mt-2 sm:mt-0">
@@ -158,23 +179,15 @@ export function MoversView() {
 
             {/* Table */}
             <div className="rounded-xl border border-border bg-card overflow-hidden">
-                {isLoading ? (
-                    <div className="flex items-center justify-center py-24">
-                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    </div>
-                ) : isError ? (
+                {isError && !isLoading ? (
                     <div className="flex flex-col items-center justify-center py-24 gap-3 text-center px-6">
                         <p className="text-sm text-muted-foreground">
-                            {marketStatus.errorMessage || 'Piyasa verisi geçici olarak kullanılamıyor.'}
+                            {marketStatus.errorMessage || 'Market data temporarily unavailable.'}
                         </p>
                         <Button size="sm" variant="outline" onClick={() => void retryNow()}>
                             <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                             Tekrar Dene
                         </Button>
-                    </div>
-                ) : rows.length === 0 ? (
-                    <div className="flex items-center justify-center py-24 text-sm text-muted-foreground">
-                        {marketStatus.isWarming ? 'Veri yükleniyor...' : 'Veri bulunamadı'}
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -182,23 +195,36 @@ export function MoversView() {
                             <thead>
                                 <tr className="border-b border-border bg-muted/20 text-left">
                                     <th className="py-2.5 pl-4 pr-2 w-8 text-[11px] font-medium text-muted-foreground">#</th>
-                                    <th className="py-2.5 px-2 text-[11px] font-medium text-muted-foreground">Hisse</th>
-                                    <th className="py-2.5 px-2 text-right text-[11px] font-medium text-muted-foreground">Fiyat</th>
-                                    <th className="py-2.5 px-2 text-right text-[11px] font-medium text-muted-foreground">Değişim ₺</th>
-                                    <th className="py-2.5 px-4 text-right text-[11px] font-medium text-muted-foreground">Değişim %</th>
-                                    <th className="py-2.5 pl-2 pr-4 text-right text-[11px] font-medium text-muted-foreground hidden sm:table-cell">Hacim</th>
+                                    <th className="py-2.5 px-2 text-[11px] font-medium text-muted-foreground">Stock</th>
+                                    <th className="py-2.5 px-2 text-right text-[11px] font-medium text-muted-foreground">Price</th>
+                                    <th className="py-2.5 px-2 text-right text-[11px] font-medium text-muted-foreground">Change ₺</th>
+                                    <th className="py-2.5 px-4 text-right text-[11px] font-medium text-muted-foreground">Change %</th>
+                                    <th className="py-2.5 pl-2 pr-4 text-right text-[11px] font-medium text-muted-foreground hidden sm:table-cell">Volume</th>
                                     <th className="py-2.5 pl-2 pr-4 hidden md:table-cell w-8" />
                                 </tr>
                             </thead>
                             <tbody>
-                                {rows.map((item, i) => (
-                                    <TableRow
-                                        key={item.ticker}
-                                        item={item}
-                                        index={i}
-                                        onClick={() => router.push(`/markets/${item.ticker}`)}
-                                    />
-                                ))}
+                                {isLoading
+                                    ? Array.from({ length: 15 }).map((_, i) => (
+                                          <SkeletonRow key={i} index={i} />
+                                      ))
+                                    : rows.length === 0
+                                      ? (
+                                          <tr>
+                                              <td colSpan={7} className="py-24 text-center text-sm text-muted-foreground">
+                                                  {marketStatus.isWarming ? 'Loading data...' : 'No data found'}
+                                              </td>
+                                          </tr>
+                                        )
+                                      : rows.map((item, i) => (
+                                            <TableRow
+                                                key={item.ticker}
+                                                item={item}
+                                                index={i}
+                                                onClick={() => router.push(`/markets/${item.ticker}`)}
+                                            />
+                                        ))
+                                }
                             </tbody>
                         </table>
                     </div>

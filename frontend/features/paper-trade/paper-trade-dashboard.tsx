@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
@@ -21,7 +21,7 @@ import { AssetAllocationChart } from './asset-allocation-chart'
 const TABS: { id: PaperTradeTab; label: string; icon: typeof BarChart3 }[] = [
     { id: 'positions', label: 'Pozisyonlar', icon: BarChart3 },
     { id: 'orders', label: 'Emirler', icon: ClipboardList },
-    { id: 'history', label: 'Geçmiş', icon: Clock },
+    { id: 'history', label: 'History', icon: Clock },
     { id: 'performance', label: 'Performans', icon: TrendingUp },
 ]
 
@@ -189,7 +189,7 @@ export function PaperTradeDashboard() {
                         <AlertCircle size={24} className="text-red-400" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-semibold text-foreground mb-1">Portföy yüklenemedi</h3>
+                        <h3 className="text-sm font-semibold text-foreground mb-1">Failed to load portfolio</h3>
                         <p className="text-xs text-muted-foreground">{portfolioError}</p>
                     </div>
                     <button
@@ -209,7 +209,7 @@ export function PaperTradeDashboard() {
             <div className="flex items-center justify-center min-h-[400px]">
                 <div className="flex flex-col items-center gap-3">
                     <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    <p className="text-sm text-muted-foreground">Portföy yükleniyor...</p>
+                    <p className="text-sm text-muted-foreground">Loading portfolio...</p>
                 </div>
             </div>
         )
@@ -247,8 +247,8 @@ export function PaperTradeDashboard() {
                                 <Sparkles size={16} className="text-violet-400" />
                             </div>
                             <div>
-                                <p className="text-xs font-semibold text-foreground">Tarihsel Simülasyon</p>
-                                <p className="text-[10px] text-muted-foreground">Geçmişte alsaydınız ne olurdu?</p>
+                                <p className="text-xs font-semibold text-foreground">Historical Simulation</p>
+                                <p className="text-[10px] text-muted-foreground">What if you had bought in the past?</p>
                             </div>
                         </div>
                         <ArrowRight size={14} className="text-muted-foreground group-hover:text-violet-400 group-hover:translate-x-0.5 transition-all" />
@@ -264,7 +264,7 @@ export function PaperTradeDashboard() {
                             </div>
                             <div>
                                 <p className="text-xs font-semibold text-foreground">Liderlik Tablosu</p>
-                                <p className="text-[10px] text-muted-foreground">Topluluk sıralamasını gör</p>
+                                <p className="text-[10px] text-muted-foreground">View community rankings</p>
                             </div>
                         </div>
                         <ArrowRight size={14} className="text-muted-foreground group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all" />

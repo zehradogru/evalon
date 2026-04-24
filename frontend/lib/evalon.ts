@@ -159,18 +159,21 @@ interface BuildGraphWebUrlParams {
     symbol: string
     tf: Timeframe | string
     page?: 'chart' | 'backtest' | 'ai'
+    embed?: boolean
 }
 
 export function buildGraphWebUrl({
     symbol,
     tf,
     page = 'chart',
+    embed = false,
 }: BuildGraphWebUrlParams): string {
     const url = new URL(`/${page}`, EVALON_GRAPH_WEB_URL)
     const params = new URLSearchParams({
         symbol: symbol.trim().toUpperCase(),
         tf: toGraphWebTimeframe(tf),
     })
+    if (embed) params.set('embed', '1')
 
     url.search = params.toString()
 

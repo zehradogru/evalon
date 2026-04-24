@@ -206,7 +206,7 @@ class BistPrices1HClient(BistPricesClient):
         value = str(ticker).strip().upper()
         if value.endswith(".IS"):
             value = value[:-3]
-        return "".join(ch for ch in value if ch.isalnum())
+        return "".join(ch for ch in value if ch.isalnum() or ch == "_")
 
     def _resolve_wallet_dir(self) -> str:
         candidates = [

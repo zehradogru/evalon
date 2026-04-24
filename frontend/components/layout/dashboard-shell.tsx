@@ -13,6 +13,7 @@ import { AiAssistantView } from '@/features/ai-assistant/ai-assistant-view';
 import { NotificationsView } from '@/features/notifications/notifications-view';
 import { SupportView } from '@/features/support/support-view';
 import { SettingsView } from '@/features/settings/settings-view';
+import { PaperTradeWidget } from '@/features/paper-trade/paper-trade-widget';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
@@ -65,6 +66,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
                         <X size={14} />
                     </Button>
 
+                    {activePanel === 'Paper Trade' && <PaperTradeWidget />}
                     {activePanel === 'Calendar' && <CalendarView isWidget />}
                     {activePanel === 'Watchlist' && <WatchlistView isWidget />}
                     {activePanel === 'Alerts' && <AlertsView isWidget />}

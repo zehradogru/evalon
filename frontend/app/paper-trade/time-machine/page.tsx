@@ -1,11 +1,11 @@
-import type { Metadata } from 'next'
+﻿import type { Metadata } from 'next'
 import { DashboardShell } from '@/components/layout/dashboard-shell'
 import { TimeMachinePanel } from '@/features/paper-trade/time-machine-panel'
 import { TimeMachineBackLink } from '@/features/paper-trade/time-machine-back-link'
 
 export const metadata: Metadata = {
-    title: 'Tarihsel Simülasyon — EVALON',
-    description: 'Geçmiş verilerle yatırım senaryoları simüle edin.',
+    title: 'Historical Simulation — EVALON',
+    description: 'Simulate investment scenarios with historical data.',
 }
 
 export default function TimeMachinePage() {

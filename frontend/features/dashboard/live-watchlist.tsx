@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useMemo, useState } from 'react'
 import {
@@ -136,7 +136,7 @@ export function LiveWatchlist({ onSelectTicker, activeTicker }: LiveWatchlistPro
                 setFeedback(null)
               }}
               className="absolute right-2.5 top-2 text-muted-foreground transition-colors hover:text-foreground"
-              aria-label="Aramayı temizle"
+              aria-label="Clear search"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -225,7 +225,7 @@ export function LiveWatchlist({ onSelectTicker, activeTicker }: LiveWatchlistPro
         ) : filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
             <span className="text-xs text-muted-foreground">
-              Watchlist içinde eslesen ticker bulunamadi.
+              No matching ticker found in watchlist.
             </span>
             {normalizedQuery && suggestions.length > 0 ? (
               <span className="text-[10px] text-muted-foreground">

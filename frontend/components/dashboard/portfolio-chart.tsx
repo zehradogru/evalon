@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
 import {
@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
 type Period = '1D' | '1W' | '1M'
 
 const periodLabels: Record<Period, string> = {
-    '1D': '1 Gün',
+    '1D': '1 Day',
     '1W': '1 Hafta',
     '1M': '1 Ay',
 }
@@ -88,16 +88,16 @@ export function PortfolioChart() {
             const date = new Date(bar.t)
             let label: string
             if (period === '1D') {
-                label = date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+                label = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
             } else if (period === '1W') {
-                label = date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit' })
+                label = date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', hour: '2-digit' })
             } else {
-                label = date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' })
+                label = date.toLocaleDateString('en-US', { day: '2-digit', month: 'short' })
             }
             return {
                 label,
                 value: bar.c,
-                fullDate: date.toLocaleString('tr-TR', {
+                fullDate: date.toLocaleString('en-US', {
                     day: 'numeric',
                     month: 'long',
                     hour: '2-digit',
@@ -128,7 +128,7 @@ export function PortfolioChart() {
                     </div>
                     <div>
                         <CardTitle className="text-base font-medium text-foreground">
-                            Piyasa Görünümü
+                            Market Overview
                         </CardTitle>
                         <p className="text-xs text-muted-foreground mt-0.5">
                             THYAO
@@ -159,7 +159,7 @@ export function PortfolioChart() {
                 {/* Value Display */}
                 <div className="mb-4">
                     <div className="text-2xl font-bold text-foreground">
-                        ₺{lastValue.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                        ₺{lastValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </div>
                     <div className={cn("text-sm font-medium", isPositive ? "text-chart-2" : "text-destructive")}>
                         {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
@@ -171,11 +171,11 @@ export function PortfolioChart() {
                 <div ref={containerRef} className="h-[200px] sm:h-[250px] w-full min-w-0">
                     {isLoading ? (
                         <div className="h-full flex items-center justify-center">
-                            <div className="animate-pulse text-muted-foreground">Yükleniyor...</div>
+                            <div className="animate-pulse text-muted-foreground">Loading...</div>
                         </div>
                     ) : error ? (
                         <div className="h-full flex items-center justify-center">
-                            <div className="text-destructive text-sm">Veri yüklenemedi</div>
+                            <div className="text-destructive text-sm">Failed to load data</div>
                         </div>
                     ) : dimensions.width > 0 && dimensions.height > 0 ? (
                         <AreaChart
@@ -229,7 +229,7 @@ export function PortfolioChart() {
                                     return ''
                                 }}
                                 formatter={(value) => [
-                                    `₺${(value as number).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`,
+                                    `₺${(value as number).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
                                     'Fiyat',
                                 ]}
                             />
@@ -243,7 +243,7 @@ export function PortfolioChart() {
                         </AreaChart>
                     ) : (
                         <div className="h-full flex items-center justify-center">
-                            <div className="animate-pulse text-muted-foreground">Yükleniyor...</div>
+                            <div className="animate-pulse text-muted-foreground">Loading...</div>
                         </div>
                     )}
                 </div>

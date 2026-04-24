@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo } from 'react'
 import {
@@ -40,11 +40,11 @@ export function PortfolioSummaryCard({ portfolio, onReset }: PortfolioSummaryCar
                         <Wallet size={18} className="text-primary" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-semibold text-foreground">Sanal Portföy</h3>
+                        <h3 className="text-sm font-semibold text-foreground">Virtual Portfolio</h3>
                         <p className="text-[11px] text-muted-foreground">
                             {portfolio.resetCount > 0
                                 ? `${portfolio.resetCount}. reset`
-                                : 'İlk portföy'}
+                                : 'New portfolio'}
                         </p>
                     </div>
                 </div>
@@ -52,20 +52,20 @@ export function PortfolioSummaryCard({ portfolio, onReset }: PortfolioSummaryCar
                     <button
                         onClick={onReset}
                         className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors px-2.5 py-1.5 rounded-lg hover:bg-destructive/10"
-                        title="Portföyü Sıfırla"
+                        title="Reset Portfolio"
                     >
                         <RefreshCw size={13} />
-                        Sıfırla
+                        Reset
                     </button>
                 )}
             </div>
 
             {/* Total Value */}
             <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Toplam Değer</p>
+                <p className="text-xs text-muted-foreground">Total Value</p>
                 <div className="flex items-end gap-3">
                     <span className="text-2xl font-bold text-foreground tracking-tight">
-                        ₺{portfolio.totalValue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₺{portfolio.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                     <div className={cn(
                         'flex items-center gap-1 text-sm font-semibold pb-0.5',
@@ -73,7 +73,7 @@ export function PortfolioSummaryCard({ portfolio, onReset }: PortfolioSummaryCar
                     )}>
                         {isPositive ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
                         <span>
-                            {isPositive ? '+' : ''}₺{portfolio.totalPnL.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {isPositive ? '+' : ''}₺{portfolio.totalPnL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                         <span className="text-xs opacity-80">
                             ({isPositive ? '+' : ''}{portfolio.totalPnLPercent.toFixed(2)}%)
@@ -87,17 +87,17 @@ export function PortfolioSummaryCard({ portfolio, onReset }: PortfolioSummaryCar
                 <div className="rounded-lg bg-secondary/30 p-3 space-y-1">
                     <p className="text-[11px] text-muted-foreground">Nakit Bakiye</p>
                     <p className="text-sm font-semibold text-foreground">
-                        ₺{portfolio.cashBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₺{portfolio.cashBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                 </div>
                 <div className="rounded-lg bg-secondary/30 p-3 space-y-1">
-                    <p className="text-[11px] text-muted-foreground">Pozisyon Değeri</p>
+                    <p className="text-[11px] text-muted-foreground">Position Value</p>
                     <p className="text-sm font-semibold text-foreground">
-                        ₺{positionsValue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₺{positionsValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                 </div>
                 <div className="rounded-lg bg-secondary/30 p-3 space-y-1">
-                    <p className="text-[11px] text-muted-foreground">İşlem Sayısı</p>
+                    <p className="text-[11px] text-muted-foreground">Trade Count</p>
                     <p className="text-sm font-semibold text-foreground">{portfolio.totalTrades}</p>
                 </div>
             </div>

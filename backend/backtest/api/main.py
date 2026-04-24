@@ -586,7 +586,6 @@ def get_news(
 
     where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 
-    count_sql = f"SELECT COUNT(*) FROM BIST_NEWS {where_sql}"
     select_sql = f"""
         SELECT ID, SYMBOL, NEWS_SOURCE, TITLE, SUMMARY,
                SENTIMENT, SENTIMENT_SCORE, NEWS_URL, AUTHOR, PUBLISHED_AT
@@ -597,20 +596,35 @@ def get_news(
     """
     bind_select = {**bind_params, "offset": offset, "limit": limit}
 
-    try:
+    def _run_news_query() -> tuple:
         conn = client._connect()
         try:
             with conn.cursor() as cur:
-                cur.execute(count_sql, bind_params)
-                row_count = cur.fetchone()
-                total = int(row_count[0]) if row_count else 0
-
                 cur.execute(select_sql, bind_select)
                 rows = cur.fetchall()
+            return rows
         finally:
             conn.close()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Haber verisi alınamadı: {e}")
+
+    try:
+        rows = _run_news_query()
+    except Exception as first_err:
+        # Broken pipe / stale connection — reset pool and retry once
+        import errno
+        is_pipe = (
+            isinstance(first_err, OSError) and getattr(first_err, "errno", None) == errno.EPIPE
+        ) or "Broken pipe" in str(first_err) or "DPY-" in str(first_err)
+        if is_pipe:
+            try:
+                client.close_pool()
+            except Exception:
+                pass
+            try:
+                rows = _run_news_query()
+            except Exception as retry_err:
+                raise HTTPException(status_code=500, detail=f"Haber verisi alınamadı: {retry_err}")
+        else:
+            raise HTTPException(status_code=500, detail=f"Haber verisi alınamadı: {first_err}")
 
     items: List[NewsItem] = []
     for row in rows:
@@ -629,7 +643,7 @@ def get_news(
             )
         )
 
-    return NewsResponse(items=items, total=total, page=page, limit=limit)
+    return NewsResponse(items=items, total=len(items), page=page, limit=limit)
 
 
 @app.on_event("shutdown")
