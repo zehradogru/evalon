@@ -1,35 +1,32 @@
 'use client';
 
 import {
-    List,
-    Newspaper,
-    Calendar,
-    Lightbulb,
-    MessageSquare,
-    Bell,
+    BellPlus,
+    Bot,
+    BriefcaseBusiness,
+    CalendarDays,
     HelpCircle,
+    Inbox,
+    Newspaper,
     Settings,
-    Wallet,
-    Sparkles
+    SlidersHorizontal,
+    Star,
+    TimerReset,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Search } from 'lucide-react';
 
-// TradingView Right Toolbar Icons
-// TradingView Right Toolbar Icons
-// TradingView Right Toolbar Icons
 const tools = [
-    { name: 'Watchlist', icon: List, path: '/watchlist', isWidget: true },
-    { name: 'Paper Trade', icon: Wallet, path: '/paper-trade', isWidget: false },
-    { name: 'Tarihsel Simülasyon', icon: Sparkles, path: '/paper-trade/time-machine', isWidget: false },
-    { name: 'Alerts', icon: Bell, path: '/alerts', isWidget: true },
-    { name: 'News', icon: Newspaper, path: '/news', isWidget: true },
-    { name: 'Screeners', icon: Search, path: '/screener', isWidget: true },
-    { name: 'Evalon AI', icon: Lightbulb, path: '/ai', isWidget: true },
-    { name: 'Calendar', icon: Calendar, path: '/calendar', isWidget: true },
-    { name: 'Notifications', icon: MessageSquare, path: '/notifications', isWidget: true },
+    { name: 'Watchlist', label: 'Watchlist', icon: Star, path: '/watchlist', isWidget: true },
+    { name: 'Paper Trade', label: 'Paper Trade', icon: BriefcaseBusiness, path: '/paper-trade', isWidget: false },
+    { name: 'Tarihsel Simülasyon', label: 'Tarihsel Simülasyon', icon: TimerReset, path: '/paper-trade/time-machine', isWidget: false },
+    { name: 'Alerts', label: 'Price Alerts', icon: BellPlus, path: '/alerts', isWidget: true },
+    { name: 'News', label: 'News', icon: Newspaper, path: '/news', isWidget: true },
+    { name: 'Screeners', label: 'Market Screener', icon: SlidersHorizontal, path: '/screener', isWidget: true },
+    { name: 'Evalon AI', label: 'Evalon AI', icon: Bot, path: '/ai', isWidget: true },
+    { name: 'Calendar', label: 'Economic Calendar', icon: CalendarDays, path: '/calendar', isWidget: true },
+    { name: 'Notifications', label: 'Notifications', icon: Inbox, path: '/notifications', isWidget: true },
 ];
 
 interface SidebarProps {
@@ -60,7 +57,7 @@ export function Sidebar({ activePanel, onTogglePanel }: SidebarProps) {
                             (pathname === tool.path && !activePanel) && "text-primary bg-card",
                             activePanel === tool.name && "text-primary bg-card border-l-2 border-primary"
                         )}
-                        title={tool.name}
+                        title={tool.label}
                     >
                         <tool.icon size={20} strokeWidth={1.5} />
                         {(pathname === tool.path && !activePanel) && (
@@ -69,7 +66,7 @@ export function Sidebar({ activePanel, onTogglePanel }: SidebarProps) {
 
                         {/* Tooltip on Hover */}
                         <div className="absolute right-full mr-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 border border-border">
-                            {tool.name}
+                            {tool.label}
                         </div>
                     </Link>
                 ))}
