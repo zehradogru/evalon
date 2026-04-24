@@ -6,6 +6,9 @@ const EVALON_API_URL =
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  turbopack: {
+    root: process.cwd(),
+  },
   images: {
     unoptimized: false,
   },

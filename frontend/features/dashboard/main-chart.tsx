@@ -305,8 +305,8 @@ export function MainChart({ ticker = 'THYAO', name = 'Turkish Airlines' }: MainC
                   boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
                 }}
                 labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px' }}
-                formatter={(value: number | undefined) => [
-                  (value ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }),
+                formatter={(value) => [
+                  Number(value ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }),
                   'Price',
                 ]}
                 cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeDasharray: '4 4' }}
