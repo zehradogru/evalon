@@ -32,7 +32,7 @@ export function ResetPortfolioDialog({ open, resetCount, onConfirm, onCancel }: 
                     <h3 className="text-lg font-bold text-foreground">Portföyü Sıfırla</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                         Tüm açık pozisyonlar kapatılacak, emir geçmişi silinecek ve bakiyeniz{' '}
-                        <span className="text-foreground font-semibold">₺100.000</span>'e
+                        <span className="text-foreground font-semibold">₺100.000</span>&apos;e
                         sıfırlanacak.
                     </p>
                     <p className="text-xs text-muted-foreground/60">

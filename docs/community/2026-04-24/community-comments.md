@@ -18,6 +18,15 @@ Community post detay sayfasına ve community feed içine gerçek yorum sistemi e
 - `frontend/features/community/components/community-image-lightbox.tsx` eklendi.
 - `frontend/features/community/components/community-composer.tsx` güncellendi.
 - `firestore.rules` güncellendi ve Firebase projesine deploy edildi.
+- Merge sonrası tam frontend lint gate'i için mevcut ESLint hataları temizlendi:
+  - `frontend/components/dashboard/navbar.tsx`
+  - `frontend/features/news/news-view.tsx`
+  - `frontend/features/paper-trade/leaderboard-table.tsx`
+  - `frontend/features/paper-trade/reset-portfolio-dialog.tsx`
+  - `frontend/features/paper-trade/paper-trade-dashboard.tsx`
+  - `frontend/features/paper-trade/time-machine-panel.tsx`
+  - `frontend/features/profile/profile-view.tsx`
+  - `frontend/types/paper-trade.ts`
 
 # Teknik Detaylar
 
@@ -36,6 +45,7 @@ Community post detay sayfasına ve community feed içine gerçek yorum sistemi e
 - Community composer ticker alanı `/api/markets/list` aramasını kullanan seçilebilir picker'a taşındı; manuel Enter/virgül ile ticker ekleme davranışı korunur.
 - `firestore.rules` içine public comment read, authenticated create, owner-only update/delete ve `commentCount` delta guard kontrolleri eklendi.
 - Firebase rules `evalon-auths` projesine `firebase deploy --only firestore:rules --project evalon-auths` komutuyla deploy edildi.
+- `origin/main` merge'i sonrasında full lint'i bloklayan mevcut non-community hatalar için tip daraltma, JSX apostrof escape'i ve route/data-sync effectlerinde dar kapsamlı lint uyumluluğu eklendi.
 
 # Kontrol Listesi (Checklist)
 
@@ -52,7 +62,8 @@ Community post detay sayfasına ve community feed içine gerçek yorum sistemi e
 11. Resimli bir posta tıkla; lightbox'ın açıldığını, zoom in/out ve reset kontrollerinin çalıştığını doğrula.
 12. Yeni post oluştururken ticker alanında şirket/ticker ara, önerilerden birini seç ve chip olarak eklendiğini doğrula.
 13. Ticker alanına manuel sembol yazıp Enter/virgül ile ekleme davranışının devam ettiğini kontrol et.
-14. `npm run build` komutunun frontend altında başarılı tamamlandığını kontrol et.
+14. `npm run lint` komutunun frontend altında başarılı tamamlandığını kontrol et.
+15. `npm run build` komutunun frontend altında başarılı tamamlandığını kontrol et.
 
 # Bilinen Sorunlar / Eksikler
 

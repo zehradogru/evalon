@@ -123,6 +123,7 @@ export interface LeaderboardEntry {
     userId: string
     displayName: string
     photoURL: string | null
+    totalValue?: number
     totalPnL: number
     totalPnLPercent: number
     totalTrades: number

@@ -47,6 +47,7 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
     const [searchQ, setSearchQ] = useState('');
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLoading(true);
         setError(null);
         fetchNews({ limit: 50, q: searchQ || undefined })

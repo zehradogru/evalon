@@ -97,6 +97,7 @@ export function TimeMachinePanel() {
     // Auto-fetch price preview when ticker and date changes
     useEffect(() => {
         if (!ticker || !buyDate) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setPreviewPrice(null)
             return
         }

@@ -46,16 +46,19 @@ export function LeaderboardTable() {
         try {
             const res = await paperTradeService.getLeaderboard(sortBy, 50)
             setEntries(res.entries)
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err)
-            setError(err.message)
+            setError(err instanceof Error ? err.message : 'Liderlik tablosu yüklenemedi')
             setEntries([])
         } finally {
             setLoading(false)
         }
     }, [sortBy])
 
-    useEffect(() => { load() }, [load])
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        load()
+    }, [load])
 
     return (
         <div className="space-y-4">
@@ -162,7 +165,7 @@ export function LeaderboardTable() {
 
                                 {/* Total Value */}
                                 <p className="text-xs font-bold text-foreground text-right tabular-nums">
-                                    ₺{formatCurrency((entry as any).totalValue || 100000)}
+                                    ₺{formatCurrency(entry.totalValue || 100000)}
                                 </p>
 
                                 {/* P&L */}

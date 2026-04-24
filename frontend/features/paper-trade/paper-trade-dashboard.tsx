@@ -102,6 +102,7 @@ export function PaperTradeDashboard() {
         if (priceIntervalRef.current) clearInterval(priceIntervalRef.current)
 
         if (selectedTicker) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             fetchTickerPrice(selectedTicker)
             priceIntervalRef.current = setInterval(() => fetchTickerPrice(selectedTicker), 30_000) // 30s refresh
         }

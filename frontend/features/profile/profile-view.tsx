@@ -39,6 +39,7 @@ export function ProfileView() {
     const isBusy = isLoading || isSaving || isUploadingPhoto;
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setDisplayName(currentName);
     }, [currentName]);
 
