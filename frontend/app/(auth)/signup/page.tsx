@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store'
 import {
     getPasswordPolicyState,
     isPasswordPolicySatisfied,
+    isValidEmail,
     normalizeDisplayName,
     PASSWORD_MIN_LENGTH,
 } from '@/lib/auth-utils'
@@ -24,8 +25,10 @@ export default function SignupPage() {
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
     const [agreedToTerms, setAgreedToTerms] = useState(false)
     const [agreedToPrivacy, setAgreedToPrivacy] = useState(false)
+    const [emailError, setEmailError] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
     const passwordPolicy = getPasswordPolicyState(password)
@@ -38,6 +41,11 @@ export default function SignupPage() {
 
         if (!normalizedName) {
             setError('Enter your full name to continue')
+            return
+        }
+
+        if (!isValidEmail(email)) {
+            setError('Enter a valid email address')
             return
         }
 
@@ -55,6 +63,11 @@ export default function SignupPage() {
             setError(
                 `Password must be at least ${PASSWORD_MIN_LENGTH} characters and include uppercase, lowercase, and a number`
             )
+            return
+        }
+
+        if (password !== confirmPassword) {
+            setError('Passwords do not match')
             return
         }
 
@@ -124,20 +137,20 @@ export default function SignupPage() {
 
             <div className="relative z-10 w-full max-w-md space-y-6">
                 {/* Signup Card */}
-                <Card className="border-slate-600/30 bg-slate-900/70 backdrop-blur-2xl p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-                    <div className="space-y-6">
+                <Card className="border-slate-600/30 bg-slate-900/70 backdrop-blur-2xl p-7 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+                    <div className="space-y-5">
                         {/* Header */}
                         <div className="text-center">
                             <h1 className="text-2xl font-semibold text-white/95">
                                 Create your account
                             </h1>
-                            <p className="mt-2 text-sm text-slate-300">
+                            <p className="mt-1.5 text-sm text-slate-300">
                                 Start tracking your portfolio like a pro.
                             </p>
                         </div>
 
                         {/* Form */}
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-3">
                             {/* Name */}
                             <div className="space-y-2">
                                 <Label htmlFor="name" className="text-slate-200 text-sm font-medium">
@@ -166,50 +179,85 @@ export default function SignupPage() {
                                     placeholder="name@example.com"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
+                                    onFocus={() => setEmailError('')}
+                                    onBlur={() => {
+                                        if (email && !isValidEmail(email)) {
+                                            setEmailError('Enter a valid email address')
+                                        }
+                                    }}
                                     autoComplete="email"
                                     required
-                                    className="border-slate-500/30 bg-slate-800/30 backdrop-blur-sm text-white placeholder:text-slate-400 focus:border-blue-500/50 transition-colors"
+                                    className={`border-slate-500/30 bg-slate-800/30 backdrop-blur-sm placeholder:text-slate-400 focus:border-blue-500/50 transition-colors ${emailError ? 'text-red-400' : 'text-white'}`}
                                 />
                             </div>
 
-                            {/* Password */}
-                            <div className="space-y-2">
-                                <Label htmlFor="password" className="text-slate-200 text-sm font-medium">
-                                    Password
-                                </Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    placeholder={`Minimum ${PASSWORD_MIN_LENGTH} characters`}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    autoComplete="new-password"
-                                    required
-                                    minLength={PASSWORD_MIN_LENGTH}
-                                    className="border-slate-500/30 bg-slate-800/30 backdrop-blur-sm text-white placeholder:text-slate-400 focus:border-blue-500/50 transition-colors"
-                                />
-                                <div className="space-y-1.5 rounded-lg border border-slate-700/80 bg-slate-950/40 p-3">
-                                    <PasswordChecklistItem
-                                        complete={passwordPolicy.hasMinimumLength}
-                                        label={`At least ${PASSWORD_MIN_LENGTH} characters`}
+                            {/* Password + Confirm side by side */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                    <Label htmlFor="password" className="text-slate-200 text-sm font-medium">
+                                        Password
+                                    </Label>
+                                    <Input
+                                        id="password"
+                                        type="password"
+                                        placeholder={`Min ${PASSWORD_MIN_LENGTH} chars`}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        autoComplete="new-password"
+                                        required
+                                        minLength={PASSWORD_MIN_LENGTH}
+                                        className="border-slate-500/30 bg-slate-800/30 backdrop-blur-sm text-white placeholder:text-slate-400 focus:border-blue-500/50 transition-colors"
                                     />
-                                    <PasswordChecklistItem
-                                        complete={passwordPolicy.hasUppercase}
-                                        label="At least one uppercase letter"
-                                    />
-                                    <PasswordChecklistItem
-                                        complete={passwordPolicy.hasLowercase}
-                                        label="At least one lowercase letter"
-                                    />
-                                    <PasswordChecklistItem
-                                        complete={passwordPolicy.hasNumeric}
-                                        label="At least one number"
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="confirmPassword" className="text-slate-200 text-sm font-medium">
+                                        Confirm Password
+                                    </Label>
+                                    <Input
+                                        id="confirmPassword"
+                                        type="password"
+                                        placeholder="Re-enter password"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        autoComplete="new-password"
+                                        required
+                                        className={`border-slate-500/30 bg-slate-800/30 backdrop-blur-sm text-white placeholder:text-slate-400 focus:border-blue-500/50 transition-colors ${
+                                            confirmPassword && confirmPassword !== password
+                                                ? 'border-red-500/50'
+                                                : confirmPassword && confirmPassword === password
+                                                  ? 'border-emerald-500/50'
+                                                  : ''
+                                        }`}
                                     />
                                 </div>
                             </div>
+                            <div className="space-y-1.5 rounded-lg border border-slate-700/80 bg-slate-950/40 p-3">
+                                <PasswordChecklistItem
+                                    complete={passwordPolicy.hasMinimumLength}
+                                    label={`At least ${PASSWORD_MIN_LENGTH} characters`}
+                                />
+                                <PasswordChecklistItem
+                                    complete={passwordPolicy.hasUppercase}
+                                    label="At least one uppercase letter"
+                                />
+                                <PasswordChecklistItem
+                                    complete={passwordPolicy.hasLowercase}
+                                    label="At least one lowercase letter"
+                                />
+                                <PasswordChecklistItem
+                                    complete={passwordPolicy.hasNumeric}
+                                    label="At least one number"
+                                />
+                                {confirmPassword && (
+                                    <PasswordChecklistItem
+                                        complete={password === confirmPassword}
+                                        label="Passwords match"
+                                    />
+                                )}
+                            </div>
 
                             {/* IMPROVED: Separate Terms Checkboxes */}
-                            <div className="space-y-2.5 rounded-lg border border-slate-700 bg-[#1a1f2e] p-4">
+                            <div className="space-y-2 rounded-lg border border-slate-700 bg-[#1a1f2e] p-3">
                                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                                     Required Agreements
                                 </p>

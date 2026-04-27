@@ -16,6 +16,10 @@ export function normalizeAuthEmail(email: string): string {
     return email.trim().toLowerCase()
 }
 
+export function isValidEmail(email: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())
+}
+
 export function normalizeDisplayName(value: string): string {
     return value.trim().replace(/\s+/g, ' ')
 }

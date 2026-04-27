@@ -80,6 +80,8 @@ function getSignupErrorMessage(error: unknown): string {
     const errorCode = isFirebaseError(error) ? error.code : undefined
 
     switch (errorCode) {
+        case 'auth/email-already-in-use':
+            return 'An account with this email already exists. Try signing in instead.'
         case 'auth/too-many-requests':
             return 'Too many attempts. Please wait and try again.'
         case 'auth/network-request-failed':
@@ -93,10 +95,18 @@ function getOAuthErrorMessage(error: unknown): string {
     const errorCode = isFirebaseError(error) ? error.code : undefined
 
     switch (errorCode) {
+        case 'auth/account-exists-with-different-credential':
+            return 'This email is already registered with a different sign-in method. Try email & password instead.'
+        case 'auth/unauthorized-domain':
+            return 'Sign-in is not available on this domain. Please contact support.'
+        case 'auth/operation-not-allowed':
+            return 'Google sign-in is currently unavailable. Please try another method.'
         case 'auth/popup-closed-by-user':
             return 'Sign-in was cancelled before it could complete.'
         case 'auth/cancelled-popup-request':
             return 'Another sign-in request is already in progress.'
+        case 'auth/popup-blocked':
+            return 'Sign-in popup was blocked by the browser. Please allow popups for this site.'
         case 'auth/network-request-failed':
             return 'Network error. Please check your connection and try again.'
         default:
@@ -145,6 +155,7 @@ export const authService = {
 
             return buildAuthResponse(userCredential.user)
         } catch (error: unknown) {
+            console.error('[auth] login failed', error)
             throw new Error(getLoginErrorMessage(error))
         } finally {
             await waitAtLeast(startedAt)
@@ -177,6 +188,7 @@ export const authService = {
 
             return buildAuthResponse(userCredential.user)
         } catch (error: unknown) {
+            console.error('[auth] signup failed', error)
             throw new Error(getSignupErrorMessage(error))
         } finally {
             await waitAtLeast(startedAt)
@@ -205,6 +217,7 @@ export const authService = {
 
             return buildAuthResponse(result.user)
         } catch (error: unknown) {
+            console.error('[auth] google sign-in failed', error)
             throw new Error(getOAuthErrorMessage(error))
         } finally {
             await waitAtLeast(startedAt)
@@ -218,6 +231,7 @@ export const authService = {
             const result = await signInWithPopup(auth, appleProvider)
             return buildAuthResponse(result.user)
         } catch (error: unknown) {
+            console.error('[auth] apple sign-in failed', error)
             throw new Error(getOAuthErrorMessage(error))
         } finally {
             await waitAtLeast(startedAt)
