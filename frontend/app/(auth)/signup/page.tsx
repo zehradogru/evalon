@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +18,7 @@ import {
     normalizeDisplayName,
     PASSWORD_MIN_LENGTH,
 } from '@/lib/auth-utils'
+import { AUTH_BG_BLUR_URL } from '@/lib/constants'
 import { CheckCircle2, Circle } from 'lucide-react'
 
 export default function SignupPage() {
@@ -123,15 +125,17 @@ export default function SignupPage() {
     return (
         <div className="relative flex min-h-screen items-center justify-center p-4">
             {/* Background Image */}
-            <div
-                className="absolute inset-0 z-0"
-                style={{
-                    backgroundImage: 'url(/images/backgrounds/auth-bg.png)',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat',
-                }}
-            >
+            <div className="absolute inset-0 z-0">
+                <Image
+                    src="/images/backgrounds/auth-bg.webp"
+                    alt=""
+                    fill
+                    priority
+                    quality={85}
+                    className="object-cover object-center"
+                    placeholder="blur"
+                    blurDataURL={AUTH_BG_BLUR_URL}
+                />
                 <div className="absolute inset-0 bg-black/40" />
             </div>
 
