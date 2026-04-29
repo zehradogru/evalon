@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { BookOpen, Check, ChevronDown, ChevronUp, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -11,7 +11,18 @@ import {
 } from '@/lib/backtest-blueprint'
 import { readActiveBlueprint, saveActiveBlueprint } from '@/lib/workspace-storage'
 import { backtestsService } from '@/services/backtests.service'
-import type { BacktestCatalogRule, BacktestRuleCatalogResponse } from '@/types'
+import type { BacktestBlueprint, BacktestCatalogRule, BacktestRuleCatalogResponse } from '@/types'
+
+function collectBlueprintRuleIds(blueprint: BacktestBlueprint | null): Set<string> {
+  const ids = new Set<string>()
+  if (!blueprint?.stages) return ids
+  Object.values(blueprint.stages).forEach((stage) => {
+    stage?.rules?.forEach((r) => {
+      if (r?.id) ids.add(r.id)
+    })
+  })
+  return ids
+}
 
 const CATEGORY_COLORS: Record<string, string> = {
   'price-action': 'text-amber-400 border-amber-400/40 bg-amber-400/10',
@@ -41,13 +52,19 @@ export function RuleCatalogToolResult({ result, onAddToInput }: RuleCatalogToolR
   const [search, setSearch] = useState('')
   const [activeFamily, setActiveFamily] = useState<string>('all')
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  // Tracks rules pushed to the blueprint by THIS catalog instance.
-  // Intentionally NOT hydrated from localStorage: a fresh chat must
-  // start with zero ticks even if a stale blueprint exists from
-  // another page (Backtest/Strategy) for the same user.
-  const [alreadyAdded, setAlreadyAdded] = useState<Set<string>>(new Set())
+  // Hydrated from localStorage so rules the AI added earlier in this
+  // chat session show up as ticked. New chat clears localStorage first
+  // (via clearActiveBlueprint), so stale cross-session rules never appear.
+  const [alreadyAdded, setAlreadyAdded] = useState<Set<string>>(() =>
+    collectBlueprintRuleIds(readActiveBlueprint())
+  )
   const [expanded, setExpanded] = useState(true)
   const [savedMsg, setSavedMsg] = useState<string | null>(null)
+
+  // Re-sync if blueprint changes while catalog is open (e.g. another catalog instance adds rules)
+  useEffect(() => {
+    setAlreadyAdded(collectBlueprintRuleIds(readActiveBlueprint()))
+  }, [])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()

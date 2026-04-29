@@ -1,6 +1,6 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import type { AiMessage } from '@/types'
+import type { AiAsset, AiAssetsResponse, AiMessage } from '@/types'
 
 const USERS_COLLECTION = 'users'
 const MAX_SESSIONS = 50
@@ -77,5 +77,31 @@ export const aiHistoryService = {
       ? snap.data().messages
       : []
     await setDoc(ref, { messages: [...existing, ...messages] })
+  },
+
+  // ── Assets (strategies / rules / indicators) ──────────────────────────────
+  // Mirrors what the backend saves so assets survive backend restarts.
+
+  async saveAssets(userId: string, assets: AiAsset[]): Promise<void> {
+    if (!assets.length) return
+    const batch = assets.map((asset) => {
+      const ref = doc(db, USERS_COLLECTION, userId, 'aiAssets', asset.asset_id)
+      return setDoc(ref, { ...asset, user_id: userId }, { merge: true })
+    })
+    await Promise.all(batch)
+  },
+
+  async getStoredAssets(userId: string): Promise<AiAssetsResponse> {
+    const colRef = collection(db, USERS_COLLECTION, userId, 'aiAssets')
+    const snap = await getDocs(query(colRef, where('user_id', '==', userId)))
+    const all = snap.docs.map((d) => d.data() as AiAsset)
+    const strategies = all.filter((a) => a.kind === 'strategy')
+    const rules = all.filter((a) => a.kind === 'rule')
+    const indicators = all.filter((a) => a.kind === 'indicator')
+    return {
+      userId,
+      counts: { strategies: strategies.length, rules: rules.length, indicators: indicators.length },
+      assets: { strategies, rules, indicators },
+    }
   },
 }

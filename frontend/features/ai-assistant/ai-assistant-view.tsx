@@ -581,7 +581,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
 
   const assetsQuery = useQuery({
     queryKey: ['ai-assets', user?.id],
-    queryFn: () => aiService.getAssets(user!.id),
+    queryFn: () => aiHistoryService.getStoredAssets(user!.id),
     enabled: Boolean(user?.id),
   })
 
@@ -715,6 +715,10 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
       })
       // Persist both messages to Firestore
       void aiHistoryService.appendMessages(user!.id, activeId, [userMsg, enhancedMsg])
+      // Also persist any newly saved assets to Firestore so they survive backend restarts
+      if (result.savedAssets && result.savedAssets.length > 0) {
+        void aiHistoryService.saveAssets(user!.id, result.savedAssets)
+      }
       void queryClient.invalidateQueries({ queryKey: ['ai-assets', user?.id] })
     },
     onError: (_err, { userMsg }) => {
