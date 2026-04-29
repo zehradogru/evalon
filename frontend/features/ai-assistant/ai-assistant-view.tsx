@@ -159,7 +159,10 @@ function ChatMessage({
     msg.metadata?.drafts && typeof msg.metadata.drafts === 'object'
       ? (msg.metadata.drafts as Record<string, unknown>)
       : null
-  const hasDrafts = Boolean(drafts && (drafts.strategy || drafts.rule || drafts.indicator))
+  const hasStrategyDraft = Boolean(drafts?.strategy)
+  const hasRuleDraft = Boolean(drafts?.rule)
+  const hasIndicatorDraft = Boolean(drafts?.indicator)
+  const hasDrafts = hasStrategyDraft || hasRuleDraft || hasIndicatorDraft
   const suggestedActions =
     Array.isArray(msg.metadata?.suggestedActions) &&
     msg.metadata.suggestedActions.every((action) => typeof action === 'string')
@@ -285,9 +288,9 @@ function ChatMessage({
         {hasDrafts && (
           <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 px-1">
             <Sparkles size={10} />
-            {drafts?.strategy && <span>Strategy draft created</span>}
-            {drafts?.rule && <span>Rule draft created</span>}
-            {drafts?.indicator && <span>Indicator draft created</span>}
+            {hasStrategyDraft && <span>Strategy draft created</span>}
+            {hasRuleDraft && <span>Rule draft created</span>}
+            {hasIndicatorDraft && <span>Indicator draft created</span>}
           </div>
         )}
 
@@ -872,7 +875,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
             />
             <Button
               size="icon"
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={!input.trim() || sendMutation.isPending}
               className="h-9 w-9 flex-shrink-0"
             >
@@ -1116,7 +1119,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                 />
               </div>
               <Button
-                onClick={handleSend}
+                onClick={() => handleSend()}
                 disabled={!input.trim() || sendMutation.isPending}
                 className="h-11 w-11 rounded-xl flex-shrink-0 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 border-0"
                 size="icon"

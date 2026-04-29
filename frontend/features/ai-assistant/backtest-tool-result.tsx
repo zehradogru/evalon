@@ -7,7 +7,7 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'rec
 import { ExternalLink, Loader2, CheckCircle2, XCircle, Activity } from 'lucide-react'
 import { backtestsService } from '@/services/backtests.service'
 import { cn } from '@/lib/utils'
-import type { BacktestStatusResponse } from '@/types'
+import type { BacktestStatusResponse, BacktestSummary } from '@/types'
 
 // Phase ordering used to render the terminal log even before the backend has
 // emitted a status update for that phase yet.
@@ -62,6 +62,23 @@ function fmtPct(n: number | undefined | null): string {
   // Values already in percentage range (|n| >= 1) are used as-is
   const pct = Math.abs(n) < 1 ? n * 100 : n
   return `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`
+}
+
+function coerceNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function isBacktestSummary(value: unknown): value is BacktestSummary {
+  if (!value || typeof value !== 'object') return false
+  const summary = value as Record<string, unknown>
+  return (
+    typeof summary.totalTrades === 'number' &&
+    typeof summary.winRate === 'number' &&
+    typeof summary.totalPnl === 'number' &&
+    typeof summary.maxDrawdown === 'number'
+  )
 }
 
 interface BacktestToolResultProps {
@@ -156,7 +173,7 @@ export function BacktestToolResult({ runId, initialResult }: BacktestToolResultP
     return lines
   }, [isDone, isFailed, isUnavailable, phase, progressPct, status?.error, status?.progress?.currentSymbol, status?.progress?.message, statusError])
 
-  const summary = status?.summary ?? (initialSummary as BacktestStatusResponse['summary'])
+  const summary = status?.summary ?? (isBacktestSummary(initialSummary) ? initialSummary : undefined)
   const result = (status?.result ?? initialNestedResult ?? initialResult) as Record<string, unknown> | undefined
   const curveSource =
     (result?.portfolio_curve as unknown) ??
@@ -253,7 +270,7 @@ export function BacktestToolResult({ runId, initialResult }: BacktestToolResultP
                       fontSize: 11,
                     }}
                     labelFormatter={(l) => `Bar ${l}`}
-                    formatter={(v: number) => [fmtCurrency(v), 'Equity']}
+                    formatter={(value) => [fmtCurrency(coerceNumber(value)), 'Equity']}
                   />
                   <Area
                     type="monotone"
