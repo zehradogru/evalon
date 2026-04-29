@@ -150,10 +150,21 @@ function ChatMessage({
     setTimeout(() => setCopied(false), 1500)
   }, [msg.content])
 
-  const toolResults = (msg.metadata?.toolResults as Array<Record<string, unknown>>) || null
-  const drafts = (msg.metadata?.drafts as Record<string, unknown>) || null
-  const hasDrafts = drafts && (drafts.strategy || drafts.rule || drafts.indicator)
-  const suggestedActions = (msg.metadata?.suggestedActions as string[]) || null
+  const toolResults = Array.isArray(msg.metadata?.toolResults)
+    ? (msg.metadata.toolResults as Array<Record<string, unknown>>)
+    : []
+  const drafts =
+    msg.metadata?.drafts && typeof msg.metadata.drafts === 'object'
+      ? (msg.metadata.drafts as Record<string, unknown>)
+      : null
+  const hasDrafts = Boolean(drafts && (drafts.strategy || drafts.rule || drafts.indicator))
+  const suggestedActions =
+    Array.isArray(msg.metadata?.suggestedActions) &&
+    msg.metadata.suggestedActions.every((action) => typeof action === 'string')
+      ? (msg.metadata.suggestedActions as string[])
+      : []
+  const hasToolResults = toolResults.length > 0
+  const hasSuggestedActions = suggestedActions.length > 0
 
   return (
     <div className={cn('group flex items-start gap-3', isAssistant ? '' : 'flex-row-reverse')}>
@@ -194,7 +205,7 @@ function ChatMessage({
         </div>
 
         {/* Tool results */}
-        {toolResults && toolResults.length > 0 && (
+        {hasToolResults && (
           <div className="w-full">
             <button
               onClick={() => setToolsExpanded((p) => !p)}
@@ -259,7 +270,7 @@ function ChatMessage({
         )}
 
         {/* Suggested Actions */}
-        {suggestedActions && suggestedActions.length > 0 && isAssistant && (
+        {hasSuggestedActions && isAssistant && (
           <div className="flex flex-wrap gap-2 mt-2 px-1">
             {suggestedActions.map((action, i) => (
               <button

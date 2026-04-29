@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import base64
 import io
+import json
 import logging
 import os
 import tempfile
+import time
+import urllib.request
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
 
@@ -20,7 +23,7 @@ from pydantic import BaseModel, Field
 from api.modules.ai.presentation.router import create_ai_router
 from api.modules.backtests.infrastructure.run_store import InMemoryRunStore
 from api.modules.backtests.presentation.router import create_backtest_router
-from api.screener import create_screener_router
+from api.screener import create_screener_router, get_all_tickers
 from api.talib_indicators import (
     INDICATOR_CATALOG,
     TalibUnavailableError,
@@ -178,6 +181,434 @@ class PricesResponse(BaseModel):
     timeframe: str
     rows: int
     data: List[Bar]
+
+
+class MarketDataMeta(BaseModel):
+    stale: bool = False
+    warming: bool = False
+    partial: bool = False
+    hasUsableData: bool = False
+    source: str = "empty"
+    snapshotAgeMs: Optional[int] = None
+    message: Optional[str] = None
+    emptyReason: Optional[str] = None
+    failedTickers: Optional[List[str]] = None
+
+
+class BatchPricesRequest(BaseModel):
+    tickers: List[str] = Field(..., min_length=1, max_length=150)
+    timeframe: str = Field("1d", min_length=1, max_length=16)
+    limit: int = Field(2, ge=2, le=500)
+    refresh: bool = False
+
+
+class BatchTickerResult(BaseModel):
+    ticker: str
+    current: Optional[Bar] = None
+    previous: Optional[Bar] = None
+    error: Optional[str] = None
+
+
+class BatchPricesResponse(BaseModel):
+    count: int
+    successCount: int
+    failedCount: int
+    data: List[BatchTickerResult]
+    failedTickers: List[str]
+    cached: bool = False
+    stale: bool = False
+    meta: MarketDataMeta
+
+
+class MarketListItem(BaseModel):
+    ticker: str
+    name: str
+    price: Optional[float] = None
+    changePct: Optional[float] = None
+    changeVal: Optional[float] = None
+    high: Optional[float] = None
+    low: Optional[float] = None
+    vol: Optional[float] = None
+    rating: str = "Neutral"
+    marketCap: Optional[float] = None
+    pe: Optional[float] = None
+    eps: Optional[float] = None
+    sector: Optional[str] = None
+
+
+class MarketListResponse(BaseModel):
+    items: List[MarketListItem]
+    total: int
+    nextCursor: Optional[str]
+    hasMore: bool
+    snapshotAt: str
+    snapshotAgeMs: Optional[int]
+    stale: bool
+    warming: bool
+    meta: MarketDataMeta
+
+
+class MarketOverviewCard(BaseModel):
+    id: str
+    label: str
+    value: Optional[float] = None
+    changePct: Optional[float] = None
+    currency: str
+    source: str
+    asOf: str
+    stale: bool = False
+
+
+class MarketOverviewResponse(BaseModel):
+    cards: List[MarketOverviewCard]
+    meta: MarketDataMeta
+
+
+_BATCH_CACHE_TTL_SECONDS = 5 * 60
+_BATCH_STALE_TTL_SECONDS = 30 * 60
+_batch_price_cache: Dict[str, Tuple[float, BatchPricesResponse]] = {}
+
+_TICKER_NAMES: Dict[str, str] = {
+    "THYAO": "Turkish Airlines",
+    "AKBNK": "Akbank",
+    "GARAN": "Garanti BBVA",
+    "ISCTR": "Turkiye Is Bankasi",
+    "YKBNK": "Yapi ve Kredi Bankasi",
+    "KCHOL": "Koc Holding",
+    "SAHOL": "Sabanci Holding",
+    "EREGL": "Erdemir",
+    "ASELS": "Aselsan",
+    "TUPRS": "Tupras",
+    "BIMAS": "BIM",
+    "SISE": "Sisecam",
+    "FROTO": "Ford Otosan",
+    "TOASO": "Tofas",
+    "XU100": "BIST 100",
+    "XU030": "BIST 30",
+}
+
+
+def _market_meta(
+    *,
+    source: str,
+    has_data: bool,
+    stale: bool = False,
+    warming: bool = False,
+    partial: bool = False,
+    message: Optional[str] = None,
+    empty_reason: Optional[str] = None,
+    failed_tickers: Optional[List[str]] = None,
+    snapshot_age_ms: Optional[int] = None,
+) -> MarketDataMeta:
+    return MarketDataMeta(
+        stale=stale,
+        warming=warming,
+        partial=partial,
+        hasUsableData=has_data,
+        source=source,
+        snapshotAgeMs=snapshot_age_ms,
+        message=message,
+        emptyReason=empty_reason,
+        failedTickers=failed_tickers,
+    )
+
+
+def _bar_from_row(row: Any) -> Bar:
+    ts = row.Index
+    return Bar(
+        t=ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts,
+        o=float(row.open),
+        h=float(row.high),
+        l=float(row.low),
+        c=float(row.close),
+        v=int(row.volume),
+    )
+
+
+def _bars_from_dataframe(df: pd.DataFrame) -> List[Bar]:
+    if df is None or df.empty:
+        return []
+    sorted_df = df.sort_index()
+    return [_bar_from_row(row) for row in sorted_df.itertuples(index=True)]
+
+
+def _fetch_price_bars(
+    ticker: str,
+    timeframe: str,
+    limit: int,
+    start: Optional[datetime] = None,
+    end: Optional[datetime] = None,
+) -> List[Bar]:
+    normalized = ticker.strip().upper()
+    if normalized == "TEST":
+        return _bars_from_dataframe(
+            _load_test_ohlcv(
+                timeframe=timeframe,
+                start=start,
+                end=end,
+                limit=limit,
+            )
+        )
+
+    cfg = _config_status()
+    if not cfg["has_oracle_password"]:
+        raise RuntimeError("Server is missing ORACLE_DB_PASSWORD env var.")
+    if not (
+        cfg["has_oracle_wallet_dir_env"]
+        or cfg["has_oracle_wallet_zip_b64_env"]
+        or cfg["default_wallet_dir_exists"]
+        or cfg["default_1h_wallet_dir_exists"]
+    ):
+        raise RuntimeError("Oracle wallet not configured.")
+
+    df = client.fetch_prices_timeframe(
+        ticker=normalized,
+        timeframe=timeframe,
+        start=start,
+        end=end,
+        limit=limit,
+        canonicalize=True,
+    )
+    return _bars_from_dataframe(df)
+
+
+def _build_batch_cache_key(tickers: List[str], timeframe: str, limit: int) -> str:
+    return f"{timeframe}:{limit}:{','.join(sorted(tickers))}"
+
+
+def _copy_batch_response(
+    response: BatchPricesResponse,
+    *,
+    cached: bool,
+    stale: bool,
+    source: str,
+    message: Optional[str] = None,
+) -> BatchPricesResponse:
+    return BatchPricesResponse(
+        count=response.count,
+        successCount=response.successCount,
+        failedCount=response.failedCount,
+        data=response.data,
+        failedTickers=response.failedTickers,
+        cached=cached,
+        stale=stale,
+        meta=_market_meta(
+            source=source,
+            has_data=response.successCount > 0,
+            stale=stale,
+            partial=response.failedCount > 0,
+            message=message,
+            failed_tickers=response.failedTickers,
+        ),
+    )
+
+
+def _build_prices_batch(
+    tickers: List[str],
+    timeframe: str,
+    limit: int,
+    refresh: bool = False,
+) -> BatchPricesResponse:
+    normalized_tickers = []
+    for ticker in tickers:
+        value = ticker.strip().upper()
+        if value and value not in normalized_tickers:
+            normalized_tickers.append(value)
+
+    if not normalized_tickers:
+        raise HTTPException(status_code=400, detail="No valid tickers provided.")
+    if len(normalized_tickers) > 150:
+        raise HTTPException(status_code=400, detail="Too many tickers (max 150).")
+
+    safe_limit = max(2, min(limit, 500))
+    cache_key = _build_batch_cache_key(normalized_tickers, timeframe, safe_limit)
+    now = time.time()
+
+    cached = _batch_price_cache.get(cache_key)
+    if cached and not refresh:
+        age_seconds = now - cached[0]
+        if age_seconds < _BATCH_CACHE_TTL_SECONDS:
+            return _copy_batch_response(cached[1], cached=True, stale=False, source="cache")
+
+    results: List[BatchTickerResult] = []
+    failed_tickers: List[str] = []
+
+    for ticker in normalized_tickers:
+        try:
+            bars = _fetch_price_bars(ticker=ticker, timeframe=timeframe, limit=safe_limit)
+            current = bars[-1] if bars else None
+            previous = bars[-2] if len(bars) > 1 else None
+            if current is None:
+                failed_tickers.append(ticker)
+                results.append(BatchTickerResult(ticker=ticker, error="No price rows returned."))
+            else:
+                results.append(BatchTickerResult(ticker=ticker, current=current, previous=previous))
+        except Exception as exc:
+            failed_tickers.append(ticker)
+            results.append(BatchTickerResult(ticker=ticker, error=str(exc)))
+
+    successful = [item for item in results if item.current is not None]
+    live_response = BatchPricesResponse(
+        count=len(normalized_tickers),
+        successCount=len(successful),
+        failedCount=len(normalized_tickers) - len(successful),
+        data=successful,
+        failedTickers=failed_tickers,
+        cached=False,
+        stale=False,
+        meta=_market_meta(
+            source="live" if successful else "error",
+            has_data=bool(successful),
+            partial=bool(failed_tickers),
+            empty_reason=None if successful else "unavailable",
+            message="Bazi ticker fiyatlari gecici olarak eksik." if failed_tickers and successful else None,
+            failed_tickers=failed_tickers,
+        ),
+    )
+
+    if successful:
+        _batch_price_cache[cache_key] = (now, live_response)
+
+    if cached and live_response.successCount < cached[1].successCount:
+        age_seconds = now - cached[0]
+        if age_seconds < _BATCH_STALE_TTL_SECONDS:
+            return _copy_batch_response(
+                cached[1],
+                cached=True,
+                stale=True,
+                source="stale-cache",
+                message="Son basarili fiyatlar gosteriliyor.",
+            )
+
+    return live_response
+
+
+def _get_rating(change_pct: Optional[float]) -> str:
+    if change_pct is None:
+        return "Neutral"
+    if change_pct > 2:
+        return "Strong Buy"
+    if change_pct > 0.5:
+        return "Buy"
+    if change_pct < -2:
+        return "Strong Sell"
+    if change_pct < -0.5:
+        return "Sell"
+    return "Neutral"
+
+
+def _empty_market_item(ticker: str, sector: Optional[str]) -> MarketListItem:
+    return MarketListItem(
+        ticker=ticker,
+        name=_TICKER_NAMES.get(ticker, ticker),
+        sector=sector,
+    )
+
+
+def _market_item_from_bars(ticker: str, sector: Optional[str], bars: List[Bar]) -> MarketListItem:
+    if not bars:
+        return _empty_market_item(ticker, sector)
+
+    current = bars[-1]
+    previous = bars[-2] if len(bars) > 1 else None
+    change_val = round(current.c - previous.c, 2) if previous else None
+    change_pct = round(((current.c - previous.c) / previous.c) * 100, 2) if previous and previous.c else None
+
+    return MarketListItem(
+        ticker=ticker,
+        name=_TICKER_NAMES.get(ticker, ticker),
+        price=round(current.c, 2),
+        changePct=change_pct,
+        changeVal=change_val,
+        high=current.h,
+        low=current.l,
+        vol=float(current.v),
+        rating=_get_rating(change_pct),
+        sector=sector,
+    )
+
+
+def _numeric_sort_value(item: MarketListItem, field: str) -> Optional[float]:
+    return {
+        "price": item.price,
+        "changePct": item.changePct,
+        "changeVal": item.changeVal,
+        "high": item.high,
+        "low": item.low,
+        "vol": item.vol,
+        "marketCap": item.marketCap,
+        "pe": item.pe,
+        "eps": item.eps,
+    }.get(field)
+
+
+def _sort_market_items(items: List[MarketListItem], sort_by: str, sort_dir: str) -> List[MarketListItem]:
+    reverse = sort_dir != "asc"
+    if sort_by in {"ticker", "sector", "rating"}:
+        return sorted(items, key=lambda item: (getattr(item, sort_by, "") or ""), reverse=reverse)
+
+    def key(item: MarketListItem) -> Tuple[int, float]:
+        value = _numeric_sort_value(item, sort_by)
+        if value is None:
+            return (1, 0.0)
+        return (0, -value if reverse else value)
+
+    return sorted(items, key=key)
+
+
+def _query_json(url: str, timeout: int = 8) -> Dict[str, Any]:
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 EvalonMobile/1.0",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def _yahoo_chart_card(card_id: str, label: str, symbol: str, currency: str) -> MarketOverviewCard:
+    payload = _query_json(
+        f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=1mo"
+    )
+    result = payload.get("chart", {}).get("result", [{}])[0]
+    timestamps = result.get("timestamp") or []
+    closes = result.get("indicators", {}).get("quote", [{}])[0].get("close") or []
+    series = [
+        (timestamps[index], close)
+        for index, close in enumerate(closes)
+        if index < len(timestamps) and isinstance(close, (int, float))
+    ]
+    if not series:
+        raise RuntimeError(f"No Yahoo series for {symbol}")
+
+    last_ts, last_close = series[-1]
+    _, prev_close = series[-2] if len(series) > 1 else series[-1]
+    change_pct = ((last_close - prev_close) / prev_close) * 100 if prev_close else None
+    return MarketOverviewCard(
+        id=card_id,
+        label=label,
+        value=round(float(last_close), 4),
+        changePct=round(float(change_pct), 2) if change_pct is not None else None,
+        currency=currency,
+        source="yahoo",
+        asOf=datetime.utcfromtimestamp(int(last_ts)).isoformat() + "Z",
+        stale=False,
+    )
+
+
+def _unavailable_overview_card(card_id: str, label: str, currency: str, source: str = "error") -> MarketOverviewCard:
+    return MarketOverviewCard(
+        id=card_id,
+        label=label,
+        value=None,
+        changePct=None,
+        currency=currency,
+        source=source,
+        asOf=datetime.utcnow().isoformat() + "Z",
+        stale=True,
+    )
 
 
 def _config_status() -> Dict[str, Any]:
@@ -442,6 +873,157 @@ def get_prices(
         )
 
     return PricesResponse(ticker=ticker, timeframe=timeframe, rows=len(out), data=out)
+
+
+@app.get("/v1/prices/batch", response_model=BatchPricesResponse)
+def get_prices_batch_get(
+    tickers: str = Query(..., min_length=1, description="Comma-separated ticker list"),
+    timeframe: str = Query("1d", min_length=1, max_length=16),
+    limit: int = Query(2, ge=2, le=500),
+    refresh: bool = Query(False),
+) -> BatchPricesResponse:
+    return _build_prices_batch(
+        tickers=[ticker.strip() for ticker in tickers.split(",")],
+        timeframe=timeframe,
+        limit=limit,
+        refresh=refresh,
+    )
+
+
+@app.post("/v1/prices/batch", response_model=BatchPricesResponse)
+def get_prices_batch_post(body: BatchPricesRequest) -> BatchPricesResponse:
+    return _build_prices_batch(
+        tickers=body.tickers,
+        timeframe=body.timeframe,
+        limit=body.limit,
+        refresh=body.refresh,
+    )
+
+
+@app.get("/v1/markets/list", response_model=MarketListResponse)
+def get_markets_list(
+    view: str = Query("markets", pattern="^(markets|screener)$"),
+    limit: int = Query(10, ge=1, le=200),
+    cursor: Optional[str] = Query(None),
+    sortBy: str = Query("changePct"),
+    sortDir: str = Query("desc", pattern="^(asc|desc)$"),
+    q: Optional[str] = Query(None, max_length=120),
+) -> MarketListResponse:
+    del view
+    valid_sort_fields = {
+        "ticker",
+        "price",
+        "changePct",
+        "changeVal",
+        "high",
+        "low",
+        "vol",
+        "rating",
+        "marketCap",
+        "pe",
+        "eps",
+        "sector",
+    }
+    if sortBy not in valid_sort_fields:
+        raise HTTPException(status_code=400, detail="Invalid sortBy parameter.")
+
+    started_at = time.time()
+    now_iso = datetime.utcnow().isoformat() + "Z"
+    cursor_value = 0
+    if cursor:
+        try:
+            cursor_value = max(0, int(cursor))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid cursor parameter.")
+
+    catalog = get_all_tickers()
+    if not catalog:
+        catalog = [{"ticker": ticker, "sector": None} for ticker in _TICKER_NAMES.keys()]
+
+    if q:
+        query = q.strip().lower()
+        catalog = [
+            item for item in catalog
+            if query in item["ticker"].lower()
+            or query in _TICKER_NAMES.get(item["ticker"], item["ticker"]).lower()
+        ]
+
+    fetch_window = min(len(catalog), max(cursor_value + limit, 60))
+    live_tickers = {item["ticker"] for item in catalog[:fetch_window]}
+    rows: List[MarketListItem] = []
+    failed: List[str] = []
+
+    for item in catalog:
+        ticker = item["ticker"].strip().upper()
+        sector = item.get("sector")
+        if ticker in live_tickers:
+            try:
+                rows.append(_market_item_from_bars(ticker, sector, _fetch_price_bars(ticker, "1d", 2)))
+            except Exception:
+                failed.append(ticker)
+                rows.append(_empty_market_item(ticker, sector))
+        else:
+            rows.append(_empty_market_item(ticker, sector))
+
+    sorted_rows = _sort_market_items(rows, sortBy, sortDir)
+    page_items = sorted_rows[cursor_value: cursor_value + limit]
+    next_offset = cursor_value + len(page_items)
+    has_more = next_offset < len(sorted_rows)
+    has_prices = any(item.price is not None for item in rows)
+
+    return MarketListResponse(
+        items=page_items,
+        total=len(sorted_rows),
+        nextCursor=str(next_offset) if has_more else None,
+        hasMore=has_more,
+        snapshotAt=now_iso,
+        snapshotAgeMs=int((time.time() - started_at) * 1000),
+        stale=not has_prices,
+        warming=False,
+        meta=_market_meta(
+            source="live" if has_prices else "static-catalog",
+            has_data=bool(sorted_rows),
+            stale=not has_prices,
+            partial=bool(failed),
+            message="Canli fiyat alinamayan satirlar katalog verisiyle gosteriliyor." if failed else None,
+            empty_reason=None if sorted_rows else "no-data",
+            failed_tickers=failed,
+            snapshot_age_ms=int((time.time() - started_at) * 1000),
+        ),
+    )
+
+
+@app.get("/v1/market-overview", response_model=MarketOverviewResponse)
+def get_market_overview() -> MarketOverviewResponse:
+    cards: List[MarketOverviewCard] = []
+    failures: List[str] = []
+
+    specs = [
+        ("bist100", "BIST 100", "XU100.IS", "TRY"),
+        ("bist30", "BIST 30", "XU030.IS", "TRY"),
+        ("xauusd", "Ons Altın / USD", "GC=F", "USD"),
+        ("usdtry", "USD / TRY", "TRY=X", "TRY"),
+    ]
+
+    for card_id, label, symbol, currency in specs:
+        try:
+            cards.append(_yahoo_chart_card(card_id, label, symbol, currency))
+        except Exception:
+            failures.append(card_id)
+            cards.append(_unavailable_overview_card(card_id, label, currency))
+
+    return MarketOverviewResponse(
+        cards=cards,
+        meta=_market_meta(
+            source="yahoo" if not failures else ("partial-yahoo" if len(failures) < len(specs) else "error"),
+            has_data=any(card.value is not None for card in cards),
+            stale=bool(failures),
+            partial=bool(failures),
+            failed_tickers=failures,
+            message="Bazi overview kartlari gecici olarak alinamadi." if failures else None,
+            empty_reason="unavailable" if len(failures) == len(specs) else None,
+        ),
+    )
 
 
 class IndicatorResponse(BaseModel):
