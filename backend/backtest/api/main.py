@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from api.modules.ai.presentation.router import create_ai_router
 from api.modules.backtests.infrastructure.run_store import InMemoryRunStore
 from api.modules.backtests.presentation.router import create_backtest_router
+from api.modules.co_movement.presentation.router import create_co_movement_router
 from api.screener import create_screener_router, get_all_tickers
 from api.talib_indicators import (
     INDICATOR_CATALOG,
@@ -155,6 +156,17 @@ def _resolve_ai_asset_store_path() -> Path:
         return Path(tempfile.gettempdir()) / "evalon_ai_assets.json"
 
     return Path(__file__).resolve().parent / "data" / "ai_assets.json"
+
+
+def _resolve_co_movement_store_path() -> Path:
+    configured = (os.environ.get("CO_MOVEMENT_SNAPSHOT_STORE_PATH") or "").strip()
+    if configured:
+        return Path(configured)
+
+    if _is_managed_runtime():
+        return Path(tempfile.gettempdir()) / "evalon_co_movement"
+
+    return Path(__file__).resolve().parent / "data" / "co_movement"
 
 
 client = _build_client()
@@ -754,6 +766,12 @@ app.include_router(
         asset_store_path=_resolve_ai_asset_store_path(),
     )
 )
+app.include_router(
+    create_co_movement_router(
+        client=client,
+        snapshot_store_path=str(_resolve_co_movement_store_path()),
+    )
+)
 app.include_router(create_screener_router(price_client=client))
 
 
@@ -766,6 +784,7 @@ def index() -> Dict[str, Any]:
         "docs": "/docs",
         "openapi": "/openapi.json",
         "prices": "/v1/prices?ticker=THYAO&timeframe=5m&limit=10",
+        "coMovement": "/v1/co-movement/analyze",
         "config": _config_status(),
     }
 
