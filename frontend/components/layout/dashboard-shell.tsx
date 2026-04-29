@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useRef, useState } from 'react';
 import { Navbar } from '@/components/dashboard/navbar';
 import { TickerTape } from '@/features/dashboard/ticker-tape';
 import { Sidebar } from '@/src/components/layout/Sidebar';
@@ -14,6 +14,7 @@ import { NotificationsView } from '@/features/notifications/notifications-view';
 import { SupportView } from '@/features/support/support-view';
 import { SettingsView } from '@/features/settings/settings-view';
 import { PaperTradeWidget } from '@/features/paper-trade/paper-trade-widget';
+import { DashboardFooter } from '@/components/layout/dashboard-footer';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
@@ -24,6 +25,8 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children }: DashboardShellProps) {
     const [activePanel, setActivePanel] = useState<string | null>(null);
+    const [panelWidth, setPanelWidth] = useState(340);
+    const isResizing = useRef(false);
 
     const togglePanel = (panel: string) => {
         if (activePanel === panel) {
@@ -32,6 +35,25 @@ export function DashboardShell({ children }: DashboardShellProps) {
             setActivePanel(panel);
         }
     };
+
+    function startResize(e: React.MouseEvent) {
+        isResizing.current = true;
+        const startX = e.clientX;
+        const startWidth = panelWidth;
+
+        function onMouseMove(ev: MouseEvent) {
+            if (!isResizing.current) return;
+            const delta = startX - ev.clientX;
+            setPanelWidth(Math.min(700, Math.max(280, startWidth + delta)));
+        }
+        function onMouseUp() {
+            isResizing.current = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        }
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    }
 
     return (
         <div className="flex h-screen bg-background overflow-hidden font-sans">
@@ -46,16 +68,25 @@ export function DashboardShell({ children }: DashboardShellProps) {
                 </div>
 
                 {/* Scrollable Page Content */}
-                <main className="flex-1 overflow-y-auto p-0 scrollbar-hide bg-background relative">
+                <main className="flex-1 overflow-y-auto p-0 scrollbar-hide bg-background relative flex flex-col">
                     {children}
+                    <DashboardFooter />
                 </main>
             </div>
 
             {/* Right Widget Panel (Expandable) */}
-            <div className={cn(
-                "w-[340px] bg-card border-l border-border flex flex-col transition-all duration-300 ease-in-out transform origin-right z-20 shadow-xl",
-                activePanel ? "translate-x-0 mr-0" : "translate-x-full -mr-[340px] hidden"
-            )}>
+            <div
+                style={activePanel ? { width: panelWidth } : undefined}
+                className={cn(
+                    "bg-card border-l border-border flex flex-col origin-right z-20 shadow-xl transition-[width] duration-0 relative",
+                    activePanel ? "flex" : "hidden"
+                )}
+            >
+                {/* Resize handle — left edge drag */}
+                <div
+                    onMouseDown={startResize}
+                    className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors z-30"
+                />
                 <div className="flex flex-col h-full relative">
                     <Button
                         variant="ghost"

@@ -16,7 +16,7 @@ interface ProxyOptions {
 
 interface JsonProxyOptions extends ProxyOptions {
     body?: unknown
-    method?: 'GET' | 'POST'
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 }
 
 const EVALON_API_URL =

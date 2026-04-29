@@ -4,35 +4,37 @@ import Link from 'next/link'
 
 const footerLinks = {
   Products: [
-    { label: 'Supercharts', href: '#' },
-    { label: 'AI Alpha Picks', href: '#' },
-    { label: 'Backtesting', href: '#' },
-    { label: 'Screener', href: '#' },
-    { label: 'API', href: '#' },
+    { label: 'Charts & Dashboard', href: '/login' },
+    { label: 'Backtesting', href: '/backtest' },
+    { label: 'Strategy Builder', href: '/strategy' },
+    { label: 'Screener', href: '/screener' },
+    { label: 'Paper Trading', href: '/paper-trade' },
+    { label: 'Evalon AI', href: '/ai' },
+  ],
+  Markets: [
+    { label: 'Market Overview', href: '/markets' },
+    { label: 'Watchlist', href: '/watchlist' },
+    { label: 'Top Movers', href: '/markets/movers' },
+    { label: 'Correlation', href: '/correlation' },
+    { label: 'News', href: '/news' },
   ],
   Community: [
-    { label: 'Ideas', href: '#' },
-    { label: 'Scripts', href: '#' },
-    { label: 'Streams', href: '#' },
-    { label: 'Blog', href: '#' },
-  ],
-  Company: [
-    { label: 'About', href: '#' },
-    { label: 'Careers', href: '#' },
-    { label: 'Press', href: '#' },
-    { label: 'Contact', href: '#' },
+    { label: 'Community Hub', href: '/community' },
+    { label: 'Academy', href: '/academy' },
+    { label: 'Brokers', href: '/brokers' },
+    { label: 'Pricing', href: '/pricing' },
   ],
   Legal: [
-    { label: 'Terms', href: '/terms' },
-    { label: 'Privacy', href: '/privacy' },
-    { label: 'Cookies', href: '#' },
-    { label: 'Help', href: '/help' },
+    { label: 'Terms of Service', href: '/terms' },
+    { label: 'Privacy Policy', href: '/privacy' },
+    { label: 'Help Center', href: '/help' },
+    { label: 'Contact', href: '/help' },
   ],
 }
 
 export function Footer() {
   return (
-    <footer className="bg-[#0d1117] border-t border-[#2a2e39]/50">
+    <footer className="bg-black border-t border-white/[0.05]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Main Footer */}
         <div className="py-12 sm:py-16 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-8">
@@ -70,12 +72,12 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="py-6 border-t border-[#2a2e39]/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="py-6 border-t border-white/[0.05] flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-[#787b86]">
             &copy; {new Date().getFullYear()} EVALON. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
-            {['Twitter', 'Discord', 'Telegram', 'GitHub'].map((social) => (
+            {['Twitter', 'Discord', 'Telegram'].map((social) => (
               <a
                 key={social}
                 href="#"

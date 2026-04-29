@@ -37,7 +37,8 @@ import {
   useSaveScreenerPreset,
   useScreenerPresets,
 } from '@/hooks/use-screener-presets'
-import { useScreenerScan } from '@/hooks/use-screener'
+import { useScreenerScan, useTickerList } from '@/hooks/use-screener'
+import { BIST_FALLBACK_TICKERS, BIST_SECTOR_MAP } from '@/data/bist-tickers'
 import { MarketDataStatusChip } from '@/components/market-data-status-chip'
 import { FilterPanel } from './filter-panel/filter-panel'
 import { ScanControls } from './scan-controls'
@@ -131,6 +132,7 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
   const savePresetMutation = useSaveScreenerPreset()
   const deletePresetMutation = useDeleteScreenerPreset()
   const scanMutation = useScreenerScan()
+  const tickerListQuery = useTickerList()
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300)
@@ -160,9 +162,37 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
   }
 
   async function handleScan() {
+    // Prefer tickers returned by the backend endpoint; fall back to the
+    // hardcoded BIST list when the endpoint returns empty (e.g. missing
+    // bist_sectors.json on the deployed backend).
+    const apiTickers = (tickerListQuery.data?.tickers ?? []).map((t) => t.ticker)
+    const hasSectorData = apiTickers.length > 0
+
+    let tickerList: 'all' | string[]
+    let sectorsPayload: string[] | undefined
+
+    if (sectors.length > 0) {
+      if (hasSectorData) {
+        // Backend has sector data — let it filter by sector server-side.
+        tickerList = 'all'
+        sectorsPayload = sectors
+      } else {
+        // No backend sector data — pre-filter using the local sector map.
+        const sectorSet = new Set(sectors)
+        const filtered = BIST_FALLBACK_TICKERS.filter(
+          (t) => sectorSet.has(BIST_SECTOR_MAP[t] ?? ''),
+        )
+        tickerList = filtered.length > 0 ? filtered : BIST_FALLBACK_TICKERS
+        sectorsPayload = undefined
+      }
+    } else {
+      tickerList = hasSectorData ? 'all' : BIST_FALLBACK_TICKERS
+      sectorsPayload = undefined
+    }
+
     const req: ScanRequest = {
-      tickers: 'all',
-      sectors: sectors.length > 0 ? sectors : undefined,
+      tickers: tickerList,
+      sectors: sectorsPayload,
       timeframe,
       lookback_bars: lookbackBars,
       filters,
@@ -174,7 +204,14 @@ export function ScreenerView({ isWidget = false }: ScreenerViewProps) {
     try { setScanResponse(await scanMutation.mutateAsync(req)) } catch { /* handled via isError */ }
   }
 
-  function handleQuickApply(newFilters: ScreenerFilter[], tf?: ScreenerTimeframe, lg?: FilterLogic) {
+  function handleQuickApply(chipId: string, newFilters: ScreenerFilter[], tf?: ScreenerTimeframe, lg?: FilterLogic) {
+    if (activeChipId === chipId) {
+      // Toggle off: deselect chip and clear its filters
+      setActiveChipId(undefined)
+      setFilters([])
+      return
+    }
+    setActiveChipId(chipId)
     setFilters(newFilters)
     if (tf) setTimeframe(tf)
     if (lg) setFilterLogic(lg)

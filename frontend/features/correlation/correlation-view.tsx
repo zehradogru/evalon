@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { RefreshCw, Loader2, AlertCircle } from 'lucide-react'
+import { RefreshCw, Loader2, AlertCircle, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select-native'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import { fetchMultipleTickers } from '@/services/price.service'
-import { BIST_POPULAR, TICKER_NAMES } from '@/config/markets'
+import { BIST_AVAILABLE, BIST_POPULAR, TICKER_NAMES } from '@/config/markets'
 import { cn } from '@/lib/utils'
 import type { Timeframe } from '@/types'
 
@@ -28,6 +29,11 @@ const TIMEFRAMES: { value: Timeframe; label: string }[] = [
   { value: '1h', label: 'Hourly'  },
   { value: '1w', label: 'Weekly'  },
 ]
+
+// Filter out index/fund tickers (start with X or Z) for cleaner default selection
+const STOCK_TICKERS = (BIST_AVAILABLE as readonly string[]).filter(
+  (t) => !/^[XZ]/.test(t) && !['ADET', 'HACIM', 'APX30', 'OPK30', 'OPT25', 'OPX30'].includes(t)
+)
 
 const DEFAULT_TICKERS = BIST_POPULAR.slice(0, 12)
 
@@ -92,6 +98,7 @@ export function CorrelationView() {
   const [selectedTickers, setSelectedTickers] = useState<string[]>(DEFAULT_TICKERS)
   const [timeframe, setTimeframe] = useState<Timeframe>('1d')
   const [periodDays, setPeriodDays] = useState(90)
+  const [tickerFilter, setTickerFilter] = useState('')
 
   const toggleTicker = (ticker: string) => {
     setSelectedTickers((prev) =>
@@ -213,35 +220,91 @@ export function CorrelationView() {
         </div>
 
         {/* Ticker picker */}
-        <div>
-          <p className="text-xs text-muted-foreground mb-2">
-            Stocks <span className="text-foreground font-medium">({selectedTickers.length} selected)</span>
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {BIST_POPULAR.map((ticker) => {
-              const checked = selectedTickers.includes(ticker)
-              return (
-                <button
-                  key={ticker}
-                  onClick={() => toggleTicker(ticker)}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-colors',
-                    checked
-                      ? 'border-primary/50 bg-primary/10 text-primary'
-                      : 'border-border/40 bg-background/40 text-muted-foreground hover:border-border/70 hover:text-foreground',
-                  )}
-                >
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={() => toggleTicker(ticker)}
-                    className="h-3 w-3 pointer-events-none"
-                  />
-                  {ticker}
-                </button>
-              )
-            })}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Hisseler <span className="text-foreground font-medium">({selectedTickers.length} seçili)</span>
+              <span className="ml-2 text-muted-foreground/60">· {STOCK_TICKERS.length} hisse</span>
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[10px]"
+                onClick={() => {
+                  const visible = tickerFilter
+                    ? STOCK_TICKERS.filter((t) => t.includes(tickerFilter.toUpperCase()))
+                    : STOCK_TICKERS
+                  setSelectedTickers((prev) => {
+                    const toAdd = visible.filter((t) => !prev.includes(t))
+                    return [...prev, ...toAdd]
+                  })
+                }}
+              >
+                Tümünü Seç
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[10px]"
+                onClick={() => setSelectedTickers(DEFAULT_TICKERS)}
+              >
+                Varsayılan
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[10px] text-destructive hover:text-destructive"
+                onClick={() => setSelectedTickers(selectedTickers.slice(0, 2))}
+              >
+                Temizle
+              </Button>
+            </div>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-2">At least 2 stocks must be selected.</p>
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Hisse ara... (THYAO, GARAN...)"
+              value={tickerFilter}
+              onChange={(e) => setTickerFilter(e.target.value)}
+              className="h-8 pl-8 text-xs"
+            />
+          </div>
+
+          {/* Ticker chips — scrollable */}
+          <div className="max-h-48 overflow-y-auto rounded-lg border border-border/30 bg-background/30 p-2">
+            <div className="flex flex-wrap gap-1.5">
+              {STOCK_TICKERS
+                .filter((ticker) =>
+                  !tickerFilter || ticker.includes(tickerFilter.toUpperCase())
+                )
+                .map((ticker) => {
+                  const checked = selectedTickers.includes(ticker)
+                  return (
+                    <button
+                      key={ticker}
+                      onClick={() => toggleTicker(ticker)}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] transition-colors',
+                        checked
+                          ? 'border-primary/50 bg-primary/10 text-primary'
+                          : 'border-border/30 bg-background/60 text-muted-foreground hover:border-border/60 hover:text-foreground',
+                      )}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => toggleTicker(ticker)}
+                        className="h-2.5 w-2.5 pointer-events-none"
+                      />
+                      {ticker}
+                    </button>
+                  )
+                })}
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground">En az 2 hisse seçili olmalıdır.</p>
         </div>
       </div>
 

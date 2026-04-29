@@ -17,11 +17,11 @@ const SNAPSHOT_FRESH_TTL_MS = 30 * 1000
 const SNAPSHOT_STALE_TTL_MS = 5 * 60 * 1000
 const INITIAL_SNAPSHOT_TIMEOUT_MS = 12_000
 const FETCH_TIMEOUT_MS = 15 * 1000
-const FETCH_RETRIES = 2
+const FETCH_RETRIES = 1
 const BATCH_SIZE = 10
 const BATCH_DELAY_MS = 150
 const MIN_ACCEPTABLE_SUCCESS_RATE = 0.7
-const FETCH_BARS_LIMIT = 10
+const FETCH_BARS_LIMIT = 5
 
 export const DEFAULT_MARKET_LIST_LIMIT = 10
 export const MAX_MARKET_LIST_LIMIT = 200
@@ -32,12 +32,6 @@ interface CacheEntry {
     fetchedAt: number
     snapshotAt: string
     items: MarketListItem[]
-}
-
-interface TickerSnapshotResult {
-    ticker: string
-    current: PriceBar | null
-    previous: PriceBar | null
 }
 
 interface SnapshotState {
@@ -297,7 +291,7 @@ async function fetchWithTimeout(url: string, timeoutMs = FETCH_TIMEOUT_MS): Prom
     }
 }
 
-async function fetchTickerSnapshot(ticker: string, startDate: string): Promise<TickerSnapshotResult> {
+async function fetchTickerSnapshot(ticker: string, startDate: string): Promise<PriceBar[]> {
     const url = `${EVALON_API_URL}/v1/prices?ticker=${ticker}&timeframe=1d&limit=${FETCH_BARS_LIMIT}&start=${startDate}`
 
     for (let attempt = 0; attempt <= FETCH_RETRIES; attempt++) {
@@ -308,71 +302,81 @@ async function fetchTickerSnapshot(ticker: string, startDate: string): Promise<T
                     await delay(300 * (attempt + 1))
                     continue
                 }
-                return { ticker, current: null, previous: null }
+                return []
             }
 
             const payload = await response.json()
             const data: PriceBar[] = Array.isArray(payload?.data) ? payload.data : []
-
             data.sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime())
-
-            return {
-                ticker,
-                current: data.length > 0 ? data[data.length - 1] : null,
-                previous: data.length > 1 ? data[data.length - 2] : null,
-            }
+            return data
         } catch {
             if (attempt < FETCH_RETRIES) {
                 await delay(300 * (attempt + 1))
                 continue
             }
-            return { ticker, current: null, previous: null }
+            return []
         }
     }
 
-    return { ticker, current: null, previous: null }
+    return []
+}
+
+async function buildBulkData(startDate: string): Promise<Record<string, PriceBar[]> | null> {
+    const tickersParam = encodeURIComponent(BIST_AVAILABLE.join(','))
+    const url = `${EVALON_API_URL}/v1/prices/bulk?tickers=${tickersParam}&timeframe=1d&start=${startDate}&limit=${FETCH_BARS_LIMIT}`
+
+    try {
+        const response = await fetchWithTimeout(url, FETCH_TIMEOUT_MS)
+        if (!response.ok) {
+            return null // endpoint not available yet — caller falls back to per-ticker
+        }
+        const payload: { data?: Record<string, PriceBar[]> } = await response.json()
+        return payload.data ?? {}
+    } catch {
+        return null
+    }
 }
 
 async function buildSnapshot(previousSnapshot: CacheEntry | null): Promise<CacheEntry> {
     const startDate = getStartDate(14)
-    const results: TickerSnapshotResult[] = []
     const previousItemsByTicker = new Map<string, MarketListItem>(
         previousSnapshot?.items.map((item) => [item.ticker, item]) ?? []
     )
 
-    for (let i = 0; i < BIST_AVAILABLE.length; i += BATCH_SIZE) {
-        const batch = BIST_AVAILABLE.slice(i, i + BATCH_SIZE)
-        const settled = await Promise.allSettled(batch.map((ticker) => fetchTickerSnapshot(ticker, startDate)))
+    // Try fast single-request bulk endpoint first
+    let bulkData = await buildBulkData(startDate)
 
-        settled.forEach((result, index) => {
-            const ticker = batch[index]
-            if (result.status === 'fulfilled') {
-                results.push(result.value)
-            } else {
-                results.push({ ticker, current: null, previous: null })
+    // If bulk endpoint is unavailable (404/error), fall back to per-ticker batching
+    if (bulkData === null) {
+        console.info('[market] bulk endpoint unavailable, falling back to per-ticker fetch')
+        bulkData = {}
+        for (let i = 0; i < BIST_AVAILABLE.length; i += BATCH_SIZE) {
+            const batch = BIST_AVAILABLE.slice(i, i + BATCH_SIZE)
+            const settled = await Promise.allSettled(
+                batch.map((ticker) => fetchTickerSnapshot(ticker, startDate))
+            )
+            settled.forEach((result, index) => {
+                bulkData![batch[index]] = result.status === 'fulfilled' ? result.value : []
+            })
+            if (i + BATCH_SIZE < BIST_AVAILABLE.length) {
+                await delay(BATCH_DELAY_MS)
             }
-        })
-
-        if (i + BATCH_SIZE < BIST_AVAILABLE.length) {
-            await delay(BATCH_DELAY_MS)
         }
     }
 
-    const successfulCount = results.filter((item) => item.current !== null).length
+    const items: MarketListItem[] = BIST_AVAILABLE.map((ticker) => {
+        const bars = bulkData![ticker] ?? []
+        const current = bars.length > 0 ? bars[bars.length - 1] : null
+        const previous = bars.length > 1 ? bars[bars.length - 2] : null
+        return toMarketListItem(ticker, current, previous, previousItemsByTicker.get(ticker))
+    })
+
+    const successfulCount = items.filter((item) => item.price !== null).length
     const successRate = successfulCount / BIST_AVAILABLE.length
 
     if (successRate < MIN_ACCEPTABLE_SUCCESS_RATE && previousSnapshot) {
         return previousSnapshot
     }
-
-    const items: MarketListItem[] = results.map((item) =>
-        toMarketListItem(
-            item.ticker,
-            item.current,
-            item.previous,
-            previousItemsByTicker.get(item.ticker)
-        )
-    )
 
     return {
         fetchedAt: Date.now(),

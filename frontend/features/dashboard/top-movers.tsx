@@ -67,8 +67,28 @@ function MoverCard({ type, data, isLoading, isWarming, isError, message, onRetry
                         </Button>
                     </div>
                 ) : data.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-                        {isWarming ? 'Market data is starting...' : 'No data available'}
+                    <div className="space-y-1 pt-1">
+                        {isWarming
+                            ? Array.from({ length: 5 }).map((_, i) => (
+                                  <div
+                                      key={i}
+                                      className="flex items-center justify-between p-2 rounded-lg"
+                                  >
+                                      <div className="flex items-center gap-2">
+                                          <div className="w-4 h-4 rounded-full bg-muted animate-pulse" />
+                                          <div className="space-y-1">
+                                              <div className="h-3 w-12 bg-muted rounded animate-pulse" />
+                                              <div className="h-2.5 w-20 bg-muted rounded animate-pulse" />
+                                          </div>
+                                      </div>
+                                      <div className="h-3 w-12 bg-muted rounded animate-pulse" />
+                                  </div>
+                              ))
+                            : (
+                                  <div className="flex items-center justify-center h-full text-xs text-muted-foreground py-6">
+                                      No data available
+                                  </div>
+                              )}
                     </div>
                 ) : (
                     <div className="space-y-1">
@@ -204,8 +224,28 @@ export function MarketMovers() {
                         </Button>
                     </div>
                 ) : items.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-                        {marketStatus.isWarming ? 'Market data is starting...' : 'No data available'}
+                    <div className="space-y-1 pt-1">
+                        {marketStatus.isWarming
+                            ? Array.from({ length: 5 }).map((_, i) => (
+                                  <div
+                                      key={i}
+                                      className="flex items-center justify-between p-2.5 rounded-lg"
+                                  >
+                                      <div className="flex items-center gap-2">
+                                          <div className="w-5 h-5 rounded-full bg-muted animate-pulse" />
+                                          <div className="space-y-1">
+                                              <div className="h-3 w-14 bg-muted rounded animate-pulse" />
+                                              <div className="h-2.5 w-24 bg-muted rounded animate-pulse" />
+                                          </div>
+                                      </div>
+                                      <div className="h-3 w-14 bg-muted rounded animate-pulse" />
+                                  </div>
+                              ))
+                            : (
+                                  <div className="flex items-center justify-center h-full text-xs text-muted-foreground py-6">
+                                      No data available
+                                  </div>
+                              )}
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">

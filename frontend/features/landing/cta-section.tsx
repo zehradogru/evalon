@@ -5,7 +5,7 @@ import { ArrowRight, Sparkles } from 'lucide-react'
 
 export function CTASection() {
   return (
-    <section className="relative py-24 sm:py-32 bg-[#131722] overflow-hidden">
+    <section className="relative py-24 sm:py-32 bg-black overflow-hidden">
       {/* Background effects */}
       <div className="absolute inset-0">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[600px]">
@@ -46,14 +46,14 @@ export function CTASection() {
           </Link>
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 px-8 py-3.5 text-base font-medium text-[#d1d4dc] bg-transparent border border-[#2a2e39] rounded-full hover:bg-[#1e222d] hover:border-[#363a45] transition-all duration-200"
+            className="inline-flex items-center gap-2 px-8 py-3.5 text-base font-medium text-[#d1d4dc] bg-transparent border border-white/[0.1] rounded-full hover:bg-white/[0.05] hover:border-white/[0.15] transition-all duration-200"
           >
             Sign in
           </Link>
         </div>
 
         {/* Features summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-16 pt-8 border-t border-[#2a2e39]/50">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-16 pt-8 border-t border-white/[0.06]">
           {[
             { label: 'Free forever', desc: 'Core features' },
             { label: 'Real-time data', desc: 'BIST, NASDAQ, Crypto' },
