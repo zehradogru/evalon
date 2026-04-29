@@ -176,15 +176,15 @@ function EventRow({ event, isNext }: { event: CalendarEvent; isNext: boolean }) 
   }
 
   return (
-    <div className={cn('cal-event-row', isNext && 'is-next')}>
-      <div className="flex flex-col items-end gap-0.5 shrink-0" style={{ width: '40px' }}>
+    <div className={cn('cal-event-row flex items-center gap-2.5', isNext && 'is-next')}>
+      <div className="flex flex-col items-end gap-0.5 shrink-0 w-10">
         <span className={timeClass}>{formatTime(event.date)}</span>
         {isNext && !isPast && <span className="cal-countdown">{countdown}</span>}
       </div>
-      <span className="cal-flag">{COUNTRY_FLAGS[event.countryCode] ?? '🌍'}</span>
+      <span className="cal-flag shrink-0 text-[11px] font-semibold text-muted-foreground w-7 text-center">{event.countryCode}</span>
       <ImportanceBars level={event.importance} />
-      <span className={cn('cal-event-name', isPast && 'past')}>{event.event}</span>
-      <div className="cal-stats hidden sm:flex">
+      <span className={cn('cal-event-name flex-1 min-w-0 text-[13px] truncate', isPast && 'past')}>{event.event}</span>
+      <div className="hidden sm:flex items-center gap-4 shrink-0">
         <StatCell label="Önceki" value={event.previous} unit={event.unit} />
         <StatCell label="Tahmin" value={event.forecast} unit={event.unit} />
         <StatCell label="Gerçek" value={event.actual} unit={event.unit} variant={actualVariant} />

@@ -37,8 +37,9 @@ import {
   defaultParamsFor,
 } from '@/lib/backtest-blueprint'
 import { formatTimeframeLabel } from '@/lib/evalon'
-import { readActiveBlueprint, saveActiveBlueprint } from '@/lib/workspace-storage'
+import { readActiveBlueprint, saveActiveBlueprint, loadBlueprintFromFirestore } from '@/lib/workspace-storage'
 import { backtestsService } from '@/services/backtests.service'
+import { useAuthStore } from '@/store/use-auth-store'
 import { cn } from '@/lib/utils'
 import type {
   BacktestBlueprint,
@@ -381,6 +382,7 @@ function StagePanel({
 // ---------------------------------------------------------------------------
 
 export function BacktestView() {
+  const user = useAuthStore((state) => state.user)
   const [blueprint, setBp] = useState<BacktestBlueprint>(
     () => readActiveBlueprint() ?? createEmptyBlueprint(),
   )
@@ -395,6 +397,14 @@ export function BacktestView() {
   useEffect(() => {
     saveActiveBlueprint(blueprint)
   }, [blueprint])
+
+  // Hydrate blueprint from Firestore on mount (overwrites stale localStorage)
+  useEffect(() => {
+    if (!user?.id) return
+    loadBlueprintFromFirestore(user.id).then((fb) => {
+      if (fb) setBp(fb)
+    }).catch(() => {})
+  }, [user?.id])
 
   // ---- queries ----
   const rulesQuery = useQuery({

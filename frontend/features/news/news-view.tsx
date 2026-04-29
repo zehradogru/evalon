@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Select } from '@/components/ui/select-native';
 import { fetchNews } from '@/services/news.service';
 import type { NewsItem } from '@/types/news';
+import { DashboardFooter } from '@/components/layout/dashboard-footer';
 
 const PAGE_SIZE = 10;
 
@@ -228,6 +229,7 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
                             )}
                         </div>
                     </div>
+                    <DashboardFooter />
                 </ScrollArea>
             </div>
 

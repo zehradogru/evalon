@@ -633,6 +633,7 @@ export interface AiRequestContext {
     indicator_id?: string | null
     active_blueprint?: Record<string, unknown> | null
     selected_symbols?: string[]
+    selected_rule_ids?: string[]
     auto_save_drafts?: boolean
 }
 

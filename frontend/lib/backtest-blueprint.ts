@@ -119,6 +119,24 @@ export function addRulesToActiveBlueprint(
     return blueprint
 }
 
+/**
+ * Removes the given rule IDs from every stage of the blueprint.
+ * Used when the user un-checks a rule that was previously pushed
+ * to the active blueprint from the AI rule catalog.
+ */
+export function removeRulesFromActiveBlueprint(
+    ruleIds: string[],
+    existingBlueprint: BacktestBlueprint
+): BacktestBlueprint {
+    const blueprint: BacktestBlueprint = JSON.parse(JSON.stringify(existingBlueprint))
+    const idSet = new Set(ruleIds)
+    Object.values(blueprint.stages).forEach((stage) => {
+        if (!stage?.rules) return
+        stage.rules = stage.rules.filter((r) => !idSet.has(r.id))
+    })
+    return blueprint
+}
+
 export function normalizeBlueprintCandidate(
     raw: unknown
 ): BacktestBlueprint | null {

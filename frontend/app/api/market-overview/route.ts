@@ -289,7 +289,7 @@ async function fetchXauUsdCard(): Promise<MarketOverviewCard> {
 
     return {
         id: 'xauusd',
-        label: 'Ons Altın / USD',
+        label: 'Gold (XAU) / USD',
         value,
         changePct,
         currency: 'USD',

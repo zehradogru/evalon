@@ -16,7 +16,6 @@ import {
     ChevronsUpDown,
     DollarSign,
     Loader2,
-    MoreHorizontal,
     RefreshCw,
     TrendingUp,
 } from 'lucide-react'
@@ -33,49 +32,10 @@ import type {
     MarketOverviewCard,
 } from '@/types'
 
-type SortField = Exclude<MarketListSortField, 'marketCap' | 'pe' | 'eps' | 'sector'>
+type SortField = Exclude<MarketListSortField, 'marketCap' | 'pe' | 'eps' | 'sector' | 'rating'>
 type SortDirection = ListSortDirection
 
-const RATING_ORDER: Record<string, number> = {
-    'Strong Buy': 5,
-    Buy: 4,
-    Neutral: 3,
-    Sell: 2,
-    'Strong Sell': 1,
-}
 
-const mockMarketData: Record<'nasdaq' | 'forex', MarketListItem[]> = {
-    nasdaq: MARKET_TICKERS.NASDAQ.map((item) => ({
-        ticker: item.ticker,
-        name: item.name,
-        price: 850.12,
-        changePct: 2.5,
-        changeVal: 20.5,
-        high: 855,
-        low: 835,
-        vol: 45_000_000,
-        rating: 'Strong Buy',
-        marketCap: null,
-        pe: null,
-        eps: null,
-        sector: null,
-    })),
-    forex: MARKET_TICKERS.FOREX.map((item) => ({
-        ticker: item.ticker,
-        name: item.name,
-        price: 1.085,
-        changePct: 0.1,
-        changeVal: 0.0011,
-        high: 1.087,
-        low: 1.083,
-        vol: null,
-        rating: 'Neutral',
-        marketCap: null,
-        pe: null,
-        eps: null,
-        sector: null,
-    })),
-}
 
 function useCryptoList() {
     const [items, setItems] = useState<MarketListItem[]>([])
@@ -129,19 +89,7 @@ function formatVolume(vol: number | null) {
     return vol.toFixed(0)
 }
 
-function RatingBadge({ rating }: { rating: string }) {
-    let colorClass = 'bg-secondary text-muted-foreground'
-    if (rating === 'Strong Buy') colorClass = 'bg-chart-2/20 text-chart-2'
-    if (rating === 'Buy') colorClass = 'bg-chart-2/10 text-chart-2'
-    if (rating === 'Sell') colorClass = 'bg-destructive/10 text-destructive'
-    if (rating === 'Strong Sell') colorClass = 'bg-destructive/20 text-destructive border-destructive/20'
 
-    return (
-        <Badge variant="outline" className={cn('border-0 font-medium whitespace-nowrap', colorClass)}>
-            {rating}
-        </Badge>
-    )
-}
 
 function SortableHeadCell({
     field,
@@ -259,12 +207,6 @@ function MarketTable({
                 return activeSortDirection === 'asc' ? compare : -compare
             }
 
-            if (activeSortField === 'rating') {
-                const aRank = RATING_ORDER[a.rating] || 0
-                const bRank = RATING_ORDER[b.rating] || 0
-                return activeSortDirection === 'asc' ? aRank - bRank : bRank - aRank
-            }
-
             const aValue = a[activeSortField] ?? 0
             const bValue = b[activeSortField] ?? 0
             return activeSortDirection === 'asc' ? aValue - bValue : bValue - aValue
@@ -354,13 +296,7 @@ function MarketTable({
                                     sortDirection={activeSortDirection}
                                     onSort={handleSort}
                                 />
-                                <SortableHeadCell
-                                    field="rating"
-                                    label="Rating"
-                                    activeField={activeSortField}
-                                    sortDirection={activeSortDirection}
-                                    onSort={handleSort}
-                                />
+
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -458,16 +394,13 @@ function MarketTable({
                                         >
                                             {hasData ? formatVolume(item.vol) : '-'}
                                         </TableCell>
-                                        <TableCell className="text-right pr-4">
-                                            <RatingBadge rating={item.rating || 'Neutral'} />
-                                        </TableCell>
                                     </TableRow>
                                 )
                             })}
 
                             {sortedData.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                         {marketStatus?.isWarming
                                             ? 'Market data warming up.'
                                             : 'No data available'}
@@ -561,7 +494,7 @@ function MarketSummaryCard({
                             ? `${numericChangePct > 0 ? '+' : ''}${numericChangePct.toFixed(2)}%`
                             : '--'}
                     </span>
-                    <span className="text-xs text-muted-foreground">24h Degisim</span>
+                    <span className="text-xs text-muted-foreground">24h Change</span>
                 </div>
             </div>
             <div className="space-y-1">
@@ -662,7 +595,7 @@ export function MarketsView() {
     })
 
     return (
-        <div className="flex flex-col w-full h-full bg-background">
+        <div className="flex flex-col w-full bg-background">
             <div className="p-6 border-b border-border bg-background">
                 <div className="flex flex-col gap-1">
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Markets Overview</h1>
@@ -694,33 +627,14 @@ export function MarketsView() {
                                 BIST
                             </TabsTrigger>
                             <TabsTrigger
-                                value="nasdaq"
-                                className="bg-transparent p-0 pb-2 text-base rounded-none border-b-2 border-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-all"
-                            >
-                                NASDAQ
-                            </TabsTrigger>
-                            <TabsTrigger
                                 value="crypto"
                                 className="bg-transparent p-0 pb-2 text-base rounded-none border-b-2 border-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-all"
                             >
                                 Crypto
                             </TabsTrigger>
-                            <TabsTrigger
-                                value="forex"
-                                className="bg-transparent p-0 pb-2 text-base rounded-none border-b-2 border-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-all"
-                            >
-                                Forex
-                            </TabsTrigger>
                         </TabsList>
 
                         <div className="flex items-center gap-2">
-                            <Badge
-                                variant="outline"
-                                className="text-xs px-2 py-1 gap-1 border-border text-muted-foreground hover:text-foreground cursor-default"
-                            >
-                                <MoreHorizontal size={14} />
-                                More Filters
-                            </Badge>
                             <MarketDataStatusChip
                                 status={marketStatus}
                                 labels={{
@@ -754,17 +668,10 @@ export function MarketsView() {
                         />
                     </TabsContent>
 
-                    <TabsContent value="nasdaq" className="mt-0 animate-in fade-in duration-500">
-                        <MarketTable data={mockMarketData.nasdaq} isInteractive={true} />
-                    </TabsContent>
-
                     <TabsContent value="crypto" className="mt-0 animate-in fade-in duration-500">
                         <MarketTable data={cryptoItems} isLoading={cryptoLoading} isError={cryptoError} isInteractive={true} />
                     </TabsContent>
 
-                    <TabsContent value="forex" className="mt-0 animate-in fade-in duration-500">
-                        <MarketTable data={mockMarketData.forex} isInteractive={true} />
-                    </TabsContent>
                 </Tabs>
             </div>
         </div>

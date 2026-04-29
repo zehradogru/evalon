@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 const columns = {
   Tools: [
@@ -33,6 +34,9 @@ const columns = {
 }
 
 export function DashboardFooter() {
+  const pathname = usePathname()
+  if (pathname === '/ai') return null
+
   return (
     <footer className="bg-background border-t border-border mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -25,3 +25,5 @@ denemelerrr/
 *.json
 .bist_cache*/
 .vercel
+
+venv_win/

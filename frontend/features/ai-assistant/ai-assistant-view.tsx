@@ -30,13 +30,15 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select } from '@/components/ui/select-native'
 import { cn } from '@/lib/utils'
-import { readActiveBlueprint } from '@/lib/workspace-storage'
+import { clearActiveBlueprint, readActiveBlueprint } from '@/lib/workspace-storage'
 import { aiService } from '@/services/ai.service'
 import { aiHistoryService } from '@/services/ai-history.service'
 import { useAuthStore } from '@/store/use-auth-store'
 import type { AiAsset, AiMessage, AiMessageResponse, AiRequestContext, Timeframe } from '@/types'
 import { BIST_AVAILABLE, TICKER_NAMES } from '@/config/markets'
 import { BacktestToolResult } from './backtest-tool-result'
+import { RuleCatalogToolResult } from './rule-catalog-tool-result'
+import { PresetCatalogToolResult } from './preset-catalog-tool-result'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -231,6 +233,26 @@ function ChatMessage({
 
                   if (runId) {
                     return <BacktestToolResult key={i} runId={runId} initialResult={result} />
+                  }
+
+                  if (toolName === 'get_rule_catalog') {
+                    return (
+                      <RuleCatalogToolResult
+                        key={i}
+                        result={result as never}
+                        onAddToInput={onActionClick}
+                      />
+                    )
+                  }
+
+                  if (toolName === 'get_preset_catalog') {
+                    return (
+                      <PresetCatalogToolResult
+                        key={i}
+                        result={result as never}
+                        onAddToInput={onActionClick}
+                      />
+                    )
                   }
 
                   return (
@@ -582,6 +604,8 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
       setLatestResponse(null)
       setInput('')
       setSessionTitle('Yeni Oturum')
+      // Fresh chat ⇒ start from an empty rule selection
+      clearActiveBlueprint()
       // Persist to Firestore
       void aiHistoryService.saveSession(user!.id, {
         sessionId: result.sessionId,
@@ -615,10 +639,10 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
         })
       }
 
-      // Only attach the workspace blueprint when the user explicitly opts in
-      // (same toggle that allows AI to save drafts). Prevents the AI from
-      // auto-saving a "draft" blueprint on every message.
-      const activeBlueprint = autoSaveDrafts ? readActiveBlueprint() : null
+      // Always attach the workspace blueprint so rules the user picked
+      // from the catalog reach the backend. The `auto_save_drafts` flag
+      // (below) still controls whether the AI may persist new drafts.
+      const activeBlueprint = readActiveBlueprint()
       const context: AiRequestContext = {
         user_id: user!.id,
         ticker,
@@ -725,6 +749,8 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
     setLatestResponse(null)
     setInput('')
     setSessionTitle('Yeni Oturum')
+    // Fresh chat ⇒ start from an empty rule selection
+    clearActiveBlueprint()
   }, [])
 
   const handleSwitchSession = useCallback(async (id: string, title: string) => {
@@ -1127,39 +1153,6 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                 </h3>
 
                 <div className="space-y-2.5">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] text-muted-foreground">Sembol</label>
-                    <Input
-                      value={ticker}
-                      onChange={(e) => setTicker(e.target.value.toUpperCase())}
-                      className="h-8 text-xs bg-secondary/40 border-border/50"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] text-muted-foreground">Periyot</label>
-                    <Select
-                      value={timeframe}
-                      onChange={(e) => setTimeframe(e.target.value as Timeframe)}
-                      className="h-8 text-xs"
-                    >
-                      {TIMEFRAMES.map((tf) => (
-                        <option key={tf} value={tf}>
-                          {tf}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] text-muted-foreground">Indicator</label>
-                    <Input
-                      value={indicatorId}
-                      onChange={(e) => setIndicatorId(e.target.value.toLowerCase())}
-                      className="h-8 text-xs bg-secondary/40 border-border/50"
-                    />
-                  </div>
-
                   <div className="space-y-1.5">
                     <label className="text-[11px] text-muted-foreground">Semboller</label>
                     <SymbolPicker value={selectedSymbols} onChange={setSelectedSymbols} />

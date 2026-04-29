@@ -523,9 +523,6 @@
 
 /* Event row */
 .cal-event-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   padding: 9px 16px;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
   transition: background 0.12s;
@@ -549,13 +546,9 @@
 .cal-time.low { color: var(--muted-foreground); }
 .cal-time.past { color: color-mix(in srgb, var(--muted-foreground) 45%, transparent) !important; }
 
-/* Flag cell */
+/* Flag cell - now shows country code text */
 .cal-flag {
-  font-size: 15px;
   line-height: 1;
-  width: 20px;
-  flex-shrink: 0;
-  text-align: center;
 }
 
 /* Event name */

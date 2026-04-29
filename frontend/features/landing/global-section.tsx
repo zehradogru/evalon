@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import Link from 'next/link'
-import { GlobeCanvas } from './globe-canvas'
+import RotatingEarth from '@/components/ui/rotating-earth'
 import { ArrowRight } from 'lucide-react'
 
 const GLOBAL_STATS = [
@@ -42,7 +42,7 @@ export function GlobalSection() {
           <div className="relative">
             <div className="absolute inset-[-8%] rounded-full bg-[#2862ff]/8 blur-3xl pointer-events-none" />
             <div className="absolute inset-[-4%] rounded-full bg-[#7c3aed]/5 blur-2xl pointer-events-none" />
-            <GlobeCanvas size={560} className="relative z-10 drop-shadow-[0_0_80px_rgba(41,98,255,0.3)]" />
+            <RotatingEarth />
           </div>
 
           {/* Stats grid below globe */}

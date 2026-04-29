@@ -4,7 +4,11 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { BookOpen, Check, ChevronDown, ChevronUp, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { addRulesToActiveBlueprint, createEmptyBlueprint } from '@/lib/backtest-blueprint'
+import {
+  addRulesToActiveBlueprint,
+  createEmptyBlueprint,
+  removeRulesFromActiveBlueprint,
+} from '@/lib/backtest-blueprint'
 import { readActiveBlueprint, saveActiveBlueprint } from '@/lib/workspace-storage'
 import { backtestsService } from '@/services/backtests.service'
 import type { BacktestCatalogRule, BacktestRuleCatalogResponse } from '@/types'
@@ -37,6 +41,11 @@ export function RuleCatalogToolResult({ result, onAddToInput }: RuleCatalogToolR
   const [search, setSearch] = useState('')
   const [activeFamily, setActiveFamily] = useState<string>('all')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  // Tracks rules pushed to the blueprint by THIS catalog instance.
+  // Intentionally NOT hydrated from localStorage: a fresh chat must
+  // start with zero ticks even if a stale blueprint exists from
+  // another page (Backtest/Strategy) for the same user.
+  const [alreadyAdded, setAlreadyAdded] = useState<Set<string>>(new Set())
   const [expanded, setExpanded] = useState(true)
   const [savedMsg, setSavedMsg] = useState<string | null>(null)
 
@@ -51,6 +60,20 @@ export function RuleCatalogToolResult({ result, onAddToInput }: RuleCatalogToolR
   }, [rules, search, activeFamily])
 
   const toggleRule = (id: string) => {
+    if (alreadyAdded.has(id)) {
+      // Removing an already-pushed rule: strip it from the blueprint immediately.
+      const existing = readActiveBlueprint()
+      if (existing) {
+        const updated = removeRulesFromActiveBlueprint([id], existing)
+        saveActiveBlueprint(updated)
+      }
+      setAlreadyAdded((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+      return
+    }
     setSelected((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -66,6 +89,13 @@ export function RuleCatalogToolResult({ result, onAddToInput }: RuleCatalogToolR
     saveActiveBlueprint(updated)
     setSavedMsg(`${selected.size} kural aktif blueprint'e eklendi`)
     setTimeout(() => setSavedMsg(null), 3000)
+    // Promote freshly added ids into the "alreadyAdded" set so the UI
+    // immediately reflects the persisted state with the emerald tick.
+    setAlreadyAdded((prev) => {
+      const next = new Set(prev)
+      selected.forEach((id) => next.add(id))
+      return next
+    })
     setSelected(new Set())
   }
 
@@ -87,6 +117,11 @@ export function RuleCatalogToolResult({ result, onAddToInput }: RuleCatalogToolR
           <BookOpen size={11} className="text-blue-400" />
           <span className="text-yellow-400 font-semibold">get_rule_catalog</span>
           <span className="opacity-60">{rules.length} kural</span>
+          {alreadyAdded.size > 0 && (
+            <span className="px-1.5 h-4 inline-flex items-center rounded text-[9px] font-medium border border-emerald-400/40 bg-emerald-400/10 text-emerald-400">
+              {alreadyAdded.size} ekli
+            </span>
+          )}
         </div>
         {expanded ? <ChevronUp size={11} className="text-muted-foreground" /> : <ChevronDown size={11} className="text-muted-foreground" />}
       </button>
@@ -123,6 +158,7 @@ export function RuleCatalogToolResult({ result, onAddToInput }: RuleCatalogToolR
                   key={rule.id}
                   rule={rule}
                   checked={selected.has(rule.id)}
+                  alreadyAdded={alreadyAdded.has(rule.id)}
                   onToggle={() => toggleRule(rule.id)}
                 />
               ))
@@ -200,10 +236,12 @@ function FamilyChip({
 function RuleCard({
   rule,
   checked,
+  alreadyAdded,
   onToggle,
 }: {
   rule: BacktestCatalogRule
   checked: boolean
+  alreadyAdded: boolean
   onToggle: () => void
 }) {
   const colorClass = CATEGORY_COLORS[rule.category] ?? 'text-slate-400 border-slate-400/40 bg-slate-400/10'
@@ -211,21 +249,28 @@ function RuleCard({
   return (
     <button
       onClick={onToggle}
+      title={alreadyAdded ? 'Tikrar tikla: kaldir' : undefined}
       className={cn(
         'w-full flex items-start gap-2.5 px-2.5 py-2 rounded-md border text-left transition-colors',
-        checked
-          ? 'border-blue-500/50 bg-blue-500/10'
-          : 'border-border/30 bg-black/20 hover:bg-black/40 hover:border-border/50'
+        alreadyAdded
+          ? 'border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10'
+          : checked
+            ? 'border-blue-500/50 bg-blue-500/10'
+            : 'border-border/30 bg-black/20 hover:bg-black/40 hover:border-border/50'
       )}
     >
       {/* Checkbox */}
       <div
         className={cn(
           'flex-shrink-0 mt-0.5 h-3.5 w-3.5 rounded border flex items-center justify-center',
-          checked ? 'bg-blue-500 border-blue-500' : 'border-border/60'
+          alreadyAdded
+            ? 'bg-emerald-500 border-emerald-500'
+            : checked
+              ? 'bg-blue-500 border-blue-500'
+              : 'border-border/60'
         )}
       >
-        {checked && <Check size={9} className="text-white" />}
+        {(checked || alreadyAdded) && <Check size={9} className="text-white" />}
       </div>
 
       {/* Content */}
@@ -235,6 +280,11 @@ function RuleCard({
           <span className={cn('inline-flex px-1.5 h-4 items-center rounded text-[9px] font-medium border', colorClass)}>
             {rule.category}
           </span>
+          {alreadyAdded && (
+            <span className="inline-flex px-1.5 h-4 items-center rounded text-[9px] font-medium border border-emerald-400/40 bg-emerald-400/10 text-emerald-400">
+              ekli
+            </span>
+          )}
         </div>
         <p className="text-[10px] text-muted-foreground/70 mt-0.5 leading-relaxed line-clamp-2">{rule.summary}</p>
         <span className="text-[9px] font-mono text-muted-foreground/40 mt-0.5 block">{rule.id}</span>
