@@ -101,6 +101,7 @@ export function RuleCatalogToolResult({ result, onAddToInput }: RuleCatalogToolR
 
   const handleAddToBlueprint = () => {
     if (selected.size === 0) return
+    const selectedRules = rules.filter((r) => selected.has(r.id))
     const existing = readActiveBlueprint() ?? createEmptyBlueprint()
     const updated = addRulesToActiveBlueprint(Array.from(selected), rules, existing)
     saveActiveBlueprint(updated)
@@ -114,6 +115,11 @@ export function RuleCatalogToolResult({ result, onAddToInput }: RuleCatalogToolR
       return next
     })
     setSelected(new Set())
+    // Auto-send a message so the AI knows which rules were selected
+    if (onAddToInput) {
+      const ruleNames = selectedRules.map((r) => r.label).join(', ')
+      onAddToInput(`Şu kuralları seçtim ve blueprint'ime ekledim: ${ruleNames}. Bu kuralları kullanarak bir strateji oluşturabilir misin?`)
+    }
   }
 
   const handleAddToInput = () => {

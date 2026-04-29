@@ -715,9 +715,14 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
       })
       // Persist both messages to Firestore
       void aiHistoryService.appendMessages(user!.id, activeId, [userMsg, enhancedMsg])
-      // Also persist any newly saved assets to Firestore so they survive backend restarts
-      if (result.savedAssets && result.savedAssets.length > 0) {
-        void aiHistoryService.saveAssets(user!.id, result.savedAssets)
+      // Collect saved assets: from explicit savedAssets array OR from save_user_* tool results
+      const SAVE_TOOLS = new Set(['save_user_strategy', 'save_user_rule', 'save_user_indicator'])
+      const toolSavedAssets = (result.toolResults ?? [])
+        .filter((tr) => SAVE_TOOLS.has(String(tr.tool)) && tr.result && typeof tr.result === 'object')
+        .map((tr) => tr.result as import('@/types').AiAsset)
+      const allNewAssets = [...(result.savedAssets ?? []), ...toolSavedAssets]
+      if (allNewAssets.length > 0) {
+        void aiHistoryService.saveAssets(user!.id, allNewAssets)
       }
       void queryClient.invalidateQueries({ queryKey: ['ai-assets', user?.id] })
     },
