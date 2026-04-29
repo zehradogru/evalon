@@ -1,16 +1,20 @@
 'use client'
 
 import { useState } from 'react'
-import { Check } from 'lucide-react'
-import { PRICING_PLANS } from './pricing-data'
+import { Check, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { LandingNavbar } from '../landing/landing-navbar'
+import { Footer } from '../landing/footer'
+import { usePricing } from '@/hooks/use-pricing'
+import { useAuthStore } from '@/store/use-auth-store'
 
 export function PricingView() {
     const [isYearly, setIsYearly] = useState(true)
+    const { data: plans = [], isLoading, isError } = usePricing()
+    const user = useAuthStore(s => s.user)
 
     return (
-        <div className="min-h-screen bg-[#000000] text-white selection:bg-[#2962ff] selection:text-white pb-20">
+        <div className="min-h-screen bg-[#000000] text-white selection:bg-[#2962ff] selection:text-white">
             <LandingNavbar />
 
             {/* Background Gradients */}
@@ -19,29 +23,28 @@ export function PricingView() {
                 <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#d236f9]/20 rounded-full blur-[120px] mix-blend-screen" />
             </div>
 
-            <div className="relative z-10 pt-32 px-4 max-w-7xl mx-auto text-center">
+            <div className="relative z-10 pt-32 pb-24 px-4 max-w-7xl mx-auto text-center">
                 {/* Header */}
-                <div
-                    className="mb-16 animate-in fade-in slide-in-from-bottom-8 duration-700"
-                >
+                <div className="mb-16 animate-in fade-in slide-in-from-bottom-8 duration-700">
                     <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
                         Choose your edge.
                     </h1>
                     <p className="text-xl text-[#787b86] max-w-2xl mx-auto">
-                        Professional tools for every level of trader. <br className="hidden sm:block" />
+                        Professional tools for every level of trader.{' '}
+                        <br className="hidden sm:block" />
                         Start with our flexible plans and scale as you grow.
                     </p>
 
                     {/* Toggle */}
                     <div className="flex items-center justify-center gap-4 mt-10">
-                        <span className={`text-sm font-medium ${!isYearly ? 'text-white' : 'text-[#787b86]'} transition-colors`}>Monthly</span>
+                        <span className={`text-sm font-medium transition-colors ${!isYearly ? 'text-white' : 'text-[#787b86]'}`}>Monthly</span>
                         <button
                             onClick={() => setIsYearly(!isYearly)}
                             className="w-14 h-8 bg-[#1e222d] border border-[#2a2e39] rounded-full relative p-1 transition-colors hover:border-[#2962ff]/50"
                         >
                             <div className={`w-6 h-6 bg-[#2962ff] rounded-full transition-transform duration-300 ${isYearly ? 'translate-x-6' : 'translate-x-0'}`} />
                         </button>
-                        <span className={`text-sm font-medium ${isYearly ? 'text-white' : 'text-[#787b86]'} transition-colors`}>
+                        <span className={`text-sm font-medium transition-colors ${isYearly ? 'text-white' : 'text-[#787b86]'}`}>
                             Yearly <span className="text-[#2962ff] text-xs ml-1 font-bold">SAVE 20%</span>
                         </span>
                     </div>
@@ -49,13 +52,24 @@ export function PricingView() {
 
                 {/* Cards Grid */}
                 <div className="grid md:grid-cols-3 gap-8 items-start">
-                    {PRICING_PLANS.map((plan, index) => (
+                    {isLoading && (
+                        <div className="col-span-3 flex justify-center py-20">
+                            <Loader2 className="w-8 h-8 animate-spin text-[#2962ff]" />
+                        </div>
+                    )}
+                    {isError && (
+                        <div className="col-span-3 text-center py-20 text-[#787b86]">
+                            Fiyat planları yüklenemedi.
+                        </div>
+                    )}
+                    {plans.map((plan, index) => (
                         <div
                             key={plan.id}
-                            className={`relative p-8 rounded-3xl border text-left flex flex-col h-full animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-backwards ${plan.highlight
+                            className={`relative p-8 rounded-3xl border text-left flex flex-col h-full animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-backwards ${
+                                plan.highlight
                                     ? 'bg-[#131722] border-[#2962ff] shadow-[0_0_40px_-10px_rgba(41,98,255,0.3)]'
                                     : 'bg-[#0f1117] border-[#2a2e39] hover:border-[#787b86] transition-colors'
-                                }`}
+                            }`}
                             style={{ animationDelay: `${index * 150}ms` }}
                         >
                             {plan.highlight && (
@@ -66,12 +80,19 @@ export function PricingView() {
 
                             <div className="mb-8">
                                 <h3 className="text-xl font-bold text-white mb-2">{plan.name}</h3>
-                                <div className="flex items-baseline gap-1 mb-4">
+                                <div className="flex items-baseline gap-1 mb-1">
                                     <span className="text-4xl font-bold text-white">
-                                        ${isYearly ? plan.price.yearly / 12 : plan.price.monthly}
+                                        ${isYearly ? plan.price.yearly : plan.price.monthly}
                                     </span>
-                                    <span className="text-[#787b86]">/mo</span>
+                                    {plan.price.monthly > 0 && (
+                                        <span className="text-[#787b86]">/mo</span>
+                                    )}
                                 </div>
+                                {isYearly && plan.price.yearlyTotal > 0 && (
+                                    <p className="text-xs text-[#787b86] mb-3">
+                                        Billed ${plan.price.yearlyTotal}/year
+                                    </p>
+                                )}
                                 <p className="text-sm text-[#787b86] leading-relaxed">
                                     {plan.description}
                                 </p>
@@ -89,18 +110,25 @@ export function PricingView() {
                             </div>
 
                             <Link
-                                href="/signup"
-                                className={`w-full py-4 rounded-xl font-bold text-center transition-all duration-200 ${plan.highlight
+                                href={user ? '/settings?tab=billing' : '/signup'}
+                                className={`w-full py-4 rounded-xl font-bold text-center transition-all duration-200 block ${
+                                    plan.highlight
                                         ? 'bg-gradient-to-r from-[#2962ff] to-[#00bceb] text-white hover:shadow-[0_0_20px_-5px_rgba(41,98,255,0.5)] hover:brightness-110'
                                         : 'bg-[#1e222d] text-white hover:bg-[#2a2e39] border border-[#2a2e39]'
-                                    }`}
+                                }`}
                             >
-                                {plan.cta}
+                                {user
+                                    ? plan.price.monthly === 0
+                                        ? 'Current Plan'
+                                        : `Upgrade to ${plan.name}`
+                                    : plan.cta}
                             </Link>
                         </div>
                     ))}
                 </div>
             </div>
+
+            <Footer />
         </div>
     )
 }

@@ -45,7 +45,7 @@ export function LeaderboardTable() {
         setError(null)
         try {
             const res = await paperTradeService.getLeaderboard(sortBy, 50)
-            setEntries(res.entries)
+            setEntries(res.entries.filter((e) => e.totalTrades > 0))
         } catch (err: unknown) {
             console.error(err)
             setError(err instanceof Error ? err.message : 'Failed to load leaderboard')

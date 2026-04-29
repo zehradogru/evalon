@@ -307,9 +307,11 @@ export function Navbar() {
         <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0 ml-auto">
 
           {/* Upgrade Button (CTA) */}
-          <Button className="hidden md:flex bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 h-9 rounded-full px-6 font-semibold shadow-lg hover:shadow-xl transition-all">
-            Upgrade Plan
-          </Button>
+          <Link href="/pricing" className="hidden md:flex">
+            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 h-9 rounded-full px-6 font-semibold shadow-lg hover:shadow-xl transition-all">
+              Upgrade Plan
+            </Button>
+          </Link>
 
           {/* Divider */}
           <div className="h-6 w-[1px] bg-border hidden md:block"></div>

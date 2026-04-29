@@ -24,6 +24,7 @@ export function CandlestickChart({ data, className }: CandlestickChartProps) {
         textColor: '#787b86',
         fontFamily: 'inherit',
         fontSize: 11,
+        attributionLogo: false,
       },
       grid: {
         vertLines: { visible: false },

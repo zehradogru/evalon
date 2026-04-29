@@ -1,166 +1,125 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { usePricing } from '@/hooks/use-pricing';
 
 export function PricingSection() {
     const [isAnnual, setIsAnnual] = useState(true);
+    const { data: plans = [], isLoading } = usePricing();
 
     return (
-        <section className="bg-background py-24 text-foreground" id="pricing">
+        <section className="bg-black py-24 text-white" id="pricing">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="mb-16 text-center">
-                    <h2 className="text-4xl font-bold tracking-tight text-foreground mb-6 md:text-5xl">
+                    <h2 className="text-4xl font-bold tracking-tight text-white mb-6 md:text-5xl">
                         Select your plan
                     </h2>
-                    <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-10">
+                    <p className="text-xl text-[#787b86] max-w-3xl mx-auto mb-10">
                         No commitment. Cancel anytime.
                     </p>
 
                     {/* Toggle */}
                     <div className="flex items-center justify-center gap-4">
-                        <span className={cn("text-sm font-medium transition-colors", !isAnnual ? "text-foreground" : "text-muted-foreground")}>
+                        <span className={cn('text-sm font-medium transition-colors', !isAnnual ? 'text-white' : 'text-[#787b86]')}>
                             Monthly
                         </span>
                         <button
                             onClick={() => setIsAnnual(!isAnnual)}
-                            className="relative h-7 w-12 rounded-full bg-secondary p-1 transition-colors hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            className="relative h-7 w-12 rounded-full bg-white/[0.06] border border-white/[0.1] p-1 transition-colors hover:border-[#2862ff]/50"
                             role="switch"
                             aria-checked={isAnnual}
                         >
                             <span
                                 className={cn(
-                                    "pointer-events-none block h-5 w-5 rounded-full bg-foreground shadow-lg ring-0 transition-transform",
-                                    isAnnual ? "translate-x-5" : "translate-x-0"
+                                    'pointer-events-none block h-5 w-5 rounded-full bg-[#2962ff] shadow-lg ring-0 transition-transform',
+                                    isAnnual ? 'translate-x-5' : 'translate-x-0'
                                 )}
                             />
                         </button>
-                        <span className={cn("text-sm font-medium transition-colors", isAnnual ? "text-foreground" : "text-muted-foreground")}>
-                            Annually <span className="text-primary ml-1">Save up to 16%</span>
+                        <span className={cn('text-sm font-medium transition-colors', isAnnual ? 'text-white' : 'text-[#787b86]')}>
+                            Annually <span className="text-[#2962ff] ml-1 text-xs font-bold">SAVE 20%</span>
                         </span>
                     </div>
                 </div>
 
                 {/* Pricing Cards */}
                 <div className="grid gap-8 lg:grid-cols-3 lg:gap-8">
-                    {/* Essential Plan */}
-                    <PricingCard
-                        title="Essential"
-                        price={isAnnual ? 12.95 : 14.95}
-                        prevPrice={isAnnual ? 155.40 : undefined}
-                        features={[
-                            "2 charts per tab",
-                            "5 indicators per chart",
-                            "10K historical bars",
-                            "20 price alerts",
-                            "20 technical alerts",
-                            "No ads"
-                        ]}
-                    />
+                    {isLoading && (
+                        <div className="col-span-3 flex justify-center py-16">
+                            <Loader2 className="w-7 h-7 animate-spin text-[#2962ff]" />
+                        </div>
+                    )}
+                    {plans.map((plan) => (
+                        <div
+                            key={plan.id}
+                            className={cn(
+                                'relative flex flex-col rounded-2xl p-8 transition-all hover:translate-y-[-4px]',
+                                plan.highlight
+                                    ? 'bg-[#080808] border-2 border-[#2862ff] shadow-[0_0_50px_-10px_rgba(40,98,255,0.35)]'
+                                    : 'bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12]'
+                            )}
+                        >
+                            {plan.highlight && (
+                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#2962ff] to-[#d236f9] px-4 py-1 text-xs font-bold uppercase tracking-wide text-white shadow-lg whitespace-nowrap">
+                                    Most Popular
+                                </div>
+                            )}
 
-                    {/* Plus Plan (Highlighted) */}
-                    <PricingCard
-                        title="Plus"
-                        price={isAnnual ? 24.95 : 29.95}
-                        prevPrice={isAnnual ? 299.40 : undefined}
-                        features={[
-                            "4 charts per tab",
-                            "10 indicators per chart",
-                            "10K historical bars",
-                            "100 price alerts",
-                            "100 technical alerts",
-                            "Intraday exotic charts",
-                            "Charts based on custom formulas",
-                            "Chart data export"
-                        ]}
-                        isPopular
-                    />
+                            <div className="mb-8">
+                                <h3 className="text-xl font-bold text-white mb-2">{plan.name}</h3>
+                                <div className="flex items-baseline gap-1 mb-1">
+                                    <span className="text-4xl font-bold text-white">
+                                        ${isAnnual ? plan.price.yearly : plan.price.monthly}
+                                    </span>
+                                    {plan.price.monthly > 0 && (
+                                        <span className="text-sm text-[#787b86]">/mo</span>
+                                    )}
+                                </div>
+                                {isAnnual && plan.price.yearlyTotal > 0 && (
+                                    <p className="text-xs text-[#787b86] mb-2">Billed ${plan.price.yearlyTotal}/year</p>
+                                )}
+                                <p className="text-sm text-[#787b86] leading-relaxed mt-2">{plan.description}</p>
+                            </div>
 
-                    {/* Premium Plan */}
-                    <PricingCard
-                        title="Premium"
-                        price={isAnnual ? 49.95 : 59.95}
-                        prevPrice={isAnnual ? 599.40 : undefined}
-                        features={[
-                            "8 charts per tab",
-                            "25 indicators per chart",
-                            "20K historical bars",
-                            "400 price alerts",
-                            "400 technical alerts",
-                            "Second-based intervals",
-                            "Alerts that don't expire",
-                            "4x more data flow (fastest)",
-                            "Publishing invite-only scripts"
-                        ]}
-                    />
+                            <Link
+                                href={plan.id === 'premium' ? '/contact' : '/signup'}
+                                className={cn(
+                                    'w-full py-3.5 rounded-xl font-bold text-center transition-all duration-200 mb-8 block',
+                                    plan.highlight
+                                        ? 'bg-gradient-to-r from-[#2962ff] to-[#00bceb] text-white hover:brightness-110'
+                                        : 'bg-white/[0.05] text-white hover:bg-white/[0.08] border border-white/[0.08]'
+                                )}
+                            >
+                                {plan.cta}
+                            </Link>
+
+                            <ul className="space-y-3 flex-1">
+                                {plan.features.map((feature) => (
+                                    <li key={feature} className="flex items-start gap-3">
+                                        <div className={cn(
+                                            'mt-0.5 rounded-full p-0.5 flex-shrink-0',
+                                            plan.highlight ? 'bg-[#2862ff]/20 text-[#2862ff]' : 'bg-white/[0.06] text-[#b2b5be]'
+                                        )}>
+                                            <Check className="w-3.5 h-3.5" />
+                                        </div>
+                                        <span className="text-sm text-[#d1d4dc]">{feature}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="text-center mt-10">
+                    <Link href="/pricing" className="text-sm text-[#2962ff] hover:text-[#5585ff] transition-colors underline underline-offset-4">
+                        View full plan comparison →
+                    </Link>
                 </div>
             </div>
         </section>
-    );
-}
-
-interface PricingCardProps {
-    title: string;
-    price: number;
-    prevPrice?: number;
-    features: string[];
-    isPopular?: boolean;
-}
-
-function PricingCard({ title, price, prevPrice, features, isPopular }: PricingCardProps) {
-    return (
-        <div className={cn(
-            "relative flex flex-col rounded-2xl bg-card p-8 shadow-sm transition-all hover:translate-y-[-4px]",
-            isPopular ? "border-2 border-primary" : "border border-border"
-        )}>
-            {isPopular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-primary px-4 py-1 text-xs font-semibold uppercase tracking-wide text-primary-foreground">
-                    Best Value
-                </div>
-            )}
-
-            <div className="mb-8">
-                <h3 className="text-2xl font-bold text-foreground text-center mb-2">{title}</h3>
-                <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-4xl font-bold text-foreground">${price}</span>
-                    <span className="text-sm text-muted-foreground">/mo</span>
-                </div>
-                {prevPrice && (
-                    <div className="text-center text-sm text-muted-foreground mt-1 line-through">
-                        ${(prevPrice / 12).toFixed(2)} /mo
-                    </div>
-                )}
-            </div>
-
-            <div className="mb-8 flex justify-center">
-                <Button
-                    className={cn(
-                        "w-full rounded-full py-6 text-base font-semibold transition-all duration-200",
-                        isPopular
-                            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                            : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                    )}
-                >
-                    Try free for 30 days
-                </Button>
-            </div>
-
-            <ul className="mb-8 space-y-4 flex-1">
-                {features.map((feature) => (
-                    <li key={feature} className="flex items-start">
-                        <Check className="mr-3 h-5 w-5 shrink-0 text-primary" />
-                        <span className="text-sm text-muted-foreground">{feature}</span>
-                    </li>
-                ))}
-            </ul>
-
-            <div className="mt-auto pt-6 border-t border-border text-xs text-muted-foreground text-center">
-                Note: This is a simulation.
-            </div>
-
-        </div>
     );
 }

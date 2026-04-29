@@ -95,6 +95,30 @@ export function applyPresetToBlueprint(
     return blueprint
 }
 
+export function addRulesToActiveBlueprint(
+    ruleIds: string[],
+    ruleCatalog: BacktestCatalogRule[],
+    existingBlueprint: BacktestBlueprint
+): BacktestBlueprint {
+    const blueprint: BacktestBlueprint = JSON.parse(JSON.stringify(existingBlueprint))
+    const targetStage = blueprint.stages.setup ?? blueprint.stages[Object.keys(blueprint.stages)[0] as BacktestStageKey]
+    if (!targetStage) return blueprint
+
+    ruleIds.forEach((ruleId) => {
+        const rule = ruleCatalog.find((r) => r.id === ruleId)
+        if (!rule) return
+        const alreadyAdded = targetStage.rules.some((r) => r.id === ruleId)
+        if (alreadyAdded) return
+        targetStage.rules.push({
+            id: rule.id,
+            required: true,
+            params: defaultParamsFor(rule),
+        })
+    })
+
+    return blueprint
+}
+
 export function normalizeBlueprintCandidate(
     raw: unknown
 ): BacktestBlueprint | null {

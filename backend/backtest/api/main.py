@@ -180,6 +180,12 @@ class PricesResponse(BaseModel):
     data: List[Bar]
 
 
+class BulkPricesResponse(BaseModel):
+    tickers: List[str]
+    timeframe: str
+    data: Dict[str, List[Bar]]
+
+
 def _config_status() -> Dict[str, Any]:
     default_wallet_dir = Path(__file__).resolve().parents[1] / "wallet"
     default_1h_wallet_dir = Path(DEFAULT_1H_WALLET_DIR)
@@ -442,6 +448,64 @@ def get_prices(
         )
 
     return PricesResponse(ticker=ticker, timeframe=timeframe, rows=len(out), data=out)
+
+
+@app.get("/v1/prices/bulk", response_model=BulkPricesResponse)
+def get_prices_bulk(
+    tickers: str = Query(..., description="Comma-separated ticker symbols, max 200"),
+    timeframe: str = Query("1d", min_length=1, max_length=16, description="e.g. 1d, 1w, 1M"),
+    start: Optional[datetime] = Query(None),
+    end: Optional[datetime] = Query(None),
+    limit: Optional[int] = Query(None, ge=1, le=500),
+) -> BulkPricesResponse:
+    ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
+    if not ticker_list:
+        raise HTTPException(status_code=400, detail="No tickers provided.")
+    if len(ticker_list) > 200:
+        raise HTTPException(status_code=400, detail="Too many tickers (max 200).")
+
+    try:
+        bulk_data = client.fetch_prices_bulk(
+            ticker_list, timeframe=timeframe, start=start, end=end, limit=limit
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        if os.environ.get("BIST_DEBUG") == "1":
+            raise HTTPException(
+                status_code=500,
+                detail=f"Bulk fetch failed: {type(e).__name__}: {e}",
+            ) from e
+        raise HTTPException(status_code=500, detail="Bulk fetch failed.") from e
+
+    result_data: Dict[str, List[Bar]] = {}
+    for ticker, df in bulk_data.items():
+        if df.empty:
+            result_data[ticker] = []
+            continue
+        bars: List[Bar] = []
+        for ts, row in df.iterrows():
+            try:
+                bars.append(
+                    Bar(
+                        t=ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts,
+                        o=float(row["open"]),
+                        h=float(row["high"]),
+                        l=float(row["low"]),
+                        c=float(row["close"]),
+                        v=int(row["volume"]),
+                    )
+                )
+            except Exception:
+                continue
+        result_data[ticker] = bars
+
+    # Ensure all requested tickers appear in the result (empty list if missing)
+    for ticker in ticker_list:
+        if ticker not in result_data:
+            result_data[ticker] = []
+
+    return BulkPricesResponse(tickers=ticker_list, timeframe=timeframe, data=result_data)
 
 
 class IndicatorResponse(BaseModel):
