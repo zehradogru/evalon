@@ -37,6 +37,8 @@ import { useAuthStore } from '@/store/use-auth-store'
 import type { AiAsset, AiMessage, AiMessageResponse, AiRequestContext, Timeframe } from '@/types'
 import { BIST_AVAILABLE, TICKER_NAMES } from '@/config/markets'
 import { BacktestToolResult } from './backtest-tool-result'
+import { RuleCatalogToolResult } from './rule-catalog-tool-result'
+import { PresetCatalogToolResult } from './preset-catalog-tool-result'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -137,10 +139,12 @@ function ChatMessage({
   msg,
   isLatest,
   latestResponse,
+  onAddToInput,
 }: {
   msg: AiMessage
   isLatest: boolean
   latestResponse: AiMessageResponse | null | undefined
+  onAddToInput?: (text: string) => void
 }) {
   const [copied, setCopied] = useState(false)
   const [toolsExpanded, setToolsExpanded] = useState(true)
@@ -223,6 +227,26 @@ function ChatMessage({
 
                   if (runId) {
                     return <BacktestToolResult key={i} runId={runId} initialResult={result} />
+                  }
+
+                  if (toolName === 'get_rule_catalog') {
+                    return (
+                      <RuleCatalogToolResult
+                        key={i}
+                        result={result as import('@/types').BacktestRuleCatalogResponse | null}
+                        onAddToInput={onAddToInput}
+                      />
+                    )
+                  }
+
+                  if (toolName === 'get_preset_catalog') {
+                    return (
+                      <PresetCatalogToolResult
+                        key={i}
+                        result={result as import('@/types').BacktestPresetCatalogResponse | null}
+                        onAddToInput={onAddToInput}
+                      />
+                    )
                   }
 
                   return (
@@ -777,6 +801,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                   msg={msg}
                   isLatest={i === messages.length - 1}
                   latestResponse={latestResponse}
+                  onAddToInput={(text) => { setInput(text); inputRef.current?.focus() }}
                 />
               ))}
               {sendMutation.isPending && (
@@ -1016,6 +1041,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                   msg={msg}
                   isLatest={i === messages.length - 1}
                   latestResponse={latestResponse}
+                  onAddToInput={(text) => { setInput(text); inputRef.current?.focus() }}
                 />
               ))}
 

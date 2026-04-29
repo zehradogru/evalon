@@ -403,6 +403,42 @@
 .cc-tl::before { top: 0;    left: 0;   box-shadow: -5px -5px 0 0 white; }
 .cc-tr::before { top: 0;    right: 0;  box-shadow:  5px -5px 0 0 white; }
 
+@keyframes candle-fade {
+  0%   { opacity: 0; transform: scaleY(0); }
+  10%  { opacity: 1; transform: scaleY(1.5); }
+  50%  { opacity: 1; transform: scaleY(1.35); }
+  70%  { opacity: 0; transform: scaleY(1.5); }
+  100% { opacity: 0; transform: scaleY(0); }
+}
+
+.candle-bar {
+  width: 6px;
+  height: 80px;
+  position: relative;
+  animation: candle-fade 2.6s infinite ease-in-out;
+  filter: drop-shadow(0 0 3px rgba(40,98,255,0.9));
+}
+.candle-bar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  background: #2862ff;
+  border: 1px solid #2862ff;
+  bottom: var(--b);
+  height: var(--h);
+}
+.candle-bar::before {
+  content: '';
+  position: absolute;
+  left: 63%;
+  transform: translateX(-50%);
+  width: 1px;
+  background: #2862ff;
+  bottom: var(--wb);
+  height: var(--wh);
+}
+
 .animate-fade-in-up {
   animation: fade-in-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
