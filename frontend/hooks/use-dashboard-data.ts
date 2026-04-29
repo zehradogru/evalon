@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { BIST_100, TICKER_NAMES } from '@/config/markets'
+import { TICKER_NAMES } from '@/config/markets'
 import { useUserWatchlist } from '@/hooks/use-user-watchlist'
 import type { MarketDataMeta, MarketListItem, PaginatedListResponse } from '@/types'
 import { buildMarketQueryStatus, isRetriableMarketError } from '@/lib/market-data'
@@ -178,7 +178,7 @@ async function fetchDashboardData(tickers: string[]): Promise<DashboardTickerPay
 async function fetchMarketSnapshotData(): Promise<DashboardTickerPayload> {
     const params = new URLSearchParams({
         view: 'markets',
-        limit: String(BIST_100.length),
+        limit: '100',
         sortBy: 'changePct',
         sortDir: 'desc',
     })
@@ -249,7 +249,7 @@ export function useDashboardWatchlist() {
         retry: (failureCount, error) =>
             isRetriableMarketError(error) && failureCount < 2,
         refetchInterval: (query) => {
-            if (query.state.data?.meta?.warming) return 8_000 // keep retrying while warming
+            if (query.state.data?.meta?.warming) return 3_000 // keep retrying while warming
             return isMarketCurrentlyOpen() ? 1000 * 60 : false
         },
     })
@@ -308,7 +308,7 @@ export function useMarketMovers() {
         retry: (failureCount, error) =>
             isRetriableMarketError(error) && failureCount < 2,
         refetchInterval: (query) => {
-            if (query.state.data?.meta?.warming) return 8_000 // keep retrying while warming
+            if (query.state.data?.meta?.warming) return 3_000 // keep retrying while warming
             return isMarketCurrentlyOpen() ? 1000 * 60 * 2 : false
         },
     })

@@ -139,3 +139,51 @@ class HybridBistPricesClient(BistPricesClient):
             limit=limit,
             canonicalize=canonicalize,
         )
+
+    def fetch_prices_bulk(
+        self,
+        tickers: list[str],
+        timeframe: str = "1d",
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> dict[str, pd.DataFrame]:
+        """Fetch OHLCV for multiple tickers in one Oracle round-trip, then resample.
+
+        Uses ``fetch_hourly_base_many`` to issue a single ``IN (...)`` query, then
+        resamples each ticker's hourly data to the requested timeframe. This is
+        dramatically faster than N individual ``fetch_prices_timeframe`` calls.
+        """
+        if not tickers:
+            return {}
+
+        normalized_pairs = [
+            (ticker, self._hourly_client.normalize_ticker(ticker))
+            for ticker in tickers
+        ]
+        normalized_tickers = [normalized for _, normalized in normalized_pairs]
+
+        query_start, query_end = self._hourly_client.expand_query_window(timeframe, start, end)
+
+        hourly_data = self._hourly_client.fetch_hourly_base_many(
+            tickers=normalized_tickers,
+            start=query_start,
+            end=query_end,
+        )
+
+        result: dict[str, pd.DataFrame] = {}
+        for orig_ticker, normalized_ticker in normalized_pairs:
+            hourly_df = hourly_data.get(normalized_ticker, pd.DataFrame())
+            try:
+                df = self._hourly_client.build_from_hourly_base(
+                    hourly=hourly_df,
+                    timeframe=timeframe,
+                    start=start,
+                    end=end,
+                    limit=limit,
+                )
+            except Exception:
+                df = pd.DataFrame()
+            result[orig_ticker] = df
+
+        return result

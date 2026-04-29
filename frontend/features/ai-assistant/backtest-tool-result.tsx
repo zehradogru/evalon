@@ -58,7 +58,10 @@ function fmtCurrency(n: number | undefined | null): string {
 
 function fmtPct(n: number | undefined | null): string {
   if (n == null || !Number.isFinite(n)) return '—'
-  return `${(n * (Math.abs(n) <= 1 ? 100 : 1)).toFixed(2)}%`
+  // Backend returns ratios (e.g. 0.54 means 0.54%, -0.4 means -0.4%)
+  // Values already in percentage range (|n| >= 1) are used as-is
+  const pct = Math.abs(n) < 1 ? n * 100 : n
+  return `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`
 }
 
 interface BacktestToolResultProps {
@@ -221,7 +224,7 @@ export function BacktestToolResult({ runId, initialResult }: BacktestToolResultP
             <MetricCard label="Win Rate" value={fmtPct(summary.winRate)} />
             <MetricCard
               label="Total P&L"
-              value={fmtCurrency(summary.totalPnl)}
+              value={fmtPct(summary.totalPnl)}
               accent={(summary.totalPnl ?? 0) >= 0 ? 'pos' : 'neg'}
             />
             <MetricCard

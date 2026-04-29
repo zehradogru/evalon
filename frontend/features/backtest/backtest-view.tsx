@@ -497,6 +497,16 @@ export function BacktestView() {
     curveQuery.data?.curve
   const curveData = curveToChartData(curveSource)
 
+  // Tight Y-axis domain so small variations (e.g. 100k–102k) are visible
+  const yDomain = (() => {
+    if (curveData.length === 0) return undefined
+    const vals = curveData.map((d) => d.value)
+    const lo = Math.min(...vals)
+    const hi = Math.max(...vals)
+    const pad = hi - lo > 0 ? (hi - lo) * 0.1 : Math.abs(hi) * 0.02 || 1
+    return [Math.floor(lo - pad), Math.ceil(hi + pad)] as [number, number]
+  })()
+
   const progress = statusQuery.data?.progress
 
   const applyPreset = (presetId: string) => {
@@ -724,8 +734,25 @@ export function BacktestView() {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                     <XAxis dataKey="x" minTickGap={40} tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip />
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      domain={yDomain}
+                      tickFormatter={(v: number) => `₺${(v / 1000).toFixed(0)}K`}
+                      width={54}
+                    />
+                    <Tooltip
+                      formatter={(v: number) => [
+                        `₺${v.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`,
+                        'Bakiye',
+                      ]}
+                      labelFormatter={(l) => `Tarih: ${l}`}
+                      contentStyle={{
+                        background: 'rgba(0,0,0,0.85)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: 6,
+                        fontSize: 11,
+                      }}
+                    />
                     <Area type="monotone" dataKey="value" stroke="#22c55e" fill="url(#curveGrad)" strokeWidth={2} isAnimationActive={false} />
                   </AreaChart>
                 </ResponsiveContainer>

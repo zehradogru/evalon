@@ -12,6 +12,7 @@ interface FilterPanelProps {
   onFiltersChange: (filters: ScreenerFilter[]) => void
   onLogicChange: (logic: FilterLogic) => void
   onQuickApply: (
+    chipId: string,
     filters: ScreenerFilter[],
     timeframe?: ScreenerTimeframe,
     logic?: FilterLogic
@@ -66,7 +67,7 @@ export function FilterPanel({
         <TabsContent value="quick" className="mt-0">
           <QuickFilterChips
             activeChipId={activeChipId}
-            onApply={(chips, tf, lg) => onQuickApply(chips, tf, lg)}
+            onApply={(id, chips, tf, lg) => onQuickApply(id, chips, tf, lg)}
           />
         </TabsContent>
 

@@ -1,3 +1,4 @@
+import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { TickerView } from '@/features/markets/ticker-view';
 
 interface PageProps {
@@ -8,8 +9,8 @@ export default async function TickerPage({ params }: PageProps) {
     const { ticker } = await params;
 
     return (
-        <div className="flex-1 w-full h-full flex flex-col bg-background">
+        <DashboardShell>
             <TickerView ticker={ticker.toUpperCase()} />
-        </div>
+        </DashboardShell>
     );
 }
