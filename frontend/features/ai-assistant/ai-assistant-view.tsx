@@ -36,6 +36,7 @@ import { aiHistoryService } from '@/services/ai-history.service'
 import { useAuthStore } from '@/store/use-auth-store'
 import type { AiAsset, AiMessage, AiMessageResponse, AiRequestContext, Timeframe } from '@/types'
 import { BIST_AVAILABLE, TICKER_NAMES } from '@/config/markets'
+import { BacktestToolResult } from './backtest-tool-result'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -142,7 +143,7 @@ function ChatMessage({
   latestResponse: AiMessageResponse | null | undefined
 }) {
   const [copied, setCopied] = useState(false)
-  const [toolsExpanded, setToolsExpanded] = useState(false)
+  const [toolsExpanded, setToolsExpanded] = useState(true)
   const isAssistant = msg.role === 'assistant'
 
   const handleCopy = useCallback(() => {
@@ -208,28 +209,43 @@ function ChatMessage({
             </button>
             {toolsExpanded && (
               <div className="mt-1.5 space-y-1.5">
-                {toolResults.map((tr, i) => (
-                  <div
-                    key={i}
-                    className="rounded-lg border border-border/50 bg-black/20 px-3 py-2 text-[11px] font-mono text-muted-foreground"
-                  >
-                    <span className="text-yellow-400 font-semibold">
-                      {String(tr.tool || tr.name || `tool_${i}`)}
-                    </span>
-                    {tr.status !== undefined && (
-                      <span
-                        className={cn(
-                          'ml-2',
-                          tr.status === 'ok' || tr.status === 'success'
-                            ? 'text-emerald-400'
-                            : 'text-red-400'
-                        )}
-                      >
-                        {String(tr.status)}
-                      </span>
-                    )}
-                  </div>
-                ))}
+                {toolResults.map((tr, i) => {
+                  const toolName = String(tr.tool || tr.name || `tool_${i}`)
+                  const result = (tr.result ?? null) as Record<string, unknown> | null
+                  const runId =
+                    toolName === 'run_backtest'
+                      ? typeof result?.runId === 'string'
+                        ? result.runId
+                        : typeof result?.run_id === 'string'
+                          ? (result.run_id as string)
+                          : null
+                      : null
+
+                  if (runId) {
+                    return <BacktestToolResult key={i} runId={runId} initialResult={result} />
+                  }
+
+                  return (
+                    <div
+                      key={i}
+                      className="rounded-lg border border-border/50 bg-black/20 px-3 py-2 text-[11px] font-mono text-muted-foreground"
+                    >
+                      <span className="text-yellow-400 font-semibold">{toolName}</span>
+                      {tr.status !== undefined && (
+                        <span
+                          className={cn(
+                            'ml-2',
+                            tr.status === 'ok' || tr.status === 'success'
+                              ? 'text-emerald-400'
+                              : 'text-red-400'
+                          )}
+                        >
+                          {String(tr.status)}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -493,7 +509,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>('1h')
   const [indicatorId, setIndicatorId] = useState('rsi')
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(['THYAO'])
-  const [autoSaveDrafts, setAutoSaveDrafts] = useState(true)
+  const [autoSaveDrafts, setAutoSaveDrafts] = useState(false)
 
   // Latest response for inline tool results
   const [latestResponse, setLatestResponse] = useState<AiMessageResponse | null>(null)
@@ -576,7 +592,10 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
         })
       }
 
-      const activeBlueprint = readActiveBlueprint()
+      // Only attach the workspace blueprint when the user explicitly opts in
+      // (same toggle that allows AI to save drafts). Prevents the AI from
+      // auto-saving a "draft" blueprint on every message.
+      const activeBlueprint = autoSaveDrafts ? readActiveBlueprint() : null
       const context: AiRequestContext = {
         user_id: user!.id,
         ticker,
@@ -1122,7 +1141,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                       onChange={(e) => setAutoSaveDrafts(e.target.checked)}
                       className="rounded"
                     />
-                    <span className="text-[11px] text-muted-foreground">Auto-save drafts</span>
+                    <span className="text-[11px] text-muted-foreground">AI&apos;ya blueprint paylaş + taslak kaydet</span>
                   </label>
                 </div>
               </div>

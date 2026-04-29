@@ -390,6 +390,16 @@ export interface BacktestRuleCatalogFamily {
     label: string
 }
 
+export interface BacktestRuleParamSpec {
+    key: string
+    label: string
+    type: 'int' | 'number'
+    default: number
+    min: number
+    max: number
+    step: number
+}
+
 export interface BacktestCatalogRule {
     id: string
     label: string
@@ -397,6 +407,7 @@ export interface BacktestCatalogRule {
     category: string
     stages: string[]
     summary: string
+    params?: BacktestRuleParamSpec[]
 }
 
 export interface BacktestRuleCatalogResponse {

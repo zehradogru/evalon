@@ -61,6 +61,14 @@ export function createEmptyBlueprint(symbol = 'THYAO'): BacktestBlueprint {
     }
 }
 
+export function defaultParamsFor(rule: BacktestCatalogRule): Record<string, number> {
+    const out: Record<string, number> = {}
+    ;(rule.params ?? []).forEach((p) => {
+        out[p.key] = p.default
+    })
+    return out
+}
+
 export function applyPresetToBlueprint(
     preset: BacktestPreset,
     ruleCatalog: BacktestCatalogRule[],
@@ -79,7 +87,7 @@ export function applyPresetToBlueprint(
             blueprint.stages[stageKey].rules.push({
                 id: rule.id,
                 required: true,
-                params: {},
+                params: defaultParamsFor(rule),
             })
         })
     })

@@ -7,12 +7,16 @@ import { Loader2, ScanLine } from 'lucide-react'
 import { SCREENER_TIMEFRAMES } from '@/types/screener'
 import type { ScreenerTimeframe } from '@/types/screener'
 import { cn } from '@/lib/utils'
+import { useTickerList } from '@/hooks/use-screener'
 
-const ALL_SECTORS = [
-  'Banking', 'Energy', 'Technology', 'Steel', 'Chemicals', 'GYO', 'Holding', 'Aviation',
-  'Automotive', 'Retail', 'Cement', 'Food & Beverage', 'Pharmaceuticals', 'Insurance', 'Textiles',
-  'Mining', 'Logistics', 'Defense', 'Tourism', 'Telecommunications', 'Glass', 'Healthcare',
-  'Finance', 'Gold', 'Media', 'Paper', 'Forest Products', 'Consumer Durables', 'Construction',
+// Fallback list (Turkish names matching backend bist_sectors.json) used when the
+// /tickers endpoint is unavailable. Keep in sync with backend sector data.
+const FALLBACK_SECTORS = [
+  'Altın', 'Banka', 'Cam', 'Çelik', 'Çimento', 'Dayanıklı Tüketim', 'Enerji',
+  'Finans', 'Gıda & İçecek', 'GYO', 'Havacılık', 'Holding', 'İlaç', 'İnşaat',
+  'Kağıt', 'Kimya', 'Lojistik', 'Madencilik', 'Medya', 'Orman Ürünleri',
+  'Otomotiv', 'Perakende', 'Sağlık', 'Savunma', 'Sigorta', 'Spor', 'Teknoloji',
+  'Tekstil', 'Telekomünikasyon', 'Turizm',
 ]
 
 interface ScanControlsProps {
@@ -43,6 +47,12 @@ export function ScanControls({
       onSectorsChange([...sectors, sector])
     }
   }
+
+  const tickerListQuery = useTickerList()
+  const sectorOptions =
+    (tickerListQuery.data?.sectors && tickerListQuery.data.sectors.length > 0
+      ? tickerListQuery.data.sectors
+      : FALLBACK_SECTORS)
 
   return (
     <div className="flex flex-col gap-4">
@@ -104,7 +114,7 @@ export function ScanControls({
             >
               All
             </button>
-            {ALL_SECTORS.map((sector) => (
+            {sectorOptions.map((sector) => (
               <button
                 key={sector}
                 type="button"

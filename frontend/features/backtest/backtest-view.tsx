@@ -34,6 +34,7 @@ import {
   type BacktestStageKey,
   applyPresetToBlueprint,
   createEmptyBlueprint,
+  defaultParamsFor,
 } from '@/lib/backtest-blueprint'
 import { formatTimeframeLabel } from '@/lib/evalon'
 import { readActiveBlueprint, saveActiveBlueprint } from '@/lib/workspace-storage'
@@ -44,7 +45,6 @@ import type {
   BacktestCatalogRule,
   BacktestRunResponse,
   BacktestSummary,
-  PortfolioCurvePoint,
   Timeframe,
 } from '@/types'
 
@@ -64,7 +64,21 @@ const STAGE_META: Record<BacktestStageKey, { label: string; icon: React.ReactNod
 // Helpers
 // ---------------------------------------------------------------------------
 
-function curveToChartData(points?: PortfolioCurvePoint[]) {
+function curveToChartData(input?: unknown): { x: string | number; value: number }[] {
+  // Accept multiple shapes: array of points, { points: [...] }, { curve: { points: [...] } }, etc.
+  let points: unknown[] | undefined
+  if (Array.isArray(input)) {
+    points = input
+  } else if (input && typeof input === 'object') {
+    const obj = input as Record<string, unknown>
+    const candidate =
+      (obj.points as unknown[] | undefined) ??
+      ((obj.curve as Record<string, unknown> | undefined)?.points as unknown[] | undefined) ??
+      (obj.portfolio_curve as unknown[] | undefined) ??
+      ((obj.portfolio_curve as Record<string, unknown> | undefined)?.points as unknown[] | undefined) ??
+      (obj.equity as unknown[] | undefined)
+    if (Array.isArray(candidate)) points = candidate
+  }
   if (!Array.isArray(points)) return []
   return points
     .map((point, index) => {
@@ -73,7 +87,7 @@ function curveToChartData(points?: PortfolioCurvePoint[]) {
       const value = ['equity', 'value', 'portfolio', 'balance', 'close']
         .map((k) => row[k])
         .find((v) => typeof v === 'number')
-      const rawX = row.time ?? row.t ?? row.timestamp ?? index + 1
+      const rawX = row.time ?? row.t ?? row.timestamp ?? row.date ?? index + 1
       let x: string | number
       if (typeof rawX === 'number' && rawX > 1_000_000_000) {
         x = new Date(rawX * 1000).toISOString().slice(0, 10)
@@ -129,18 +143,64 @@ function SummaryCards({ summary }: { summary?: BacktestSummary | null }) {
   )
 }
 
+function RuleParamEditor({
+  rule,
+  values,
+  onChange,
+}: {
+  rule: BacktestCatalogRule
+  values: Record<string, number>
+  onChange: (key: string, val: number) => void
+}) {
+  const params = rule.params ?? []
+  if (params.length === 0) return null
+  return (
+    <div className="mt-2 ml-6 grid grid-cols-2 gap-2">
+      {params.map((p) => {
+        const current = values[p.key]
+        const v = typeof current === 'number' ? current : p.default
+        return (
+          <label key={p.key} className="flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              {p.label}
+            </span>
+            <Input
+              type="number"
+              value={v}
+              min={p.min}
+              max={p.max}
+              step={p.step}
+              onChange={(e) => {
+                const raw = Number(e.target.value)
+                if (!Number.isFinite(raw)) return
+                const clamped = Math.min(p.max, Math.max(p.min, raw))
+                onChange(p.key, clamped)
+              }}
+              className="h-7 text-xs"
+            />
+          </label>
+        )
+      })}
+    </div>
+  )
+}
+
 function RuleChip({
   rule,
   isSelected,
   isRequired,
+  paramValues,
   onToggle,
   onToggleRequired,
+  onParamChange,
 }: {
   rule: BacktestCatalogRule
   isSelected: boolean
   isRequired: boolean
+  paramValues: Record<string, number>
   onToggle: () => void
   onToggleRequired: () => void
+  onParamChange: (key: string, val: number) => void
 }) {
   return (
     <div
@@ -159,14 +219,17 @@ function RuleChip({
         </div>
       </div>
       {isSelected && (
-        <div className="mt-2 ml-6 flex items-center gap-2 text-xs text-muted-foreground">
-          <Checkbox
-            checked={isRequired}
-            onCheckedChange={onToggleRequired}
-            className="h-3 w-3"
-          />
-          <span>Required rule</span>
-        </div>
+        <>
+          <div className="mt-2 ml-6 flex items-center gap-2 text-xs text-muted-foreground">
+            <Checkbox
+              checked={isRequired}
+              onCheckedChange={onToggleRequired}
+              className="h-3 w-3"
+            />
+            <span>Required rule</span>
+          </div>
+          <RuleParamEditor rule={rule} values={paramValues} onChange={onParamChange} />
+        </>
       )}
     </div>
   )
@@ -201,7 +264,14 @@ function StagePanel({
       const rules = next.stages[stageKey].rules
       const idx = rules.findIndex((r) => r.id === ruleId)
       if (idx >= 0) rules.splice(idx, 1)
-      else rules.push({ id: ruleId, required: true, params: {} })
+      else {
+        const rule = stageRules.find((r) => r.id === ruleId)
+        rules.push({
+          id: ruleId,
+          required: true,
+          params: rule ? defaultParamsFor(rule) : {},
+        })
+      }
       return next
     })
 
@@ -210,6 +280,16 @@ function StagePanel({
       const next = structuredClone(b)
       const rule = next.stages[stageKey].rules.find((r) => r.id === ruleId)
       if (rule) rule.required = !rule.required
+      return next
+    })
+
+  const updateRuleParam = (ruleId: string, key: string, value: number) =>
+    onUpdateBlueprint((b) => {
+      const next = structuredClone(b)
+      const rule = next.stages[stageKey].rules.find((r) => r.id === ruleId)
+      if (rule) {
+        rule.params = { ...(rule.params ?? {}), [key]: value }
+      }
       return next
     })
 
@@ -273,16 +353,21 @@ function StagePanel({
             {stageRules.length === 0 ? (
               <div className="text-xs text-muted-foreground py-2">Loading rules...</div>
             ) : (
-              stageRules.map((rule) => (
-                <RuleChip
-                  key={rule.id}
-                  rule={rule}
-                  isSelected={selectedRuleIds.includes(rule.id)}
-                  isRequired={stage.rules.find((r) => r.id === rule.id)?.required ?? true}
-                  onToggle={() => toggleRule(rule.id)}
-                  onToggleRequired={() => toggleRequired(rule.id)}
-                />
-              ))
+              stageRules.map((rule) => {
+                const stageRule = stage.rules.find((r) => r.id === rule.id)
+                return (
+                  <RuleChip
+                    key={rule.id}
+                    rule={rule}
+                    isSelected={selectedRuleIds.includes(rule.id)}
+                    isRequired={stageRule?.required ?? true}
+                    paramValues={(stageRule?.params as Record<string, number> | undefined) ?? {}}
+                    onToggle={() => toggleRule(rule.id)}
+                    onToggleRequired={() => toggleRequired(rule.id)}
+                    onParamChange={(key, value) => updateRuleParam(rule.id, key, value)}
+                  />
+                )
+              })
             )}
           </div>
         </>
@@ -399,7 +484,18 @@ export function BacktestView() {
   const currentSummary =
     statusQuery.data?.summary ?? curveQuery.data?.summary ?? syncResult?.summary ?? null
 
-  const curveData = curveToChartData(curveQuery.data?.curve?.points)
+  // Prefer the curve embedded in the run result (works for sync + completed async),
+  // fall back to the dedicated /portfolio-curve endpoint shape otherwise.
+  const statusResult = (statusQuery.data as unknown as { result?: Record<string, unknown> } | undefined)?.result
+  const syncResultRaw = syncResult as unknown as Record<string, unknown> | null
+  const curveSource =
+    statusResult?.portfolio_curve ??
+    statusResult?.portfolioCurve ??
+    syncResultRaw?.portfolio_curve ??
+    syncResultRaw?.portfolioCurve ??
+    syncResultRaw?.curve ??
+    curveQuery.data?.curve
+  const curveData = curveToChartData(curveSource)
 
   const progress = statusQuery.data?.progress
 
@@ -498,7 +594,7 @@ export function BacktestView() {
         <div className="border-t border-border/30" />
 
         {/* Bottom row: Risk / Portfolio params */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <label className="flex flex-col gap-1">
             <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Stop %</span>
             <Input type="number" step="0.1" value={blueprint.risk.stopPct}
@@ -521,12 +617,6 @@ export function BacktestView() {
             <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Capital</span>
             <Input type="number" value={blueprint.portfolio?.initialCapital ?? 0}
               onChange={(e) => updateBp((b) => ({ ...b, portfolio: { ...b.portfolio, initialCapital: Number(e.target.value) } }))}
-              className="h-8 text-xs" />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Position Size</span>
-            <Input type="number" value={blueprint.portfolio?.positionSize ?? 0}
-              onChange={(e) => updateBp((b) => ({ ...b, portfolio: { ...b.portfolio, positionSize: Number(e.target.value) } }))}
               className="h-8 text-xs" />
           </label>
           <label className="flex flex-col gap-1">
