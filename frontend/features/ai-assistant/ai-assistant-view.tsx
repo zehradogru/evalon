@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -135,12 +135,10 @@ function MessageContent({ content }: { content: string }) {
 
 function ChatMessage({
   msg,
-  isLatest,
-  latestResponse,
+  onActionClick,
 }: {
   msg: AiMessage
-  isLatest: boolean
-  latestResponse: AiMessageResponse | null | undefined
+  onActionClick?: (action: string) => void
 }) {
   const [copied, setCopied] = useState(false)
   const [toolsExpanded, setToolsExpanded] = useState(true)
@@ -152,11 +150,10 @@ function ChatMessage({
     setTimeout(() => setCopied(false), 1500)
   }, [msg.content])
 
-  const toolResults = isLatest && isAssistant ? latestResponse?.toolResults : null
-  const hasDrafts =
-    isLatest &&
-    isAssistant &&
-    (latestResponse?.drafts?.strategy || latestResponse?.drafts?.rule || latestResponse?.drafts?.indicator)
+  const toolResults = (msg.metadata?.toolResults as Array<Record<string, unknown>>) || null
+  const drafts = (msg.metadata?.drafts as Record<string, unknown>) || null
+  const hasDrafts = drafts && (drafts.strategy || drafts.rule || drafts.indicator)
+  const suggestedActions = (msg.metadata?.suggestedActions as string[]) || null
 
   return (
     <div className={cn('group flex items-start gap-3', isAssistant ? '' : 'flex-row-reverse')}>
@@ -255,9 +252,24 @@ function ChatMessage({
         {hasDrafts && (
           <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 px-1">
             <Sparkles size={10} />
-            {latestResponse?.drafts?.strategy && <span>Strategy draft created</span>}
-            {latestResponse?.drafts?.rule && <span>Rule draft created</span>}
-            {latestResponse?.drafts?.indicator && <span>Indicator draft created</span>}
+            {drafts?.strategy && <span>Strategy draft created</span>}
+            {drafts?.rule && <span>Rule draft created</span>}
+            {drafts?.indicator && <span>Indicator draft created</span>}
+          </div>
+        )}
+
+        {/* Suggested Actions */}
+        {suggestedActions && suggestedActions.length > 0 && isAssistant && (
+          <div className="flex flex-wrap gap-2 mt-2 px-1">
+            {suggestedActions.map((action, i) => (
+              <button
+                key={i}
+                onClick={() => onActionClick?.(action)}
+                className="text-xs px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary border border-border/50 hover:border-border text-foreground transition-all text-left"
+              >
+                {action}
+              </button>
+            ))}
           </div>
         )}
 
@@ -639,8 +651,19 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
     onSuccess: ({ result, activeId, userMsg }) => {
       setInput('')
       setLatestResponse(result)
-      // Append AI response to local messages (user message already added optimistically)
-      setLocalMessages((prev) => [...prev, result.message])
+      
+      const enhancedMsg = { ...result.message }
+      enhancedMsg.metadata = { ...enhancedMsg.metadata }
+      
+      if (result.toolResults && result.toolResults.length > 0) {
+        enhancedMsg.metadata.toolResults = result.toolResults
+      }
+      
+      if (result.drafts && (result.drafts.strategy || result.drafts.rule || result.drafts.indicator)) {
+        enhancedMsg.metadata.drafts = result.drafts
+      }
+      
+      setLocalMessages((prev) => [...prev, enhancedMsg])
       // Auto-title: use first user message (truncated) if still default
       setSessionTitle((prev) => {
         const autoTitle = prev === 'Yeni Oturum' ? userMsg.content.slice(0, 40) : prev
@@ -653,7 +676,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
         return autoTitle
       })
       // Persist both messages to Firestore
-      void aiHistoryService.appendMessages(user!.id, activeId, [userMsg, result.message])
+      void aiHistoryService.appendMessages(user!.id, activeId, [userMsg, enhancedMsg])
       void queryClient.invalidateQueries({ queryKey: ['ai-assets', user?.id] })
     },
     onError: (_err, { userMsg }) => {
@@ -662,8 +685,8 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
     },
   })
 
-  const handleSend = useCallback(() => {
-    const text = input.trim()
+  const handleSend = useCallback((overrideText?: string) => {
+    const text = (overrideText ?? input).trim()
     if (!text || sendMutation.isPending) return
     const userMsg: AiMessage = {
       id: crypto.randomUUID(),
@@ -775,8 +798,6 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                 <ChatMessage
                   key={msg.id}
                   msg={msg}
-                  isLatest={i === messages.length - 1}
-                  latestResponse={latestResponse}
                 />
               ))}
               {sendMutation.isPending && (
@@ -1014,8 +1035,7 @@ export function AiAssistantView({ isWidget = false }: AiAssistantViewProps) {
                 <ChatMessage
                   key={msg.id}
                   msg={msg}
-                  isLatest={i === messages.length - 1}
-                  latestResponse={latestResponse}
+                  onActionClick={(action) => handleSend(action)}
                 />
               ))}
 

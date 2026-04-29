@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import os
 from typing import Dict, List,  Union, Optional, Any, Callable, Optional
 
 import pandas as pd
@@ -38,6 +39,7 @@ class AiToolGateway:
         self._test_loader = test_loader
         self._run_store = run_store
         self._asset_store = asset_store
+        self._force_sync_backtests = self._resolve_force_sync_backtests()
         self._market_data_gateway = MarketDataGateway(client=client, test_loader=test_loader)
         self._run_backtest_use_case = RunBlueprintBacktestUseCase(self._market_data_gateway, run_store)
         self._start_backtest_use_case = StartBlueprintBacktestUseCase(self._market_data_gateway, run_store)
@@ -98,8 +100,16 @@ class AiToolGateway:
             blueprint = arguments.get("blueprint")
             if not isinstance(blueprint, dict):
                 raise ValueError("run_backtest icin blueprint object zorunlu.")
-            async_mode = bool(arguments.get("async_mode", True))
-            return self._start_backtest_use_case.execute(blueprint) if async_mode else self._run_backtest_use_case.execute(blueprint)
+            async_mode = self._coerce_bool(arguments.get("async_mode"), default=True)
+            if async_mode and not self._force_sync_backtests:
+                return self._start_backtest_use_case.execute(blueprint)
+
+            sync_payload = self._run_backtest_use_case.execute(blueprint)
+            run_id = str(sync_payload.get("runId") or "").strip()
+            if not run_id:
+                return sync_payload
+            status_payload = self._get_status_use_case.execute(run_id)
+            return status_payload or sync_payload
         if name == "get_backtest_status":
             run_id = str(arguments.get("run_id") or "").strip()
             if not run_id:
@@ -216,6 +226,29 @@ class AiToolGateway:
             },
             "bars": bars,
         }
+
+    @staticmethod
+    def _resolve_force_sync_backtests() -> bool:
+        configured = (os.environ.get("AI_BACKTEST_FORCE_SYNC") or "").strip().lower()
+        if configured in {"1", "true", "yes", "on"}:
+            return True
+        if configured in {"0", "false", "no", "off"}:
+            return False
+        return bool((os.environ.get("K_SERVICE") or "").strip())
+
+    @staticmethod
+    def _coerce_bool(value: Any, *, default: bool) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "on"}:
+                return True
+            if normalized in {"0", "false", "no", "off"}:
+                return False
+        if value is None:
+            return default
+        return bool(value)
 
     @staticmethod
     def _parse_datetime(raw: Any) -> Optional[datetime]:

@@ -70,7 +70,9 @@ export function BacktestToolResult({ runId, initialResult }: BacktestToolResultP
   const statusQuery = useQuery<BacktestStatusResponse>({
     queryKey: ['ai-backtest-status', runId],
     queryFn: () => backtestsService.getStatus(runId),
+    retry: 2,
     refetchInterval: (query) => {
+      if (query.state.error) return false
       const data = query.state.data
       if (!data) return 1500
       const s = data.status
@@ -81,10 +83,37 @@ export function BacktestToolResult({ runId, initialResult }: BacktestToolResultP
   })
 
   const status = statusQuery.data
-  const isDone = status?.status === 'completed'
+  const statusError = statusQuery.error instanceof Error ? statusQuery.error.message : null
+  const initialProgress =
+    initialResult?.progress && typeof initialResult.progress === 'object'
+      ? (initialResult.progress as Record<string, unknown>)
+      : null
+  const initialSummary =
+    initialResult?.summary && typeof initialResult.summary === 'object'
+      ? (initialResult.summary as Record<string, unknown>)
+      : null
+  const initialNestedResult =
+    initialResult?.result && typeof initialResult.result === 'object'
+      ? (initialResult.result as Record<string, unknown>)
+      : null
+  const hasInitialCompletedResult = Boolean(initialSummary || initialNestedResult)
+  const isDone = status?.status === 'completed' || (!status && hasInitialCompletedResult)
   const isFailed = status?.status === 'failed' || status?.status === 'cancelled'
-  const phase = status?.progress?.phase ?? (initialResult ? 'completed' : 'queued')
-  const progressPct = status?.progress?.progressPct ?? 0
+  const isUnavailable = !status && !hasInitialCompletedResult && Boolean(statusError)
+  const phase =
+    status?.progress?.phase ??
+    (typeof initialProgress?.phase === 'string'
+      ? initialProgress.phase
+      : hasInitialCompletedResult
+        ? 'completed'
+        : 'queued')
+  const progressPct =
+    status?.progress?.progressPct ??
+    (typeof initialProgress?.progressPct === 'number'
+      ? initialProgress.progressPct
+      : hasInitialCompletedResult
+        ? 100
+        : 0)
 
   // Build a terminal-style log from phase progression.
   const logLines = useMemo(() => {
@@ -92,7 +121,7 @@ export function BacktestToolResult({ runId, initialResult }: BacktestToolResultP
       0,
       PHASE_ORDER.findIndex((p) => p === phase)
     )
-    const lines: { text: string; state: 'done' | 'active' | 'pending' }[] = []
+    const lines: { text: string; state: 'done' | 'active' | 'pending' | 'error' }[] = []
     for (let i = 0; i < PHASE_ORDER.length; i++) {
       const p = PHASE_ORDER[i]
       if (i < currentIdx || isDone) {
@@ -106,20 +135,26 @@ export function BacktestToolResult({ runId, initialResult }: BacktestToolResultP
         lines.push({ text: `· ${PHASE_LABEL[p]}`, state: 'pending' })
       }
     }
+    if (isUnavailable) {
+      lines.push({
+        text: `✗ Backtest durumu alinamadi: ${statusError ?? 'Bilinmeyen hata'}`,
+        state: 'error',
+      })
+    }
     if (isFailed) {
       lines.push({
         text: `✗ ${status?.error ?? 'Backtest failed'}`,
-        state: 'done',
+        state: 'error',
       })
     }
     if (status?.progress?.message) {
       lines.push({ text: `  ${status.progress.message}`, state: 'active' })
     }
     return lines
-  }, [phase, progressPct, isDone, isFailed, status?.error, status?.progress?.currentSymbol, status?.progress?.message])
+  }, [isDone, isFailed, isUnavailable, phase, progressPct, status?.error, status?.progress?.currentSymbol, status?.progress?.message, statusError])
 
-  const summary = status?.summary
-  const result = (status?.result ?? initialResult) as Record<string, unknown> | undefined
+  const summary = status?.summary ?? (initialSummary as BacktestStatusResponse['summary'])
+  const result = (status?.result ?? initialNestedResult ?? initialResult) as Record<string, unknown> | undefined
   const curveSource =
     (result?.portfolio_curve as unknown) ??
     (result?.portfolioCurve as unknown) ??
@@ -141,6 +176,10 @@ export function BacktestToolResult({ runId, initialResult }: BacktestToolResultP
           ) : isFailed ? (
             <span className="inline-flex items-center gap-1 text-red-400">
               <XCircle size={11} /> failed
+            </span>
+          ) : isUnavailable ? (
+            <span className="inline-flex items-center gap-1 text-amber-300">
+              <XCircle size={11} /> unavailable
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 text-blue-300">
@@ -165,7 +204,8 @@ export function BacktestToolResult({ runId, initialResult }: BacktestToolResultP
               'whitespace-pre',
               line.state === 'done' && 'text-emerald-400',
               line.state === 'active' && 'text-blue-300',
-              line.state === 'pending' && 'text-muted-foreground/50'
+              line.state === 'pending' && 'text-muted-foreground/50',
+              line.state === 'error' && 'text-amber-300'
             )}
           >
             {line.text}
