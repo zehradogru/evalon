@@ -9,7 +9,7 @@ PROJECT_ID="${PROJECT_ID:-evalon-490523}"
 REGION="${REGION:-europe-west1}"
 SERVICE="${SERVICE:-evalon-graph-web}"
 RUNTIME_SERVICE_ACCOUNT="${RUNTIME_SERVICE_ACCOUNT:-evalon-graph-web-run@${PROJECT_ID}.iam.gserviceaccount.com}"
-BACKTEST_API_BASE="${BACKTEST_API_BASE:-https://evalon-backtest-api-474112640179.europe-west1.run.app/v1}"
+BACKTEST_API_BASE="${BACKTEST_API_BASE:-https://evalon-backtest-api-r2ffcuqmuq-ew.a.run.app/v1}"
 ALLOW_SYNTHETIC_CANDLES_FALLBACK="${ALLOW_SYNTHETIC_CANDLES_FALLBACK:-0}"
 
 function ensure_runtime_service_account() {

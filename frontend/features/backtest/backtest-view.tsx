@@ -18,7 +18,6 @@ import {
   Layers3,
   Loader2,
   Play,
-  Rocket,
   RotateCcw,
   Settings2,
   Zap,
@@ -35,6 +34,7 @@ import {
   applyPresetToBlueprint,
   createEmptyBlueprint,
   defaultParamsFor,
+  withRuleParams,
 } from '@/lib/backtest-blueprint'
 import { formatTimeframeLabel } from '@/lib/evalon'
 import { readActiveBlueprint, saveActiveBlueprint, loadBlueprintFromFirestore } from '@/lib/workspace-storage'
@@ -100,6 +100,50 @@ function curveToChartData(input?: unknown): { x: string | number; value: number 
       return { x, value: typeof value === 'number' ? value : NaN }
     })
     .filter((item) => Number.isFinite(item.value))
+}
+
+/** Build an equity curve from the raw trades list when the backend curve has
+ *  too few points (e.g. only start + final close = straight line).
+ *  Each trade contributes TWO points: one at entry (cash after allocating)
+ *  and one at exit (cash after PnL credited), giving the real up/down shape. */
+function buildCurveFromTrades(
+  trades: unknown[],
+  initialCapital: number,
+): { x: string | number; value: number }[] {
+  type T = { entryTime?: number; exitTime?: number; netPnlAmount?: number; pnlPct?: number; allocatedCapital?: number }
+  const sorted = [...trades]
+    .map((t) => t as T)
+    .filter((t) => typeof t.exitTime === 'number')
+    .sort((a, b) => (a.exitTime ?? 0) - (b.exitTime ?? 0))
+
+  if (sorted.length === 0) return []
+
+  const fmt = (ts: number) => new Date(ts * 1000).toISOString().slice(0, 10)
+  const points: { x: string; value: number }[] = []
+  let balance = initialCapital
+
+  // Start point
+  const firstEntry = sorted[0].entryTime ?? sorted[0].exitTime ?? 0
+  points.push({ x: fmt(firstEntry), value: Math.round(balance) })
+
+  for (const t of sorted) {
+    const alloc = typeof t.allocatedCapital === 'number' ? t.allocatedCapital : initialCapital * 0.1
+    // Entry: capital allocated (balance drops by position size)
+    if (typeof t.entryTime === 'number') {
+      const balanceAtEntry = balance - alloc
+      points.push({ x: fmt(t.entryTime), value: Math.round(balanceAtEntry) })
+    }
+    // Exit: PnL credited
+    const pnl = typeof t.netPnlAmount === 'number'
+      ? t.netPnlAmount
+      : (typeof t.pnlPct === 'number' ? alloc * t.pnlPct / 100 : 0)
+    balance = balance + pnl
+    if (typeof t.exitTime === 'number') {
+      points.push({ x: fmt(t.exitTime), value: Math.round(balance) })
+    }
+  }
+
+  return points
 }
 
 // ---------------------------------------------------------------------------
@@ -387,12 +431,10 @@ export function BacktestView() {
     () => readActiveBlueprint() ?? createEmptyBlueprint(),
   )
   const [selectedPresetId, setSelectedPresetId] = useState('')
-  const [activeRunId, setActiveRunId] = useState<string | null>(null)
   const [syncResult, setSyncResult] = useState<BacktestRunResponse | null>(null)
   const [eventsPage, setEventsPage] = useState(1)
 
-  // effective run ID — async runs use activeRunId, sync runs use syncResult.runId
-  const queryRunId = activeRunId ?? syncResult?.runId ?? null
+  const queryRunId = syncResult?.runId ?? null
 
   useEffect(() => {
     saveActiveBlueprint(blueprint)
@@ -418,35 +460,18 @@ export function BacktestView() {
     staleTime: 300_000,
   })
 
-  // Status polling: only for async runs
-  const statusQuery = useQuery({
-    queryKey: ['backtest-status', activeRunId],
-    queryFn: () => backtestsService.getStatus(activeRunId!),
-    enabled: Boolean(activeRunId),
-    refetchInterval: (q) => {
-      const s = q.state.data?.status
-      return s === 'completed' || s === 'failed' ? false : 2000
-    },
-  })
-
-  // Events: works for both sync (syncResult.runId) and async (activeRunId)
+  // Events: works for sync (syncResult.runId)
   const eventsQuery = useQuery({
     queryKey: ['backtest-events', queryRunId, eventsPage],
     queryFn: () => backtestsService.getEvents(queryRunId!, eventsPage, 25),
     enabled: Boolean(queryRunId),
   })
 
-  // Curve: works for both sync and async
+  // Curve: fallback endpoint for sync runs
   const curveQuery = useQuery({
     queryKey: ['backtest-curve', queryRunId],
     queryFn: () => backtestsService.getPortfolioCurve(queryRunId!),
     enabled: Boolean(queryRunId),
-    refetchInterval: (q) => {
-      // only keep polling for async runs
-      if (!activeRunId) return false
-      const s = q.state.data?.status
-      return s === 'completed' || s === 'failed' ? false : 2000
-    },
   })
 
   // ---- mutations ----
@@ -454,24 +479,14 @@ export function BacktestView() {
     mutationFn: (body: BacktestBlueprint) => backtestsService.runSync(body),
     onSuccess: (result) => {
       setSyncResult(result)
-      setActiveRunId(null)
-      setEventsPage(1)
-    },
-  })
-
-  const startAsyncMutation = useMutation({
-    mutationFn: (body: BacktestBlueprint) => backtestsService.startAsync(body),
-    onSuccess: (result) => {
-      setSyncResult(null)
-      setActiveRunId(result.runId)
       setEventsPage(1)
     },
   })
 
   // ---- derived ----
   const ruleCatalog = useMemo(
-    () => rulesQuery.data?.rules ?? [],
-    [rulesQuery.data?.rules],
+    () => withRuleParams(rulesQuery.data?.rules ?? []),
+    [rulesQuery.data?.rules]
   )
 
   const groupedRules = useMemo(() => {
@@ -489,23 +504,35 @@ export function BacktestView() {
   const updateBp = (updater: (b: BacktestBlueprint) => BacktestBlueprint) =>
     setBp((b) => updater(b))
 
-  const isBusy = runSyncMutation.isPending || startAsyncMutation.isPending
+  const isBusy = runSyncMutation.isPending
 
   const currentSummary =
-    statusQuery.data?.summary ?? curveQuery.data?.summary ?? syncResult?.summary ?? null
+    curveQuery.data?.summary ?? syncResult?.summary ?? null
 
   // Prefer the curve embedded in the run result (works for sync + completed async),
   // fall back to the dedicated /portfolio-curve endpoint shape otherwise.
-  const statusResult = (statusQuery.data as unknown as { result?: Record<string, unknown> } | undefined)?.result
+  // Sync response shape: { runId, result: { portfolioCurve, trades, ... }, summary }
+  // Async status shape:  { result: { portfolioCurve, trades, ... } }
   const syncResultRaw = syncResult as unknown as Record<string, unknown> | null
+  const syncInnerResult = (syncResultRaw?.result as Record<string, unknown> | undefined)
   const curveSource =
-    statusResult?.portfolio_curve ??
-    statusResult?.portfolioCurve ??
-    syncResultRaw?.portfolio_curve ??
-    syncResultRaw?.portfolioCurve ??
-    syncResultRaw?.curve ??
+    syncInnerResult?.portfolio_curve ??
+    syncInnerResult?.portfolioCurve ??
     curveQuery.data?.curve
-  const curveData = curveToChartData(curveSource)
+  const backendCurveData = curveToChartData(curveSource)
+
+  // If the backend curve has too few points (straight line), reconstruct from trades.
+  // Each trade adds 2 points (entry + exit), so a real curve needs at least 4 points for 2 trades.
+  const allTrades =
+    (syncInnerResult?.trades as unknown[] | undefined) ??
+    []
+  const initialCapital = blueprint.portfolio?.initialCapital ?? 100_000
+  const curveData: { x: string | number; value: number }[] =
+    backendCurveData.length >= 4
+      ? backendCurveData
+      : allTrades.length > 0
+        ? buildCurveFromTrades(allTrades, initialCapital)
+        : backendCurveData
 
   // Tight Y-axis domain so small variations (e.g. 100k–102k) are visible
   const yDomain = (() => {
@@ -517,19 +544,15 @@ export function BacktestView() {
     return [Math.floor(lo - pad), Math.ceil(hi + pad)] as [number, number]
   })()
 
-  const progress = statusQuery.data?.progress
-
   const applyPreset = (presetId: string) => {
     setSelectedPresetId(presetId)
     const preset = presetsQuery.data?.presets.find((p) => p.id === presetId)
     if (!preset || ruleCatalog.length === 0) return
     setBp(applyPresetToBlueprint(preset, ruleCatalog, blueprint.symbol ?? 'THYAO'))
     setSyncResult(null)
-    setActiveRunId(null)
   }
 
-  const runError =
-    runSyncMutation.error ?? startAsyncMutation.error ?? statusQuery.error ?? null
+  const runError = runSyncMutation.error ?? null
 
   return (
     <div className="w-full flex flex-col gap-4 p-5">
@@ -547,13 +570,9 @@ export function BacktestView() {
         <div className="flex items-center gap-2 shrink-0">
           <Button onClick={() => runSyncMutation.mutate(blueprint)} disabled={isBusy} className="gap-2">
             {runSyncMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-            Sync
+            Çalıştır
           </Button>
-          <Button variant="secondary" onClick={() => startAsyncMutation.mutate(blueprint)} disabled={isBusy} className="gap-2">
-            {startAsyncMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-            Async
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => { setSelectedPresetId(''); setActiveRunId(null); setSyncResult(null); setEventsPage(1); setBp(createEmptyBlueprint()) }}>
+          <Button variant="outline" size="icon" onClick={() => { setSelectedPresetId(''); setSyncResult(null); setEventsPage(1); setBp(createEmptyBlueprint()) }}>
             <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
@@ -675,48 +694,30 @@ export function BacktestView() {
         </div>
       )}
 
-      {/* Progress */}
-      {progress && (
-        <div className="rounded-xl border border-border/50 bg-card p-4 space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{progress.phase}</span>
-            <span className="font-medium">{progress.progressPct}%</span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-            <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress.progressPct}%` }} />
-          </div>
-          <p className="text-xs text-muted-foreground">{progress.message}</p>
-        </div>
-      )}
 
       {/* Summary stat cards */}
       <SummaryCards summary={currentSummary} />
 
       {/* Idle state */}
-      {!activeRunId && !syncResult && !runError && !progress && (
+      {!syncResult && !runError && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/40 min-h-[220px] gap-4 p-8 text-center">
           <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
-            <Rocket className="h-6 w-6 text-primary" />
+            <Play className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <p className="font-semibold text-sm">Ready to run</p>
+            <p className="font-semibold text-sm">Çalıştırmaya hazır</p>
             <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-              Configure your strategy above, then click <strong>Sync</strong> for instant results or <strong>Async</strong> to stream results in real time.
+              Yukarıdan stratejini yapılandır, ardından <strong>Çalıştır</strong> butonuna tıkla.
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button size="sm" onClick={() => runSyncMutation.mutate(blueprint)} disabled={isBusy} className="gap-2">
-              <Play className="h-3.5 w-3.5" /> Sync
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => startAsyncMutation.mutate(blueprint)} disabled={isBusy} className="gap-2">
-              <Rocket className="h-3.5 w-3.5" /> Async
-            </Button>
-          </div>
+          <Button size="sm" onClick={() => runSyncMutation.mutate(blueprint)} disabled={isBusy} className="gap-2">
+            <Play className="h-3.5 w-3.5" /> Çalıştır
+          </Button>
         </div>
       )}
 
       {/* Tabs: Equity Curve + Trades */}
-      {(activeRunId || syncResult) && (
+      {syncResult && (
         <Tabs defaultValue="curve">
           <TabsList className="mb-3">
             <TabsTrigger value="curve">Equity Curve</TabsTrigger>
@@ -731,7 +732,7 @@ export function BacktestView() {
                 </div>
               ) : curveData.length === 0 ? (
                 <div className="flex h-64 flex-col items-center justify-center gap-2 text-muted-foreground">
-                  <p className="text-sm">Start an async run to see the equity curve here.</p>
+                  <p className="text-sm">Backtest tamamlandığında grafik burada görünecek.</p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={320}>

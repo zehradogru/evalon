@@ -8,7 +8,7 @@ SERVICE_NAME="evalon-web"
 REPO="cloud-run-source-deploy"
 IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/$SERVICE_NAME"
 
-BACKEND_API_URL="${NEXT_PUBLIC_EVALON_API_URL:-https://evalon-backtest-api-474112640179.europe-west1.run.app}"
+BACKEND_API_URL="${NEXT_PUBLIC_EVALON_API_URL:-https://evalon-backtest-api-r2ffcuqmuq-ew.a.run.app}"
 GRAPH_WEB_URL="${NEXT_PUBLIC_EVALON_GRAPH_WEB_URL:-https://evalon-graph-web-474112640179.europe-west1.run.app}"
 
 # Firebase vars — load from .env.local if present
