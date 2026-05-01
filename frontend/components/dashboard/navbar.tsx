@@ -3,10 +3,30 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Search, Bell, Menu, ChevronDown, Monitor, GitBranch, Globe, List, Activity, Users, Newspaper, Sparkles, Wallet, Trophy, TrendingUp, Calculator, GraduationCap, Network } from 'lucide-react'
+import {
+  Search,
+  Bell,
+  Menu,
+  ChevronDown,
+  Monitor,
+  GitBranch,
+  Globe,
+  List,
+  Activity,
+  Users,
+  Newspaper,
+  Sparkles,
+  Wallet,
+  Trophy,
+  TrendingUp,
+  Calculator,
+  GraduationCap,
+  Network,
+} from 'lucide-react'
 import { useAuthStore } from '@/store/use-auth-store'
 import { authService } from '@/services/auth.service'
 import { Button } from '@/components/ui/button'
+import { useUnreadNotificationsCount } from '@/hooks/use-notifications'
 import { cn } from '@/lib/utils'
 import { BIST_AVAILABLE, TICKER_NAMES } from '@/config/markets'
 import { resolveAvatarUrl } from '@/lib/avatar'
@@ -22,7 +42,7 @@ const menuItems = [
       { href: '/paper-trade', label: 'Paper Trade', icon: Wallet },
       { href: '/paper-trade/leaderboard', label: 'Leaderboard', icon: Trophy },
       { href: '/tools/profit-loss', label: 'P&L Calculator', icon: Calculator },
-    ]
+    ],
   },
   {
     label: 'Markets',
@@ -33,7 +53,7 @@ const menuItems = [
       { href: '/markets/co-movement', label: 'Co-Movement', icon: Network },
       { href: '/screener', label: 'Screeners', icon: Search },
       { href: '/markets/movers', label: 'Top Movers', icon: TrendingUp },
-    ]
+    ],
   },
   {
     label: 'Community',
@@ -50,12 +70,12 @@ const menuItems = [
       { href: '/brokers', label: 'Brokers', icon: Users },
       { href: '/news', label: 'News', icon: Newspaper },
       { href: '/academy', label: 'Academy', icon: GraduationCap },
-    ]
-  }
+    ],
+  },
 ]
 
 // Pre-build search index
-const SEARCH_INDEX = BIST_AVAILABLE.map(ticker => ({
+const SEARCH_INDEX = BIST_AVAILABLE.map((ticker) => ({
   ticker,
   name: TICKER_NAMES[ticker] || ticker,
   searchStr: `${ticker.toLowerCase()} ${(TICKER_NAMES[ticker] || '').toLowerCase()}`,
@@ -72,26 +92,27 @@ function TickerSearch() {
   const results = useMemo(() => {
     if (!query.trim()) return []
     const q = query.toLowerCase()
-    return SEARCH_INDEX
-      .filter(item => item.searchStr.includes(q))
-      .slice(0, 8)
+    return SEARCH_INDEX.filter((item) => item.searchStr.includes(q)).slice(0, 8)
   }, [query])
   const selectedResult = results[selectedIndex] || null
 
-  const handleSelect = useCallback((ticker: string) => {
-    router.push(`/markets/${ticker}`)
-    setQuery('')
-    setIsOpen(false)
-    inputRef.current?.blur()
-  }, [router])
+  const handleSelect = useCallback(
+    (ticker: string) => {
+      router.push(`/markets/${ticker}`)
+      setQuery('')
+      setIsOpen(false)
+      inputRef.current?.blur()
+    },
+    [router]
+  )
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setSelectedIndex(i => Math.min(i + 1, results.length - 1))
+      setSelectedIndex((i) => Math.min(i + 1, results.length - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setSelectedIndex(i => Math.max(i - 1, 0))
+      setSelectedIndex((i) => Math.max(i - 1, 0))
     } else if (e.key === 'Enter' && selectedResult) {
       e.preventDefault()
       handleSelect(selectedResult.ticker)
@@ -104,7 +125,10 @@ function TickerSearch() {
   // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false)
       }
     }
@@ -125,8 +149,11 @@ function TickerSearch() {
   }, [])
 
   return (
-    <div ref={containerRef} className="relative flex-1 max-w-[260px] hidden md:block">
-      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
+    <div
+      ref={containerRef}
+      className="relative hidden max-w-[260px] flex-1 md:block"
+    >
+      <div className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
         <Search className="h-4 w-4" />
       </div>
       <input
@@ -141,30 +168,36 @@ function TickerSearch() {
         onFocus={() => setIsOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder="Search ticker or company..."
-        className="w-full h-9 rounded-full bg-secondary hover:bg-secondary/80 focus:bg-secondary/80 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-colors px-3 pl-10 pr-12 text-sm text-foreground placeholder:text-muted-foreground"
+        className="bg-secondary hover:bg-secondary/80 focus:bg-secondary/80 focus:ring-primary/50 text-foreground placeholder:text-muted-foreground h-9 w-full rounded-full px-3 pr-12 pl-10 text-sm transition-colors focus:ring-1 focus:outline-none"
       />
-      <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/60 bg-background/50 px-1.5 py-0.5 rounded border border-border/50 pointer-events-none">
+      <kbd className="text-muted-foreground/60 bg-background/50 border-border/50 pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded border px-1.5 py-0.5 text-[10px]">
         ⌘K
       </kbd>
 
       {/* Results Dropdown */}
       {isOpen && results.length > 0 && (
-        <div className="absolute top-[calc(100%+4px)] left-0 w-full bg-card border border-border shadow-2xl rounded-xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="bg-card border-border animate-in fade-in slide-in-from-top-1 absolute top-[calc(100%+4px)] left-0 z-50 w-full rounded-xl border py-1 shadow-2xl duration-150">
           {results.map((item, i) => (
             <div
               key={item.ticker}
               onClick={() => handleSelect(item.ticker)}
               onMouseEnter={() => setSelectedIndex(i)}
               className={cn(
-                "flex items-center justify-between px-3 py-2 cursor-pointer transition-colors",
-                i === selectedIndex ? "bg-muted/50" : "hover:bg-muted/30"
+                'flex cursor-pointer items-center justify-between px-3 py-2 transition-colors',
+                i === selectedIndex ? 'bg-muted/50' : 'hover:bg-muted/30'
               )}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="text-xs font-bold text-foreground w-14 flex-shrink-0">{item.ticker}</span>
-                <span className="text-xs text-muted-foreground truncate">{item.name}</span>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="text-foreground w-14 flex-shrink-0 text-xs font-bold">
+                  {item.ticker}
+                </span>
+                <span className="text-muted-foreground truncate text-xs">
+                  {item.name}
+                </span>
               </div>
-              <span className="text-[10px] text-muted-foreground/60 flex-shrink-0">BIST</span>
+              <span className="text-muted-foreground/60 flex-shrink-0 text-[10px]">
+                BIST
+              </span>
             </div>
           ))}
         </div>
@@ -172,8 +205,10 @@ function TickerSearch() {
 
       {/* No results */}
       {isOpen && query.trim().length > 0 && results.length === 0 && (
-        <div className="absolute top-[calc(100%+4px)] left-0 w-full bg-card border border-border shadow-2xl rounded-xl py-3 z-50 animate-in fade-in">
-          <p className="text-xs text-muted-foreground text-center">No results found</p>
+        <div className="bg-card border-border animate-in fade-in absolute top-[calc(100%+4px)] left-0 z-50 w-full rounded-xl border py-3 shadow-2xl">
+          <p className="text-muted-foreground text-center text-xs">
+            No results found
+          </p>
         </div>
       )}
     </div>
@@ -184,8 +219,10 @@ export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const { user } = useAuthStore()
+  const unreadNotificationsQuery = useUnreadNotificationsCount()
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const unreadNotifications = unreadNotificationsQuery.data ?? 0
   const avatarUrl = resolveAvatarUrl({
     photoURL: user?.photoURL,
     name: user?.name,
@@ -205,13 +242,15 @@ export function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border bg-background shadow-sm" onMouseLeave={() => setActiveDropdown(null)}>
-      <div className="w-full px-4 h-16 flex items-center justify-between gap-4">
-
+    <nav
+      className="border-border bg-background sticky top-0 z-50 border-b shadow-sm"
+      onMouseLeave={() => setActiveDropdown(null)}
+    >
+      <div className="flex h-16 w-full items-center justify-between gap-4 px-4">
         {/* Left Section: Logo + Search + Nav */}
-        <div className="flex items-center gap-4 flex-1 min-w-0">
+        <div className="flex min-w-0 flex-1 items-center gap-4">
           {/* Logo */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex flex-shrink-0 items-center gap-2">
             {/* Mobile hamburger */}
             <Button
               variant="ghost"
@@ -221,8 +260,11 @@ export function Navbar() {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-              <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold flex-shrink-0">
+            <Link
+              href="/"
+              className="flex items-center gap-2 text-xl font-bold"
+            >
+              <div className="bg-primary text-primary-foreground flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full font-bold">
                 E
               </div>
               <span className="hidden xl:inline-block">EVALON</span>
@@ -233,17 +275,17 @@ export function Navbar() {
           <TickerSearch />
 
           {/* Navigation Links - Desktop */}
-          <div className="hidden lg:flex items-center gap-1 h-16">
+          <div className="hidden h-16 items-center gap-1 lg:flex">
             {menuItems.map((item) => {
               const isActive = item.items
-                ? item.items.some(sub => pathname === sub.href)
-                : pathname === item.href;
+                ? item.items.some((sub) => pathname === sub.href)
+                : pathname === item.href
               const hasDropdown = Boolean(item.items)
 
               return (
                 <div
                   key={item.label}
-                  className="relative h-full flex items-center"
+                  className="relative flex h-full items-center"
                   onMouseEnter={() => {
                     if (hasDropdown) {
                       setActiveDropdown(item.label)
@@ -253,45 +295,63 @@ export function Navbar() {
                     }
                   }}
                   onClick={() => {
-                    if (!hasDropdown && item.href) router.push(item.href);
+                    if (!hasDropdown && item.href) router.push(item.href)
                   }}
                 >
                   <button
                     className={cn(
-                      "px-4 py-2 text-sm font-medium transition-colors rounded-md flex items-center gap-1.5 h-10",
+                      'flex h-10 items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors',
                       item.highlight
-                        ? "text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 hover:from-blue-300 hover:to-purple-300"
-                        : "hover:bg-secondary/50",
-                      !item.highlight && (isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground")
+                        ? 'bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent hover:from-blue-300 hover:to-purple-300'
+                        : 'hover:bg-secondary/50',
+                      !item.highlight &&
+                        (isActive
+                          ? 'text-foreground'
+                          : 'text-muted-foreground hover:text-foreground')
                     )}
                   >
-                    {item.highlight && <Sparkles size={13} className="text-blue-400 flex-shrink-0" />}
+                    {item.highlight && (
+                      <Sparkles
+                        size={13}
+                        className="flex-shrink-0 text-blue-400"
+                      />
+                    )}
                     {item.label}
-                    {hasDropdown && <ChevronDown size={14} className="mt-0.5 opacity-50" />}
+                    {hasDropdown && (
+                      <ChevronDown size={14} className="mt-0.5 opacity-50" />
+                    )}
                   </button>
 
                   {/* Dropdown */}
                   {hasDropdown && activeDropdown === item.label && (
-                    <div className="absolute top-[calc(100%-10px)] left-0 w-64 bg-card border border-border shadow-2xl rounded-xl p-2 animate-in fade-in slide-in-from-top-2 z-50">
+                    <div className="bg-card border-border animate-in fade-in slide-in-from-top-2 absolute top-[calc(100%-10px)] left-0 z-50 w-64 rounded-xl border p-2 shadow-2xl">
                       <div className="grid gap-1">
                         {item.items!.map((subItem) => (
                           <Link
                             key={subItem.href}
                             href={subItem.href}
                             className={cn(
-                              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors hover:bg-secondary group",
-                              pathname === subItem.href ? "bg-secondary/50 text-foreground" : "text-muted-foreground hover:text-foreground"
+                              'hover:bg-secondary group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
+                              pathname === subItem.href
+                                ? 'bg-secondary/50 text-foreground'
+                                : 'text-muted-foreground hover:text-foreground'
                             )}
                             onClick={() => setActiveDropdown(null)}
                           >
-                            <div className={cn(
-                              "h-8 w-8 rounded-md flex items-center justify-center bg-secondary/30 group-hover:bg-primary/10 group-hover:text-primary transition-colors",
-                              pathname === subItem.href ? "bg-primary/10 text-primary" : ""
-                            )}>
+                            <div
+                              className={cn(
+                                'bg-secondary/30 group-hover:bg-primary/10 group-hover:text-primary flex h-8 w-8 items-center justify-center rounded-md transition-colors',
+                                pathname === subItem.href
+                                  ? 'bg-primary/10 text-primary'
+                                  : ''
+                              )}
+                            >
                               {subItem.icon && <subItem.icon size={16} />}
                             </div>
                             <div className="flex flex-col">
-                              <span className="font-medium">{subItem.label}</span>
+                              <span className="font-medium">
+                                {subItem.label}
+                              </span>
                             </div>
                           </Link>
                         ))}
@@ -305,38 +365,66 @@ export function Navbar() {
         </div>
 
         {/* Right Section: Upgrade + Actions + Profile */}
-        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0 ml-auto">
-
+        <div className="ml-auto flex flex-shrink-0 items-center gap-2 sm:gap-4">
           {/* Upgrade Button (CTA) */}
           <Link href="/pricing" className="hidden md:flex">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 h-9 rounded-full px-6 font-semibold shadow-lg hover:shadow-xl transition-all">
+            <Button className="h-9 rounded-full border-0 bg-gradient-to-r from-blue-600 to-purple-600 px-6 font-semibold text-white shadow-lg transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-xl">
               Upgrade Plan
             </Button>
           </Link>
 
           {/* Divider */}
-          <div className="h-6 w-[1px] bg-border hidden md:block"></div>
+          <div className="bg-border hidden h-6 w-[1px] md:block"></div>
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground rounded-full relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive border-2 border-background"></span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              'text-muted-foreground hover:text-foreground relative h-11 w-11 rounded-full md:h-9 md:w-9',
+              pathname === '/notifications' && 'bg-secondary/60 text-foreground'
+            )}
+            onClick={() => router.push('/notifications')}
+            aria-label={
+              unreadNotifications > 0
+                ? `${unreadNotifications} unread notifications`
+                : 'Open notifications'
+            }
+            title={
+              unreadNotifications > 0
+                ? `${unreadNotifications} unread notifications`
+                : 'Open notifications'
+            }
+          >
+            <Bell className="h-5 w-5" aria-hidden="true" />
+            {unreadNotifications > 0 ? (
+              <span className="border-background bg-chart-2 text-background absolute top-1.5 right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 text-[10px] leading-none font-semibold">
+                {unreadNotifications > 99 ? '99+' : unreadNotifications}
+              </span>
+            ) : null}
           </Button>
-
 
           {/* User Profile Dropdown */}
           <div className="relative ml-2">
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full bg-secondary/50 hover:bg-secondary text-foreground h-9 w-9"
-              onClick={() => setActiveDropdown(activeDropdown === 'profile' ? null : 'profile')}
+              className="bg-secondary/50 hover:bg-secondary text-foreground h-9 w-9 rounded-full"
+              onClick={() =>
+                setActiveDropdown(
+                  activeDropdown === 'profile' ? null : 'profile'
+                )
+              }
             >
               {avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={avatarUrl} alt="User" className="h-full w-full rounded-full object-cover" />
+                <img
+                  src={avatarUrl}
+                  alt="User"
+                  className="h-full w-full rounded-full object-cover"
+                />
               ) : (
-                <div className="h-full w-full rounded-full bg-gradient-to-br from-primary to-chart-5 flex items-center justify-center text-xs font-bold text-white">
+                <div className="from-primary to-chart-5 flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-white">
                   {user?.name?.[0] || 'U'}
                 </div>
               )}
@@ -344,22 +432,29 @@ export function Navbar() {
 
             {/* Profile Dropdown Menu */}
             {activeDropdown === 'profile' && (
-              <div className="absolute top-[calc(100%+10px)] right-0 w-72 bg-card border border-border shadow-2xl rounded-xl p-2 animate-in fade-in slide-in-from-top-2 z-50">
-
+              <div className="bg-card border-border animate-in fade-in slide-in-from-top-2 absolute top-[calc(100%+10px)] right-0 z-50 w-72 rounded-xl border p-2 shadow-2xl">
                 {/* User Info Header */}
-                <div className="px-3 py-3 border-b border-border/50 mb-1">
+                <div className="border-border/50 mb-1 border-b px-3 py-3">
                   <div className="flex items-center gap-3">
                     {avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={avatarUrl} alt="User" className="h-10 w-10 rounded-full object-cover" />
+                      <img
+                        src={avatarUrl}
+                        alt="User"
+                        className="h-10 w-10 rounded-full object-cover"
+                      />
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-chart-5 flex items-center justify-center text-sm font-bold text-white">
+                      <div className="from-primary to-chart-5 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white">
                         {user?.name?.[0] || 'U'}
                       </div>
                     )}
                     <div className="flex flex-col">
-                      <span className="font-semibold text-sm">{user?.name || 'User'}</span>
-                      <span className="text-xs text-muted-foreground">{user?.email}</span>
+                      <span className="text-sm font-semibold">
+                        {user?.name || 'User'}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {user?.email}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -370,7 +465,7 @@ export function Navbar() {
                       router.push('/profile')
                       setActiveDropdown(null)
                     }}
-                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
+                    className="text-foreground hover:bg-secondary w-full rounded-lg px-3 py-2 text-left text-sm transition-colors"
                   >
                     Profile
                   </button>
@@ -379,50 +474,54 @@ export function Navbar() {
                       router.push('/settings')
                       setActiveDropdown(null)
                     }}
-                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
+                    className="text-foreground hover:bg-secondary w-full rounded-lg px-3 py-2 text-left text-sm transition-colors"
                   >
                     Settings and billing
                   </button>
-                  <button className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors flex justify-between items-center">
+                  <button className="text-foreground hover:bg-secondary flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors">
                     <span>Refer a friend</span>
                     <span className="text-muted-foreground text-xs">$0</span>
                   </button>
                 </div>
 
-                <div className="my-1 border-t border-border/50" />
+                <div className="border-border/50 my-1 border-t" />
 
                 <div className="grid gap-1 py-1">
-                  <button className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors">
+                  <button className="text-foreground hover:bg-secondary w-full rounded-lg px-3 py-2 text-left text-sm transition-colors">
                     Support Center
                   </button>
-                  <button className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors flex justify-between items-center">
+                  <button className="text-foreground hover:bg-secondary flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors">
                     <span>What&apos;s new?</span>
-                    <span className="bg-destructive text-white text-[10px] px-1.5 py-0.5 rounded-full">11</span>
+                    <span className="bg-destructive rounded-full px-1.5 py-0.5 text-[10px] text-white">
+                      11
+                    </span>
                   </button>
                 </div>
 
-                <div className="my-1 border-t border-border/50" />
+                <div className="border-border/50 my-1 border-t" />
 
                 <div className="grid gap-1 py-1">
-                  <div className="w-full px-3 py-2 text-sm text-foreground flex justify-between items-center group hover:bg-secondary rounded-lg cursor-pointer transition-colors">
+                  <div className="text-foreground group hover:bg-secondary flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors">
                     <span>Dark theme</span>
                     {/* Just a visual toggle for now since we are forced dark */}
-                    <div className="w-9 h-5 bg-primary rounded-full relative">
-                      <div className="absolute right-1 top-1 h-3 w-3 bg-white rounded-full shadow-sm" />
+                    <div className="bg-primary relative h-5 w-9 rounded-full">
+                      <div className="absolute top-1 right-1 h-3 w-3 rounded-full bg-white shadow-sm" />
                     </div>
                   </div>
-                  <button className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors flex justify-between items-center">
+                  <button className="text-foreground hover:bg-secondary flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors">
                     <span>Language</span>
-                    <span className="text-muted-foreground flex items-center gap-1 text-xs">English <ChevronDown size={12} /></span>
+                    <span className="text-muted-foreground flex items-center gap-1 text-xs">
+                      English <ChevronDown size={12} />
+                    </span>
                   </button>
                 </div>
 
-                <div className="my-1 border-t border-border/50" />
+                <div className="border-border/50 my-1 border-t" />
 
                 <div className="grid gap-1 pt-1">
                   <button
                     onClick={handleLogout}
-                    className="w-full text-left px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive font-medium rounded-lg transition-colors"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors"
                   >
                     Sign out
                   </button>
@@ -435,7 +534,7 @@ export function Navbar() {
 
       {/* ── Mobile / Tablet menu ──────────────────────────────── */}
       {mobileOpen && (
-        <div className="lg:hidden border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3 space-y-1 shadow-xl animate-in slide-in-from-top-2">
+        <div className="border-border bg-background/95 animate-in slide-in-from-top-2 space-y-1 border-t px-4 py-3 shadow-xl backdrop-blur-sm lg:hidden">
           {menuItems.map((item) => {
             const hasDropdown = Boolean(item.items)
             const isGroupOpen = activeDropdown === item.label
@@ -447,16 +546,21 @@ export function Navbar() {
                   key={item.label}
                   href={item.href!}
                   className={cn(
-                    'flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    'flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                     item.highlight
-                      ? 'text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400'
+                      ? 'bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent'
                       : isActive
                         ? 'bg-secondary/60 text-foreground'
                         : 'text-muted-foreground hover:bg-secondary/40 hover:text-foreground'
                   )}
                   onClick={() => setMobileOpen(false)}
                 >
-                  {item.highlight && <Sparkles size={13} className="text-blue-400 flex-shrink-0" />}
+                  {item.highlight && (
+                    <Sparkles
+                      size={13}
+                      className="flex-shrink-0 text-blue-400"
+                    />
+                  )}
                   {item.label}
                 </Link>
               )
@@ -465,17 +569,22 @@ export function Navbar() {
             return (
               <div key={item.label}>
                 <button
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-secondary/40 hover:text-foreground transition-colors"
-                  onClick={() => setActiveDropdown(isGroupOpen ? null : item.label)}
+                  className="text-muted-foreground hover:bg-secondary/40 hover:text-foreground flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
+                  onClick={() =>
+                    setActiveDropdown(isGroupOpen ? null : item.label)
+                  }
                 >
                   {item.label}
                   <ChevronDown
                     size={14}
-                    className={cn('transition-transform duration-200', isGroupOpen && 'rotate-180')}
+                    className={cn(
+                      'transition-transform duration-200',
+                      isGroupOpen && 'rotate-180'
+                    )}
                   />
                 </button>
                 {isGroupOpen && (
-                  <div className="mt-1 ml-3 space-y-1 border-l-2 border-border/50 pl-3">
+                  <div className="border-border/50 mt-1 ml-3 space-y-1 border-l-2 pl-3">
                     {item.items!.map((subItem) => {
                       const Icon = subItem.icon
                       return (
@@ -483,7 +592,7 @@ export function Navbar() {
                           key={subItem.href}
                           href={subItem.href}
                           className={cn(
-                            'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
+                            'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
                             pathname === subItem.href
                               ? 'bg-secondary/60 text-foreground'
                               : 'text-muted-foreground hover:bg-secondary/40 hover:text-foreground'
