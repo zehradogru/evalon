@@ -4,8 +4,10 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
+  AlertTriangle,
   Search,
   Bell,
+  CheckCircle2,
   Menu,
   ChevronDown,
   Monitor,
@@ -22,14 +24,23 @@ import {
   Calculator,
   GraduationCap,
   Network,
+  Info,
+  X,
+  XCircle,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/use-auth-store'
 import { authService } from '@/services/auth.service'
 import { Button } from '@/components/ui/button'
-import { useUnreadNotificationsCount } from '@/hooks/use-notifications'
+import {
+  useMarkAllNotificationsAsRead,
+  useMarkNotificationAsRead,
+  useNotifications,
+  useUnreadNotificationsCount,
+} from '@/hooks/use-notifications'
 import { cn } from '@/lib/utils'
 import { BIST_AVAILABLE, TICKER_NAMES } from '@/config/markets'
 import { resolveAvatarUrl } from '@/lib/avatar'
+import type { NotificationKind, UserNotification } from '@/types'
 
 // Menu Structure
 const menuItems = [
@@ -215,14 +226,90 @@ function TickerSearch() {
   )
 }
 
+function formatRelativeNotificationTime(value: string) {
+  const parsed = new Date(value).getTime()
+  if (Number.isNaN(parsed)) return ''
+
+  const diffMs = Date.now() - parsed
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000))
+
+  if (diffMinutes < 1) return 'Şimdi'
+  if (diffMinutes < 60) return `${diffMinutes} dk önce`
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours} sa önce`
+
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffDays < 7) return `${diffDays} gün önce`
+
+  return new Date(value).toLocaleDateString('tr-TR', {
+    day: '2-digit',
+    month: '2-digit',
+  })
+}
+
+function isErrorNotification(notification: UserNotification) {
+  const text = `${notification.title} ${notification.body}`.toLowerCase()
+  return (
+    notification.kind === 'system' &&
+    (text.includes('error') || text.includes('failed') || text.includes('hata'))
+  )
+}
+
+function getNotificationTrayMeta(notification: UserNotification) {
+  if (isErrorNotification(notification)) {
+    return {
+      Icon: XCircle,
+      className: 'border-destructive/30 bg-destructive/10 text-destructive',
+    }
+  }
+
+  const kindMeta: Record<
+    NotificationKind,
+    {
+      Icon: typeof CheckCircle2
+      className: string
+    }
+  > = {
+    price: {
+      Icon: CheckCircle2,
+      className: 'border-chart-2/30 bg-chart-2/10 text-chart-2',
+    },
+    indicator: {
+      Icon: AlertTriangle,
+      className: 'border-chart-4/30 bg-chart-4/10 text-chart-4',
+    },
+    news: {
+      Icon: Info,
+      className: 'border-primary/30 bg-primary/10 text-primary',
+    },
+    system: {
+      Icon: Info,
+      className: 'border-muted bg-muted text-muted-foreground',
+    },
+  }
+
+  return kindMeta[notification.kind]
+}
+
 export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const { user } = useAuthStore()
   const unreadNotificationsQuery = useUnreadNotificationsCount()
+  const recentNotificationsQuery = useNotifications('unread', 'all', 15)
+  const markNotificationAsReadMutation = useMarkNotificationAsRead()
+  const markAllNotificationsAsReadMutation = useMarkAllNotificationsAsRead()
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [clearingNotificationIds, setClearingNotificationIds] = useState<
+    string[]
+  >([])
   const unreadNotifications = unreadNotificationsQuery.data ?? 0
+  const notificationPanelRef = useRef<HTMLDivElement>(null)
+  const notificationButtonRef = useRef<HTMLButtonElement>(null)
+  const recentNotifications =
+    recentNotificationsQuery.data?.pages.flatMap((page) => page.items) ?? []
   const avatarUrl = resolveAvatarUrl({
     photoURL: user?.photoURL,
     name: user?.name,
@@ -236,9 +323,53 @@ export function Navbar() {
     setActiveDropdown(null)
   }, [pathname])
 
+  useEffect(() => {
+    if (activeDropdown !== 'notifications') return
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (
+        notificationPanelRef.current?.contains(target) ||
+        notificationButtonRef.current?.contains(target)
+      ) {
+        return
+      }
+
+      setActiveDropdown(null)
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [activeDropdown])
+
   const handleLogout = async () => {
     await authService.logout()
     router.push('/login')
+  }
+
+  const clearNotification = (notificationId: string) => {
+    setClearingNotificationIds((current) =>
+      current.includes(notificationId) ? current : [...current, notificationId]
+    )
+
+    window.setTimeout(() => {
+      markNotificationAsReadMutation.mutate(notificationId)
+      setClearingNotificationIds((current) =>
+        current.filter((id) => id !== notificationId)
+      )
+    }, 180)
+  }
+
+  const clearAllNotifications = () => {
+    const notificationIds = recentNotifications.map(
+      (notification) => notification.id
+    )
+    setClearingNotificationIds(notificationIds)
+
+    window.setTimeout(() => {
+      markAllNotificationsAsReadMutation.mutate()
+      setClearingNotificationIds([])
+    }, 180)
   }
 
   return (
@@ -262,12 +393,10 @@ export function Navbar() {
             </Button>
             <Link
               href="/"
-              className="flex items-center gap-2 text-xl font-bold"
+              className="text-foreground hover:text-primary flex min-h-11 items-center text-xl font-bold tracking-tight transition-colors"
+              aria-label="Evalon dashboard"
             >
-              <div className="bg-primary text-primary-foreground flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full font-bold">
-                E
-              </div>
-              <span className="hidden xl:inline-block">EVALON</span>
+              <span>EVALON</span>
             </Link>
           </div>
 
@@ -377,44 +506,182 @@ export function Navbar() {
           <div className="bg-border hidden h-6 w-[1px] md:block"></div>
 
           {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              'text-muted-foreground hover:text-foreground relative h-11 w-11 rounded-full md:h-9 md:w-9',
-              pathname === '/notifications' && 'bg-secondary/60 text-foreground'
+          <div className="relative">
+            <Button
+              ref={notificationButtonRef}
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'text-muted-foreground hover:text-foreground relative h-11 w-11 rounded-full md:h-9 md:w-9',
+                activeDropdown === 'notifications' &&
+                  'bg-secondary/60 text-foreground'
+              )}
+              onClick={() => {
+                setActiveDropdown((current) =>
+                  current === 'notifications' ? null : 'notifications'
+                )
+                setMobileOpen(false)
+              }}
+              aria-label={
+                unreadNotifications > 0
+                  ? `${unreadNotifications} unread notifications`
+                  : 'Open notifications'
+              }
+              aria-expanded={activeDropdown === 'notifications'}
+              aria-haspopup="dialog"
+              title={
+                unreadNotifications > 0
+                  ? `${unreadNotifications} unread notifications`
+                  : 'Open notifications'
+              }
+            >
+              <Bell className="h-5 w-5" aria-hidden="true" />
+              {unreadNotifications > 0 ? (
+                <span className="border-background bg-chart-2 text-background absolute top-1.5 right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 text-[10px] leading-none font-semibold">
+                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                </span>
+              ) : null}
+            </Button>
+
+            {activeDropdown === 'notifications' && (
+              <div
+                ref={notificationPanelRef}
+                role="dialog"
+                aria-label="Bildirimler"
+                className="bg-card border-border animate-in fade-in slide-in-from-top-2 absolute top-[calc(100%+10px)] right-0 z-50 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-2xl border shadow-2xl"
+              >
+                <div className="border-border flex items-center justify-between gap-3 border-b px-4 py-3">
+                  <div>
+                    <p className="text-sm font-semibold">Bildirimler</p>
+                    <p className="text-muted-foreground text-xs">
+                      Son okunmamış bildirimler
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
+                    disabled={
+                      recentNotifications.length === 0 ||
+                      markAllNotificationsAsReadMutation.isPending
+                    }
+                    onClick={clearAllNotifications}
+                  >
+                    Tümünü Temizle
+                  </Button>
+                </div>
+
+                <div className="max-h-[70vh] overflow-y-auto p-2">
+                  {recentNotificationsQuery.isLoading ? (
+                    <div className="text-muted-foreground px-4 py-8 text-center text-sm">
+                      Bildirimler yükleniyor
+                    </div>
+                  ) : recentNotifications.length === 0 ? (
+                    <div className="px-4 py-10 text-center">
+                      <CheckCircle2
+                        className="text-chart-2 mx-auto h-8 w-8"
+                        aria-hidden="true"
+                      />
+                      <p className="mt-3 text-sm font-medium">
+                        Tüm bildirimler temizlendi
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {recentNotifications.map((notification) => {
+                        const meta = getNotificationTrayMeta(notification)
+                        const Icon = meta.Icon
+                        const isClearing = clearingNotificationIds.includes(
+                          notification.id
+                        )
+
+                        return (
+                          <div
+                            key={notification.id}
+                            data-state={isClearing ? 'closed' : 'open'}
+                            className={cn(
+                              'group flex items-start gap-3 rounded-xl border px-3 py-3 transition-all duration-200 ease-out',
+                              'data-[state=closed]:-translate-x-3 data-[state=closed]:opacity-0',
+                              notification.isRead
+                                ? 'border-transparent'
+                                : 'border-primary/15 bg-primary/5'
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border',
+                                meta.className
+                              )}
+                            >
+                              <Icon className="h-4 w-4" aria-hidden="true" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="line-clamp-2 text-sm leading-5">
+                                {notification.title || notification.body}
+                              </p>
+                              {notification.title && notification.body ? (
+                                <p className="text-muted-foreground line-clamp-1 text-xs">
+                                  {notification.body}
+                                </p>
+                              ) : null}
+                              <p className="text-muted-foreground mt-1 text-[11px]">
+                                {formatRelativeNotificationTime(
+                                  notification.createdAt
+                                )}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground hover:text-foreground h-8 w-8 flex-shrink-0 rounded-full opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
+                              onClick={() => clearNotification(notification.id)}
+                              disabled={
+                                markNotificationAsReadMutation.isPending ||
+                                isClearing
+                              }
+                              aria-label="Bildirimi temizle"
+                              title="Bildirimi temizle"
+                            >
+                              <X className="h-4 w-4" aria-hidden="true" />
+                            </Button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-border bg-background/40 border-t p-2">
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground w-full"
+                    onClick={() => setActiveDropdown(null)}
+                  >
+                    <Link href="/notifications">Bildirim merkezini aç</Link>
+                  </Button>
+                </div>
+              </div>
             )}
-            onClick={() => router.push('/notifications')}
-            aria-label={
-              unreadNotifications > 0
-                ? `${unreadNotifications} unread notifications`
-                : 'Open notifications'
-            }
-            title={
-              unreadNotifications > 0
-                ? `${unreadNotifications} unread notifications`
-                : 'Open notifications'
-            }
-          >
-            <Bell className="h-5 w-5" aria-hidden="true" />
-            {unreadNotifications > 0 ? (
-              <span className="border-background bg-chart-2 text-background absolute top-1.5 right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 text-[10px] leading-none font-semibold">
-                {unreadNotifications > 99 ? '99+' : unreadNotifications}
-              </span>
-            ) : null}
-          </Button>
+          </div>
 
           {/* User Profile Dropdown */}
-          <div className="relative ml-2">
+          <div className="relative flex items-center">
             <Button
               variant="ghost"
               size="icon"
-              className="bg-secondary/50 hover:bg-secondary text-foreground h-9 w-9 rounded-full"
+              className="bg-secondary/50 hover:bg-secondary text-foreground flex h-11 w-11 items-center justify-center overflow-hidden rounded-full p-0 md:h-9 md:w-9"
               onClick={() =>
                 setActiveDropdown(
                   activeDropdown === 'profile' ? null : 'profile'
                 )
               }
+              aria-label="Open profile menu"
+              aria-expanded={activeDropdown === 'profile'}
+              aria-haspopup="menu"
             >
               {avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element

@@ -1,11 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Activity,
-  Bell,
-  BellRing,
+  BellPlus,
   CheckCircle2,
   CheckCheck,
   ExternalLink,
@@ -27,30 +26,13 @@ import {
   useNotifications,
   useUnreadNotificationsCount,
 } from '@/hooks/use-notifications'
-import {
-  useNotificationDevices,
-  useSendTestNotification,
-  useSyncNotificationDevice,
-} from '@/hooks/use-notification-devices'
-import { useProfile } from '@/hooks/use-profile'
-import { useToast } from '@/hooks/use-toast'
-import {
-  getBrowserDescriptor,
-  getBrowserDeviceKey,
-  getBrowserNotificationPermission,
-  getBrowserPushToken,
-  requestBrowserNotificationPermission,
-} from '@/lib/firebase-messaging'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/use-auth-store'
 import type {
-  NotificationDevicePermission,
   NotificationKindFilter,
   NotificationKind,
   UserNotification,
 } from '@/types'
-
-const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
 
 export interface NotificationsViewProps {
   isWidget?: boolean
@@ -111,20 +93,6 @@ const KIND_FILTERS: Array<{ value: NotificationKindFilter; label: string }> = [
   { value: 'news', label: 'News' },
   { value: 'system', label: 'System' },
 ]
-
-function getPermissionLabel(permission: NotificationDevicePermission) {
-  switch (permission) {
-    case 'granted':
-      return 'Granted'
-    case 'denied':
-      return 'Denied'
-    case 'unsupported':
-      return 'Unsupported'
-    case 'default':
-    default:
-      return 'Not requested'
-  }
-}
 
 function getNotificationLink(notification: UserNotification): string | null {
   if (notification.kind === 'news') {
@@ -366,105 +334,18 @@ export function NotificationsView({
   isWidget = false,
 }: NotificationsViewProps) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const { data: profile } = useProfile()
-  const { toast } = useToast()
   const [tab, setTab] = useState<'unread' | 'all'>('unread')
   const [kindFilter, setKindFilter] = useState<NotificationKindFilter>('all')
-  const [permission, setPermission] =
-    useState<NotificationDevicePermission>('default')
 
   const notificationsQuery = useNotifications(tab, kindFilter, 25)
   const unreadCountQuery = useUnreadNotificationsCount()
   const markAsReadMutation = useMarkNotificationAsRead()
   const markAllAsReadMutation = useMarkAllNotificationsAsRead()
-  const devicesQuery = useNotificationDevices()
-  const syncDeviceMutation = useSyncNotificationDevice()
-  const sendTestMutation = useSendTestNotification()
 
   const notifications = useMemo(
     () => notificationsQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [notificationsQuery.data]
   )
-
-  const currentDevice = useMemo(() => {
-    if (typeof window === 'undefined') {
-      return null
-    }
-
-    const deviceKey = getBrowserDeviceKey()
-    return devicesQuery.data?.find((device) => device.id === deviceKey) ?? null
-  }, [devicesQuery.data])
-
-  useEffect(() => {
-    void getBrowserNotificationPermission().then(setPermission)
-  }, [])
-
-  const handleRequestPermission = async () => {
-    const nextPermission = await requestBrowserNotificationPermission()
-    setPermission(nextPermission)
-
-    if (nextPermission !== 'granted') {
-      toast({
-        title: 'Browser notifications not enabled',
-        description:
-          nextPermission === 'denied'
-            ? 'Permission is blocked in browser site settings.'
-            : 'Permission was not granted.',
-        variant: nextPermission === 'denied' ? 'warning' : 'info',
-      })
-      return
-    }
-
-    try {
-      const token = await getBrowserPushToken(VAPID_KEY)
-      const { browser, platform } = getBrowserDescriptor()
-
-      await syncDeviceMutation.mutateAsync({
-        deviceKey: getBrowserDeviceKey(),
-        token,
-        permission: nextPermission,
-        browser,
-        platform,
-        active:
-          Boolean(token) &&
-          Boolean(profile?.preferences.notifications.pushEnabled),
-      })
-      toast({
-        title: 'Browser notifications enabled',
-        description: 'This browser is registered for push delivery.',
-        variant: 'success',
-      })
-    } catch (error) {
-      toast({
-        title: 'Push setup failed',
-        description:
-          error instanceof Error
-            ? error.message
-            : 'Browser notifications could not be enabled.',
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const handleSendTestNotification = async () => {
-    try {
-      const result = await sendTestMutation.mutateAsync()
-      toast({
-        title: 'Test notification sent',
-        description: `Delivered to ${result.delivered} registered device(s).`,
-        variant: 'success',
-      })
-    } catch (error) {
-      toast({
-        title: 'Test notification failed',
-        description:
-          error instanceof Error
-            ? error.message
-            : 'The test notification could not be sent.',
-        variant: 'destructive',
-      })
-    }
-  }
 
   if (!isAuthenticated) {
     return (
@@ -488,185 +369,51 @@ export function NotificationsView({
     return <NotificationsPreview />
   }
 
-  const notificationPreferences = profile?.preferences.notifications
-  const preferenceRows = [
-    {
-      label: 'Push',
-      enabled: Boolean(notificationPreferences?.pushEnabled),
-    },
-    {
-      label: 'Price',
-      enabled: Boolean(notificationPreferences?.priceAlerts),
-    },
-    {
-      label: 'Indicator',
-      enabled: Boolean(notificationPreferences?.indicatorAlerts),
-    },
-    {
-      label: 'News',
-      enabled: Boolean(notificationPreferences?.newsAlerts),
-    },
-  ]
-
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Notifications</h1>
+          <p className="text-muted-foreground mt-2 max-w-2xl text-sm">
+            Notifications is the inbox. Alerts is where rules are created and
+            changed.
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline" className="h-8 px-3">
             {unreadCountQuery.data ?? 0} unread
           </Badge>
-          <Badge variant="secondary" className="h-8 px-3">
-            {devicesQuery.data?.length ?? 0} devices
-          </Badge>
+          <Button asChild className="h-8">
+            <Link href="/alerts">
+              <BellPlus className="h-4 w-4" aria-hidden="true" />
+              Manage alerts
+            </Link>
+          </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <Card className="border-border bg-card p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="flex items-center gap-2 text-lg font-semibold">
-                <BellRing size={18} aria-hidden="true" />
-                Delivery
-              </h2>
+      <Card className="border-border bg-card p-4">
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="border-border bg-background/40 rounded-lg border p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <BellPlus className="text-primary h-4 w-4" aria-hidden="true" />
+              Alerts
             </div>
-            <Badge
-              variant="outline"
-              className={cn(
-                'text-xs',
-                currentDevice?.active
-                  ? 'border-chart-2/30 text-chart-2'
-                  : 'border-border text-muted-foreground'
-              )}
-            >
-              {currentDevice?.active ? 'Active' : 'Inactive'}
-            </Badge>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Create rules: price, indicator and watchlist news conditions.
+            </p>
           </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="border-border bg-background/50 rounded-lg border p-4">
-              <p className="text-muted-foreground text-xs tracking-wide uppercase">
-                Permission
-              </p>
-              <p
-                className={cn(
-                  'mt-2 text-sm font-semibold',
-                  permission === 'granted' && 'text-chart-2',
-                  permission === 'denied' && 'text-destructive',
-                  permission === 'unsupported' && 'text-destructive'
-                )}
-              >
-                {getPermissionLabel(permission)}
-              </p>
+          <div className="border-border bg-background/40 rounded-lg border p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Inbox className="text-chart-2 h-4 w-4" aria-hidden="true" />
+              Notifications
             </div>
-            <div className="border-border bg-background/50 rounded-lg border p-4">
-              <p className="text-muted-foreground text-xs tracking-wide uppercase">
-                Devices
-              </p>
-              <p className="mt-2 text-sm font-semibold">
-                {devicesQuery.data?.length ?? 0}
-              </p>
-            </div>
-            <div className="border-border bg-background/50 rounded-lg border p-4">
-              <p className="text-muted-foreground text-xs tracking-wide uppercase">
-                Browser
-              </p>
-              <p className="mt-2 text-sm font-semibold">
-                {currentDevice?.active ? 'Active' : 'Not active'}
-              </p>
-            </div>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Read outcomes: every rule match and system message appears here.
+            </p>
           </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              className="h-11 sm:h-9"
-              onClick={handleRequestPermission}
-              disabled={
-                syncDeviceMutation.isPending ||
-                permission === 'granted' ||
-                permission === 'unsupported'
-              }
-            >
-              {syncDeviceMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Bell className="h-4 w-4" aria-hidden="true" />
-              )}
-              Allow notifications
-            </Button>
-            <Button
-              className="h-11 sm:h-9"
-              onClick={handleSendTestNotification}
-              disabled={sendTestMutation.isPending || !currentDevice?.active}
-            >
-              {sendTestMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <RefreshCw className="h-4 w-4" aria-hidden="true" />
-              )}
-              Send test
-            </Button>
-          </div>
-        </Card>
-
-        <Card className="border-border bg-card p-5">
-          <h2 className="text-lg font-semibold">Preferences</h2>
-          <div className="mt-4 space-y-2">
-            {preferenceRows.map((item) => (
-              <div
-                key={item.label}
-                className="border-border bg-background/50 flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
-              >
-                <span className="text-muted-foreground text-sm">
-                  {item.label}
-                </span>
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1.5 text-xs font-medium',
-                    item.enabled ? 'text-chart-2' : 'text-muted-foreground'
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'h-2 w-2 rounded-full',
-                      item.enabled ? 'bg-chart-2' : 'bg-muted'
-                    )}
-                    aria-hidden="true"
-                  />
-                  {item.enabled ? 'Enabled' : 'Disabled'}
-                </span>
-              </div>
-            ))}
-            {permission === 'denied' ? (
-              <div
-                role="alert"
-                aria-live="assertive"
-                className="border-chart-4/30 bg-chart-4/10 text-chart-4 rounded-lg border p-3 text-sm"
-              >
-                Browser permission is blocked.
-              </div>
-            ) : null}
-            {permission === 'unsupported' ? (
-              <div
-                role="alert"
-                aria-live="assertive"
-                className="border-destructive/30 bg-destructive/10 text-destructive rounded-lg border p-3 text-sm"
-              >
-                Browser push is unsupported.
-              </div>
-            ) : null}
-            {!notificationPreferences?.pushEnabled ? (
-              <div className="border-border bg-background/50 text-muted-foreground rounded-lg border p-3 text-sm">
-                Push is disabled in settings.
-              </div>
-            ) : null}
-          </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       <Card className="border-border bg-card p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
