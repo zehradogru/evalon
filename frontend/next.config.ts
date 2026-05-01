@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const EVALON_API_URL =
   process.env.NEXT_PUBLIC_EVALON_API_URL ||
-  "https://evalon-backtest-api-474112640179.europe-west1.run.app";
+  "https://evalon-backtest-api-r2ffcuqmuq-ew.a.run.app";
 
 const nextConfig: NextConfig = {
   output: "standalone",
