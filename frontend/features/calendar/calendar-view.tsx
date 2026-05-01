@@ -197,7 +197,7 @@ function EventRow({ event, isNext }: { event: CalendarEvent; isNext: boolean }) 
 // CalendarView
 // ---------------------------------------------------------------------------
 
-export function CalendarView() {
+export function CalendarView({ isWidget = false }: { isWidget?: boolean }) {
   const today = useMemo(() => new Date(), [])
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedDay, setSelectedDay] = useState<Date>(today)

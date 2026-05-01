@@ -1,5 +1,5 @@
 [project]
 name = "app"
 version = "0.1.0"
-dependencies = [ "oracledb>=2.0.0", "python-dotenv>=1.0.0", "pandas>=2.0.0", "numpy>=2.0.0", "lightweight-charts>=2.0.0", "fastapi>=0.110.0", "uvicorn[standard]>=0.27.0", "ta-lib>=0.4.28", "langgraph>=0.2.0", "google-genai>=1.0.0" ]
+dependencies = [ "oracledb>=2.0.0", "python-dotenv>=1.0.0", "pandas>=2.0.0", "numpy>=2.0.0", "lightweight-charts>=2.0.0", "fastapi>=0.110.0", "uvicorn[standard]>=0.27.0", "ta-lib>=0.4.28", "langgraph>=0.2.0", "google-genai>=1.0.0", "networkx>=3.0" ]
 requires-python = "~=3.12.0"
