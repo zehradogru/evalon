@@ -228,7 +228,55 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if isOwner(userId);
 
-      match /{document=**} {
+      match /likes/{postId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /saves/{postId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /aiMessages/{sessionId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /aiAssets/{assetId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /paper_portfolio/{documentId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /paper_orders/{orderId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /paper_trades/{tradeId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /paper_snapshots/{snapshotId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /alert_rules/{ruleId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /news_alert_rules/{ruleId} {
+        allow read, write: if isOwner(userId);
+
+        match /matches/{matchId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+
+      match /notifications/{notificationId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /notification_devices/{deviceId} {
         allow read, write: if isOwner(userId);
       }
     }

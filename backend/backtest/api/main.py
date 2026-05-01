@@ -1159,8 +1159,10 @@ class NewsResponse(BaseModel):
 @app.get("/v1/news", response_model=NewsResponse)
 def get_news(
     symbol: Optional[str] = Query(None, max_length=20),
+    symbols: Optional[str] = Query(None, max_length=1000),
     sentiment: Optional[str] = Query(None, max_length=20),
     q: Optional[str] = Query(None, max_length=200, description="Başlık/özet metin araması"),
+    published_after: Optional[datetime] = Query(None),
     limit: int = Query(20, ge=1, le=100),
     page: int = Query(1, ge=1),
 ) -> NewsResponse:
@@ -1173,9 +1175,28 @@ def get_news(
     where_clauses: List[str] = []
     bind_params: Dict[str, Any] = {}
 
+    symbol_values: List[str] = []
+    if symbols:
+        for raw_symbol in symbols.split(","):
+            normalized_symbol = raw_symbol.strip().upper()
+            if normalized_symbol and normalized_symbol not in symbol_values:
+                symbol_values.append(normalized_symbol)
+
     if symbol:
+        normalized_symbol = symbol.strip().upper()
+        if normalized_symbol and normalized_symbol not in symbol_values:
+            symbol_values.append(normalized_symbol)
+
+    if len(symbol_values) == 1:
         where_clauses.append("UPPER(SYMBOL) = :symbol")
-        bind_params["symbol"] = symbol.strip().upper()
+        bind_params["symbol"] = symbol_values[0]
+    elif symbol_values:
+        placeholders: List[str] = []
+        for index, symbol_value in enumerate(symbol_values):
+            bind_key = f"symbol_{index}"
+            placeholders.append(f":{bind_key}")
+            bind_params[bind_key] = symbol_value
+        where_clauses.append(f"UPPER(SYMBOL) IN ({', '.join(placeholders)})")
 
     if sentiment:
         where_clauses.append("UPPER(SENTIMENT) = :sentiment")
@@ -1184,6 +1205,10 @@ def get_news(
     if q:
         where_clauses.append("(UPPER(TITLE) LIKE :q OR UPPER(SUMMARY) LIKE :q)")
         bind_params["q"] = f"%{q.strip().upper()}%"
+
+    if published_after:
+        where_clauses.append("PUBLISHED_AT >= :published_after")
+        bind_params["published_after"] = published_after
 
     where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 

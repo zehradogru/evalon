@@ -2,8 +2,10 @@ import type { NewsResponse } from '@/types/news'
 
 export interface FetchNewsParams {
   symbol?: string
+  symbols?: string[]
   sentiment?: string
   q?: string
+  publishedAfter?: string
   limit?: number
   page?: number
 }
@@ -11,8 +13,10 @@ export interface FetchNewsParams {
 export async function fetchNews(params: FetchNewsParams = {}): Promise<NewsResponse> {
   const url = new URL('/api/news', window.location.origin)
   if (params.symbol) url.searchParams.set('symbol', params.symbol)
+  if (params.symbols?.length) url.searchParams.set('symbols', params.symbols.join(','))
   if (params.sentiment) url.searchParams.set('sentiment', params.sentiment)
   if (params.q) url.searchParams.set('q', params.q)
+  if (params.publishedAfter) url.searchParams.set('published_after', params.publishedAfter)
   if (params.limit != null) url.searchParams.set('limit', String(params.limit))
   if (params.page != null) url.searchParams.set('page', String(params.page))
 

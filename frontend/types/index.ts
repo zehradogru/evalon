@@ -3,6 +3,11 @@ import type {
     QueryDocumentSnapshot,
     Timestamp,
 } from 'firebase/firestore'
+import type {
+    FilterLogic,
+    ScreenerFilter,
+    ScreenerTimeframe,
+} from './screener'
 
 // Global TypeScript types
 
@@ -50,7 +55,10 @@ export type AppTheme = 'dark' | 'light'
 export type UserPlan = 'Free' | 'Pro Trader'
 
 export interface NotificationPreferences {
+    pushEnabled: boolean
     priceAlerts: boolean
+    indicatorAlerts: boolean
+    newsAlerts: boolean
     newsDigest: boolean
 }
 
@@ -903,6 +911,24 @@ export interface UserWatchlist {
 export type UserAlertOperator = 'gt' | 'lt'
 export type UserAlertStatus = 'active' | 'triggered'
 
+export type AlertRuleStatus = 'active' | 'paused'
+export type NotificationKind = 'price' | 'indicator' | 'system' | 'news'
+export type NotificationKindFilter = 'all' | NotificationKind
+export type NotificationDevicePermission =
+    | 'default'
+    | 'denied'
+    | 'granted'
+    | 'unsupported'
+export type NewsAlertScopeType = 'watchlist'
+export type NewsAlertSentiment = 'OLUMLU' | 'OLUMSUZ' | 'NOTR'
+export type NewsAlertMatchStatus = 'pending' | 'delivered'
+export type NotificationPayloadValue =
+    | string
+    | number
+    | boolean
+    | null
+    | string[]
+
 export interface UserAlert {
     id: string
     ticker: string
@@ -911,6 +937,78 @@ export interface UserAlert {
     status: UserAlertStatus
     createdAt: string
     updatedAt: string
+}
+
+export interface AlertRule {
+    id: string
+    ticker: string
+    timeframe: ScreenerTimeframe
+    logic: FilterLogic
+    filters: ScreenerFilter[]
+    status: AlertRuleStatus
+    lastMatchState: boolean | null
+    lastTriggeredAt: string | null
+    lastEvaluatedAt: string | null
+    nextEvaluationAt: string
+    createdAt: string
+    updatedAt: string
+}
+
+export interface WatchlistNewsAlertRule {
+    id: string
+    status: AlertRuleStatus
+    scopeType: NewsAlertScopeType
+    sentiments: NewsAlertSentiment[]
+    burstWindowMinutes: 10
+    lastCheckedAt: string | null
+    lastTriggeredAt: string | null
+    lastEvaluatedAt: string | null
+    createdAt: string
+    updatedAt: string
+}
+
+export interface WatchlistNewsAlertMatch {
+    id: string
+    ticker: string | null
+    title: string
+    sentiment: NewsAlertSentiment | null
+    publishedAt: string | null
+    windowStart: string
+    windowEnd: string
+    status: NewsAlertMatchStatus
+    deliveredAt: string | null
+}
+
+export interface UserNotification {
+    id: string
+    kind: NotificationKind
+    title: string
+    body: string
+    ticker: string | null
+    timeframe: ScreenerTimeframe | null
+    ruleId: string | null
+    isRead: boolean
+    createdAt: string
+    readAt: string | null
+    payload: Record<string, NotificationPayloadValue> | null
+}
+
+export interface NotificationDevice {
+    id: string
+    token: string | null
+    permission: NotificationDevicePermission
+    browser: string
+    platform: string
+    active: boolean
+    lastSeenAt: string
+}
+
+export type NotificationCursor = QueryDocumentSnapshot<DocumentData>
+
+export interface NotificationPage {
+    items: UserNotification[]
+    nextCursor: NotificationCursor | null
+    hasMore: boolean
 }
 
 export interface UserScreenerPreset {

@@ -14,6 +14,7 @@
 !tsconfig*.json
 !turbo.json
 !package-lock.json
+!firestore.indexes.json
 
 # Oracle Wallets
 **/oracle_wallet/
@@ -27,6 +28,7 @@
 **/.wrangler/
 **/dist/
 **/build/
+functions/lib/
 
 # Local Data and Caches
 **/.bist_cache*/
