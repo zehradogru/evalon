@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, useEffect, useRef } from 'react'
 import { Toaster } from '@/components/ui/toaster'
+import { NotificationPushBootstrap } from '@/components/notifications/notification-push-bootstrap'
 import { useAuthStore } from '@/store'
 
 const USER_SCOPED_QUERY_KEYS = new Set([
@@ -10,6 +11,10 @@ const USER_SCOPED_QUERY_KEYS = new Set([
     'user-watchlist',
     'dashboard-watchlist',
     'user-alerts',
+    'alert-rules',
+    'notifications',
+    'notifications-unread-count',
+    'notification-devices',
     'user-screener-presets',
     'ai-assets',
     'ai-session',
@@ -55,6 +60,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return (
         <QueryClientProvider client={queryClient}>
             {children}
+            <NotificationPushBootstrap />
             <Toaster />
         </QueryClientProvider>
     )

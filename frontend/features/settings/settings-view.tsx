@@ -26,7 +26,10 @@ const DEFAULT_PREFERENCES: UserPreferences = {
     currency: 'USD',
     theme: 'dark',
     notifications: {
+        pushEnabled: false,
         priceAlerts: true,
+        indicatorAlerts: true,
+        newsAlerts: false,
         newsDigest: false,
     },
 }
@@ -44,8 +47,14 @@ function SettingsForm({
         initialPreferences.currency
     )
     const [theme, setTheme] = useState<AppTheme>(initialPreferences.theme)
+    const [pushEnabled, setPushEnabled] = useState(
+        initialPreferences.notifications.pushEnabled
+    )
     const [priceAlerts, setPriceAlerts] = useState(
         initialPreferences.notifications.priceAlerts
+    )
+    const [indicatorAlerts, setIndicatorAlerts] = useState(
+        initialPreferences.notifications.indicatorAlerts
     )
     const [newsDigest, setNewsDigest] = useState(
         initialPreferences.notifications.newsDigest
@@ -62,7 +71,9 @@ function SettingsForm({
         language !== initialPreferences.language ||
         currency !== initialPreferences.currency ||
         theme !== initialPreferences.theme ||
+        pushEnabled !== initialPreferences.notifications.pushEnabled ||
         priceAlerts !== initialPreferences.notifications.priceAlerts ||
+        indicatorAlerts !== initialPreferences.notifications.indicatorAlerts ||
         newsDigest !== initialPreferences.notifications.newsDigest
 
     const handleSaveSettings = async () => {
@@ -73,7 +84,9 @@ function SettingsForm({
                 currency,
                 theme,
                 notifications: {
+                    pushEnabled,
                     priceAlerts,
+                    indicatorAlerts,
                     newsDigest,
                 },
             })
@@ -184,6 +197,21 @@ function SettingsForm({
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="space-y-0.5">
+                                <Label>Push Notifications</Label>
+                                {!isWidget && (
+                                    <div className="text-sm text-muted-foreground">
+                                        Allow browser push delivery for notification rules
+                                    </div>
+                                )}
+                            </div>
+                            <Switch
+                                checked={pushEnabled}
+                                onCheckedChange={setPushEnabled}
+                                disabled={controlsDisabled}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
                                 <Label>Price Alerts</Label>
                                 {!isWidget && (
                                     <div className="text-sm text-muted-foreground">
@@ -194,6 +222,21 @@ function SettingsForm({
                             <Switch
                                 checked={priceAlerts}
                                 onCheckedChange={setPriceAlerts}
+                                disabled={controlsDisabled}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label>Indicator Alerts</Label>
+                                {!isWidget && (
+                                    <div className="text-sm text-muted-foreground">
+                                        Include indicator and crossover rule notifications
+                                    </div>
+                                )}
+                            </div>
+                            <Switch
+                                checked={indicatorAlerts}
+                                onCheckedChange={setIndicatorAlerts}
                                 disabled={controlsDisabled}
                             />
                         </div>

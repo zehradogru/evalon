@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAlertRules } from '@/hooks/use-alert-rules';
+import { useUnreadNotificationsCount } from '@/hooks/use-notifications';
 import { cn } from '@/lib/utils';
 
 const tools = [
@@ -34,6 +36,9 @@ interface SidebarProps {
 
 export function Sidebar({ activePanel, onTogglePanel }: SidebarProps) {
     const pathname = usePathname();
+    const { data: alertRules = [] } = useAlertRules();
+    const { data: unreadNotifications = 0 } = useUnreadNotificationsCount();
+    const activeAlertCount = alertRules.filter((rule) => rule.status === 'active').length;
 
     const handleToolClick = (e: React.MouseEvent, tool: typeof tools[0]) => {
         if (tool.isWidget && onTogglePanel) {
@@ -60,6 +65,16 @@ export function Sidebar({ activePanel, onTogglePanel }: SidebarProps) {
                         <tool.icon size={20} strokeWidth={1.5} />
                         {(pathname === tool.path && !activePanel) && (
                             <div className="absolute right-0 top-0 bottom-0 w-[2px] bg-primary" />
+                        )}
+                        {tool.name === 'Alerts' && activeAlertCount > 0 && (
+                            <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold text-primary-foreground">
+                                {activeAlertCount > 9 ? '9+' : activeAlertCount}
+                            </span>
+                        )}
+                        {tool.name === 'Notifications' && unreadNotifications > 0 && (
+                            <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-chart-2 px-1 text-[9px] font-semibold text-background">
+                                {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                            </span>
                         )}
 
                         {/* Tooltip on Hover */}
