@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Search, Bell, Menu, ChevronDown, Monitor, GitBranch, Globe, List, Activity, Users, Newspaper, Sparkles, Wallet, Trophy, TrendingUp, Calculator, GraduationCap } from 'lucide-react'
+import { Search, Bell, Menu, ChevronDown, Monitor, GitBranch, Globe, List, Activity, Users, Newspaper, Sparkles, Wallet, Trophy, TrendingUp, Calculator, GraduationCap, Network } from 'lucide-react'
 import { useAuthStore } from '@/store/use-auth-store'
 import { authService } from '@/services/auth.service'
 import { Button } from '@/components/ui/button'
@@ -30,6 +30,7 @@ const menuItems = [
       { href: '/markets', label: 'Overview', icon: Globe },
       { href: '/watchlist', label: 'Watchlist', icon: List },
       { href: '/correlation', label: 'Correlation', icon: Activity },
+      { href: '/markets/co-movement', label: 'Co-Movement', icon: Network },
       { href: '/screener', label: 'Screeners', icon: Search },
       { href: '/markets/movers', label: 'Top Movers', icon: TrendingUp },
     ]

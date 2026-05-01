@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/select-native'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { fetchMultipleTickers } from '@/services/price.service'
-import { BIST_AVAILABLE, BIST_POPULAR, TICKER_NAMES } from '@/config/markets'
+import { BIST_AVAILABLE, BIST_POPULAR } from '@/config/markets'
 import { cn } from '@/lib/utils'
 import type { Timeframe } from '@/types'
 
@@ -36,6 +36,7 @@ const STOCK_TICKERS = (BIST_AVAILABLE as readonly string[]).filter(
 )
 
 const DEFAULT_TICKERS = BIST_POPULAR.slice(0, 12)
+const MAX_CORRELATION_TICKERS = 24
 
 // ---------------------------------------------------------------------------
 // Math helpers
@@ -106,7 +107,9 @@ export function CorrelationView() {
         ? prev.length > 2
           ? prev.filter((t) => t !== ticker)
           : prev
-        : [...prev, ticker],
+        : prev.length < MAX_CORRELATION_TICKERS
+          ? [...prev, ticker]
+          : prev,
     )
   }
 
@@ -231,17 +234,21 @@ export function CorrelationView() {
                 variant="ghost"
                 size="sm"
                 className="h-6 px-2 text-[10px]"
+                disabled={selectedTickers.length >= MAX_CORRELATION_TICKERS}
                 onClick={() => {
                   const visible = tickerFilter
                     ? STOCK_TICKERS.filter((t) => t.includes(tickerFilter.toUpperCase()))
                     : STOCK_TICKERS
                   setSelectedTickers((prev) => {
-                    const toAdd = visible.filter((t) => !prev.includes(t))
+                    const remainingSlots = MAX_CORRELATION_TICKERS - prev.length
+                    const toAdd = visible
+                      .filter((t) => !prev.includes(t))
+                      .slice(0, Math.max(0, remainingSlots))
                     return [...prev, ...toAdd]
                   })
                 }}
               >
-                Tümünü Seç
+                Görünenlerden Ekle
               </Button>
               <Button
                 variant="ghost"
@@ -282,12 +289,27 @@ export function CorrelationView() {
                 )
                 .map((ticker) => {
                   const checked = selectedTickers.includes(ticker)
+                  const disabled = !checked && selectedTickers.length >= MAX_CORRELATION_TICKERS
                   return (
-                    <button
+                    <div
                       key={ticker}
+                      role="checkbox"
+                      aria-checked={checked}
+                      aria-disabled={disabled}
+                      tabIndex={disabled ? -1 : 0}
                       onClick={() => toggleTicker(ticker)}
+                      onKeyDown={(event) => {
+                        if (disabled) return
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          toggleTicker(ticker)
+                        }
+                      }}
                       className={cn(
                         'inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] transition-colors',
+                        disabled
+                          ? 'cursor-not-allowed opacity-45'
+                          : 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                         checked
                           ? 'border-primary/50 bg-primary/10 text-primary'
                           : 'border-border/30 bg-background/60 text-muted-foreground hover:border-border/60 hover:text-foreground',
@@ -295,16 +317,20 @@ export function CorrelationView() {
                     >
                       <Checkbox
                         checked={checked}
-                        onCheckedChange={() => toggleTicker(ticker)}
+                        aria-hidden="true"
+                        tabIndex={-1}
                         className="h-2.5 w-2.5 pointer-events-none"
                       />
                       {ticker}
-                    </button>
+                    </div>
                   )
                 })}
             </div>
           </div>
-          <p className="text-[10px] text-muted-foreground">En az 2 hisse seçili olmalıdır.</p>
+          <p className="text-[10px] text-muted-foreground">
+            En az 2, en fazla {MAX_CORRELATION_TICKERS} hisse seçilebilir. Büyük sepetler
+            için Markets altındaki Co-Movement ekranı kullanılmalıdır.
+          </p>
         </div>
       </div>
 
