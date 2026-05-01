@@ -276,7 +276,7 @@ export function CommunityView() {
     }
 
     return (
-        <div className="relative overflow-hidden">
+        <div className="relative shrink-0 overflow-x-hidden">
             {/* -------- Animated background mesh -------- */}
             <div className="pointer-events-none absolute inset-x-0 top-0 h-[32rem] overflow-hidden">
                 <div className="animate-aurora absolute -left-32 top-0 h-80 w-[40rem] rounded-full bg-[radial-gradient(ellipse,rgba(40,98,255,0.18),transparent_60%)] blur-3xl" />
