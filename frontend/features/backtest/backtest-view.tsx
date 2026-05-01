@@ -35,6 +35,7 @@ import {
   applyPresetToBlueprint,
   createEmptyBlueprint,
   defaultParamsFor,
+  withRuleParams,
 } from '@/lib/backtest-blueprint'
 import { formatTimeframeLabel } from '@/lib/evalon'
 import { readActiveBlueprint, saveActiveBlueprint, loadBlueprintFromFirestore } from '@/lib/workspace-storage'
@@ -470,8 +471,8 @@ export function BacktestView() {
 
   // ---- derived ----
   const ruleCatalog = useMemo(
-    () => rulesQuery.data?.rules ?? [],
-    [rulesQuery.data?.rules],
+    () => withRuleParams(rulesQuery.data?.rules ?? []),
+    [rulesQuery.data?.rules]
   )
 
   const groupedRules = useMemo(() => {
