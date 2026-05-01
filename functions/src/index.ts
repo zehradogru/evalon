@@ -18,11 +18,21 @@ const messaging = getMessaging(firebaseApp)
 type FilterLogic = 'AND' | 'OR'
 type ScreenerTimeframe = '1m' | '5m' | '15m' | '30m' | '1h' | '4h' | '1d' | '1w'
 type NotificationKind = 'price' | 'indicator' | 'system' | 'news'
+type NotificationPayloadValue =
+    | string
+    | number
+    | boolean
+    | null
+    | string[]
 type NotificationDevicePermission =
     | 'default'
     | 'denied'
     | 'granted'
     | 'unsupported'
+type AlertRuleStatus = 'active' | 'paused'
+type NewsAlertScopeType = 'watchlist'
+type NewsAlertSentiment = 'OLUMLU' | 'OLUMSUZ' | 'NOTR'
+type NewsAlertMatchStatus = 'pending' | 'delivered'
 
 interface AlertFilter {
     type: string
@@ -50,6 +60,29 @@ interface AlertRuleDocument {
     updatedAt: string
 }
 
+interface WatchlistNewsAlertRuleDocument {
+    status: AlertRuleStatus
+    scopeType: NewsAlertScopeType
+    sentiments: NewsAlertSentiment[]
+    burstWindowMinutes: number
+    lastCheckedAt: string | null
+    lastTriggeredAt: string | null
+    lastEvaluatedAt: string | null
+    createdAt: string
+    updatedAt: string
+}
+
+interface WatchlistNewsAlertMatchDocument {
+    ticker: string | null
+    title: string
+    sentiment: NewsAlertSentiment | null
+    publishedAt: string | null
+    windowStart: string
+    windowEnd: string
+    status: NewsAlertMatchStatus
+    deliveredAt: string | null
+}
+
 interface NotificationRecord {
     kind: NotificationKind
     title: string
@@ -60,7 +93,7 @@ interface NotificationRecord {
     isRead: boolean
     createdAt: string
     readAt: string | null
-    payload: Record<string, string | number | boolean | null> | null
+    payload: Record<string, NotificationPayloadValue> | null
 }
 
 interface NotificationDeviceRecord {
@@ -92,6 +125,40 @@ interface ScreenerScanResponse {
     rows?: ScreenerScanRow[]
 }
 
+interface NewsApiItem {
+    id: number
+    symbol: string | null
+    title: string
+    summary: string | null
+    sentiment: string | null
+    news_url: string | null
+    published_at: string | null
+}
+
+interface NewsApiResponse {
+    items?: NewsApiItem[]
+    total?: number
+    page?: number
+    limit?: number
+}
+
+interface NotificationPreferenceState {
+    pushEnabled: boolean
+    priceAlerts: boolean
+    indicatorAlerts: boolean
+    newsAlerts: boolean
+    newsDigest: boolean
+}
+
+interface UserWatchlistState {
+    tickers: string[]
+}
+
+interface UserRuntimeState {
+    preferences: NotificationPreferenceState
+    watchlist: UserWatchlistState
+}
+
 const TIMEFRAME_VALUES = new Set<ScreenerTimeframe>([
     '1m',
     '5m',
@@ -108,11 +175,24 @@ const PERMISSION_VALUES = new Set<NotificationDevicePermission>([
     'granted',
     'unsupported',
 ])
+const NEWS_ALERT_SENTIMENT_VALUES = new Set<NewsAlertSentiment>([
+    'OLUMLU',
+    'OLUMSUZ',
+    'NOTR',
+])
 const INVALID_TOKEN_ERROR_CODES = new Set([
     'messaging/registration-token-not-registered',
     'messaging/invalid-argument',
     'messaging/invalid-recipient',
 ])
+const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferenceState = {
+    pushEnabled: false,
+    priceAlerts: true,
+    indicatorAlerts: true,
+    newsAlerts: false,
+    newsDigest: false,
+}
+const NEWS_ALERT_BURST_WINDOW_MINUTES = 10
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null
@@ -219,6 +299,161 @@ function normalizeAlertRule(
             typeof raw.updatedAt === 'string'
                 ? raw.updatedAt
                 : new Date().toISOString(),
+    }
+}
+
+function normalizeNewsAlertSentiment(
+    value: unknown
+): NewsAlertSentiment | null {
+    if (typeof value !== 'string') {
+        return null
+    }
+
+    const normalized = value.trim().toUpperCase()
+    if (normalized === 'NÖTR') {
+        return 'NOTR'
+    }
+
+    return NEWS_ALERT_SENTIMENT_VALUES.has(normalized as NewsAlertSentiment)
+        ? (normalized as NewsAlertSentiment)
+        : null
+}
+
+function normalizeNewsAlertSentiments(value: unknown): NewsAlertSentiment[] {
+    if (!Array.isArray(value)) {
+        return []
+    }
+
+    const sentiments: NewsAlertSentiment[] = []
+    const seen = new Set<NewsAlertSentiment>()
+
+    value.forEach((item) => {
+        const normalized = normalizeNewsAlertSentiment(item)
+        if (!normalized || seen.has(normalized)) {
+            return
+        }
+
+        seen.add(normalized)
+        sentiments.push(normalized)
+    })
+
+    return sentiments
+}
+
+function normalizeNewsAlertRule(
+    snapshot: QueryDocumentSnapshot
+): WatchlistNewsAlertRuleDocument | null {
+    const raw = snapshot.data()
+    if (!isRecord(raw)) {
+        return null
+    }
+
+    const sentiments = normalizeNewsAlertSentiments(raw.sentiments)
+    if (sentiments.length === 0) {
+        return null
+    }
+
+    const nowIso = new Date().toISOString()
+
+    return {
+        status: raw.status === 'paused' ? 'paused' : 'active',
+        scopeType: raw.scopeType === 'watchlist' ? 'watchlist' : 'watchlist',
+        sentiments,
+        burstWindowMinutes:
+            typeof raw.burstWindowMinutes === 'number' &&
+            Number.isFinite(raw.burstWindowMinutes) &&
+            raw.burstWindowMinutes > 0
+                ? raw.burstWindowMinutes
+                : NEWS_ALERT_BURST_WINDOW_MINUTES,
+        lastCheckedAt:
+            typeof raw.lastCheckedAt === 'string' ? raw.lastCheckedAt : null,
+        lastTriggeredAt:
+            typeof raw.lastTriggeredAt === 'string' ? raw.lastTriggeredAt : null,
+        lastEvaluatedAt:
+            typeof raw.lastEvaluatedAt === 'string'
+                ? raw.lastEvaluatedAt
+                : null,
+        createdAt:
+            typeof raw.createdAt === 'string' ? raw.createdAt : nowIso,
+        updatedAt:
+            typeof raw.updatedAt === 'string' ? raw.updatedAt : nowIso,
+    }
+}
+
+function normalizeNotificationPreferences(
+    value: unknown
+): NotificationPreferenceState {
+    if (!isRecord(value)) {
+        return DEFAULT_NOTIFICATION_PREFERENCES
+    }
+
+    return {
+        pushEnabled:
+            typeof value.pushEnabled === 'boolean'
+                ? value.pushEnabled
+                : DEFAULT_NOTIFICATION_PREFERENCES.pushEnabled,
+        priceAlerts:
+            typeof value.priceAlerts === 'boolean'
+                ? value.priceAlerts
+                : DEFAULT_NOTIFICATION_PREFERENCES.priceAlerts,
+        indicatorAlerts:
+            typeof value.indicatorAlerts === 'boolean'
+                ? value.indicatorAlerts
+                : DEFAULT_NOTIFICATION_PREFERENCES.indicatorAlerts,
+        newsAlerts:
+            typeof value.newsAlerts === 'boolean'
+                ? value.newsAlerts
+                : DEFAULT_NOTIFICATION_PREFERENCES.newsAlerts,
+        newsDigest:
+            typeof value.newsDigest === 'boolean'
+                ? value.newsDigest
+                : DEFAULT_NOTIFICATION_PREFERENCES.newsDigest,
+    }
+}
+
+function normalizeWatchlistState(value: unknown): UserWatchlistState {
+    if (!isRecord(value) || !Array.isArray(value.tickers)) {
+        return { tickers: [] }
+    }
+
+    const tickers: string[] = []
+    const seen = new Set<string>()
+
+    value.tickers.forEach((item) => {
+        if (typeof item !== 'string') {
+            return
+        }
+
+        const ticker = item.trim().toUpperCase()
+        if (!ticker || seen.has(ticker)) {
+            return
+        }
+
+        seen.add(ticker)
+        tickers.push(ticker)
+    })
+
+    return { tickers }
+}
+
+async function getUserRuntimeState(userId: string): Promise<UserRuntimeState> {
+    const userSnapshot = await db.collection('users').doc(userId).get()
+    const data = userSnapshot.data()
+
+    if (!data || !isRecord(data)) {
+        return {
+            preferences: DEFAULT_NOTIFICATION_PREFERENCES,
+            watchlist: { tickers: [] },
+        }
+    }
+
+    const rawPreferences = isRecord(data.preferences) ? data.preferences : null
+
+    return {
+        preferences: normalizeNotificationPreferences(
+            rawPreferences?.notifications
+        ),
+        watchlist: normalizeWatchlistState(data.watchlist),
     }
 }
 
@@ -369,8 +604,16 @@ async function sendNotificationToDevices(
     userId: string,
     title: string,
     body: string,
-    payload: Record<string, string>
+    payload: Record<string, string>,
+    options?: {
+        pushEnabled?: boolean
+        url?: string
+    }
 ): Promise<number> {
+    if (options?.pushEnabled === false) {
+        return 0
+    }
+
     const devicesSnapshot = await db
         .collection('users')
         .doc(userId)
@@ -396,11 +639,11 @@ async function sendNotificationToDevices(
             ...payload,
             title,
             body,
-            url: '/notifications',
+            url: options?.url ?? '/notifications',
         },
         webpush: {
             fcmOptions: {
-                link: '/notifications',
+                link: options?.url ?? '/notifications',
             },
         },
     })
@@ -431,6 +674,116 @@ async function sendNotificationToDevices(
 
     await batch.commit()
     return response.successCount
+}
+
+function shouldEvaluateMarketRule(
+    rule: AlertRuleDocument,
+    preferences: NotificationPreferenceState
+): boolean {
+    if (buildNotificationKind(rule) === 'price') {
+        return preferences.priceAlerts
+    }
+
+    return preferences.indicatorAlerts
+}
+
+function floorWindowStart(date: Date, burstWindowMinutes: number): Date {
+    const next = new Date(date)
+    next.setUTCSeconds(0, 0)
+    const remainder = next.getUTCMinutes() % burstWindowMinutes
+    next.setUTCMinutes(next.getUTCMinutes() - remainder)
+    return next
+}
+
+function getNewsWindowBounds(
+    value: string | null,
+    burstWindowMinutes: number
+): { windowStart: string; windowEnd: string } {
+    const source = value ? new Date(value) : new Date()
+    const effective = Number.isNaN(source.getTime()) ? new Date() : source
+    const windowStart = floorWindowStart(effective, burstWindowMinutes)
+    const windowEnd = new Date(windowStart)
+    windowEnd.setUTCMinutes(windowEnd.getUTCMinutes() + burstWindowMinutes)
+
+    return {
+        windowStart: windowStart.toISOString(),
+        windowEnd: windowEnd.toISOString(),
+    }
+}
+
+function normalizeNewsApiSentiment(
+    value: string | null
+): NewsAlertSentiment | null {
+    return normalizeNewsAlertSentiment(value)
+}
+
+function buildNewsSummaryBody(matches: WatchlistNewsAlertMatchDocument[]): string {
+    const tickers = Array.from(
+        new Set(matches.map((item) => item.ticker).filter((item): item is string => Boolean(item)))
+    )
+    const titles = matches
+        .map((item) => item.title.trim())
+        .filter((item) => item.length > 0)
+
+    const tickerSummary =
+        tickers.length > 0
+            ? tickers.slice(0, 3).join(', ')
+            : 'Your watchlist'
+    const titleSummary = titles.slice(0, 2).join(' | ')
+
+    return titleSummary ? `${tickerSummary}: ${titleSummary}` : tickerSummary
+}
+
+function buildNewsNotificationRecord(
+    ruleId: string,
+    matches: Array<{ id: string; data: WatchlistNewsAlertMatchDocument }>,
+    createdAt: string
+): NotificationRecord {
+    const tickers = Array.from(
+        new Set(
+            matches
+                .map((match) => match.data.ticker)
+                .filter((ticker): ticker is string => Boolean(ticker))
+        )
+    )
+    const articleIds = matches.map((match) => match.id)
+    const firstWindow = matches[0]?.data
+    const count = matches.length
+
+    return {
+        kind: 'news',
+        title:
+            count === 1
+                ? '1 new watchlist news item'
+                : `${count} new watchlist news items`,
+        body: buildNewsSummaryBody(matches.map((match) => match.data)),
+        ticker: tickers[0] ?? null,
+        timeframe: null,
+        ruleId,
+        isRead: false,
+        createdAt,
+        readAt: null,
+        payload: {
+            articleIds,
+            tickers,
+            count,
+            windowStart: firstWindow?.windowStart ?? createdAt,
+            windowEnd: firstWindow?.windowEnd ?? createdAt,
+            kind: 'news',
+        },
+    }
+}
+
+function getNewsNotificationUrl(tickers: string[]): string {
+    if (tickers.length === 0) {
+        return '/news'
+    }
+
+    const params = new URLSearchParams({
+        symbols: tickers.join(','),
+    })
+
+    return `/news?${params.toString()}`
 }
 
 async function runScreenerScan(rule: AlertRuleDocument): Promise<ScreenerScanResponse> {
@@ -465,6 +818,71 @@ async function runScreenerScan(rule: AlertRuleDocument): Promise<ScreenerScanRes
     return (await response.json()) as ScreenerScanResponse
 }
 
+async function fetchNewsPage(params: {
+    symbols: string[]
+    publishedAfter?: string | null
+    page: number
+    limit: number
+}): Promise<NewsApiResponse> {
+    const baseUrl =
+        process.env.EVALON_SCREENER_API_URL || process.env.EVALON_API_BASE_URL
+
+    if (!baseUrl) {
+        throw new Error('EVALON_SCREENER_API_URL or EVALON_API_BASE_URL is required')
+    }
+
+    const url = new URL('/v1/news', baseUrl)
+    url.searchParams.set('symbols', params.symbols.join(','))
+    url.searchParams.set('limit', String(params.limit))
+    url.searchParams.set('page', String(params.page))
+
+    if (params.publishedAfter) {
+        url.searchParams.set('published_after', params.publishedAfter)
+    }
+
+    const response = await fetch(url.toString(), {
+        headers: {
+            Accept: 'application/json',
+        },
+    })
+
+    if (!response.ok) {
+        const detail = await response.text()
+        throw new Error(`News fetch failed (${response.status}): ${detail}`)
+    }
+
+    return (await response.json()) as NewsApiResponse
+}
+
+async function fetchNewsItems(params: {
+    symbols: string[]
+    publishedAfter?: string | null
+    limitPerPage?: number
+    maxPages?: number
+}): Promise<NewsApiItem[]> {
+    const limitPerPage = params.limitPerPage ?? 100
+    const maxPages = params.maxPages ?? 5
+    const items: NewsApiItem[] = []
+
+    for (let page = 1; page <= maxPages; page += 1) {
+        const response = await fetchNewsPage({
+            symbols: params.symbols,
+            publishedAfter: params.publishedAfter,
+            page,
+            limit: limitPerPage,
+        })
+
+        const pageItems = Array.isArray(response.items) ? response.items : []
+        items.push(...pageItems)
+
+        if (pageItems.length < limitPerPage) {
+            break
+        }
+    }
+
+    return items
+}
+
 async function evaluateRuleSnapshot(snapshot: QueryDocumentSnapshot): Promise<void> {
     const rule = normalizeAlertRule(snapshot)
     if (!rule || rule.status !== 'active') {
@@ -479,6 +897,19 @@ async function evaluateRuleSnapshot(snapshot: QueryDocumentSnapshot): Promise<vo
     const nowIso = new Date().toISOString()
 
     try {
+        const userState = await getUserRuntimeState(userId)
+        if (!shouldEvaluateMarketRule(rule, userState.preferences)) {
+            await snapshot.ref.set(
+                {
+                    lastEvaluatedAt: nowIso,
+                    nextEvaluationAt: getNextEvaluationAt(rule.filters, rule.timeframe),
+                    updatedAt: nowIso,
+                },
+                { merge: true }
+            )
+            return
+        }
+
         const response = await runScreenerScan(rule)
         const matchedRow = (response.rows || []).find(
             (row) => row.ticker === rule.ticker
@@ -513,6 +944,9 @@ async function evaluateRuleSnapshot(snapshot: QueryDocumentSnapshot): Promise<vo
                 timeframe: rule.timeframe,
                 ruleId: snapshot.id,
                 kind,
+            }, {
+                pushEnabled: userState.preferences.pushEnabled,
+                url: '/notifications',
             })
 
             await snapshot.ref.set(
@@ -552,6 +986,175 @@ async function evaluateRuleSnapshot(snapshot: QueryDocumentSnapshot): Promise<vo
             {
                 lastEvaluatedAt: nowIso,
                 nextEvaluationAt: getNextEvaluationAt(rule.filters, rule.timeframe),
+                updatedAt: nowIso,
+            },
+            { merge: true }
+        )
+    }
+}
+
+async function evaluateNewsRuleSnapshot(
+    snapshot: QueryDocumentSnapshot
+): Promise<void> {
+    const rule = normalizeNewsAlertRule(snapshot)
+    if (!rule || rule.status !== 'active') {
+        return
+    }
+
+    const userId = snapshot.ref.parent.parent?.id
+    if (!userId) {
+        return
+    }
+
+    const nowIso = new Date().toISOString()
+
+    try {
+        const userState = await getUserRuntimeState(userId)
+        const watchlistTickers = userState.watchlist.tickers
+
+        if (!userState.preferences.newsAlerts || watchlistTickers.length === 0) {
+            await snapshot.ref.set(
+                {
+                    lastCheckedAt: nowIso,
+                    lastEvaluatedAt: nowIso,
+                    updatedAt: nowIso,
+                },
+                { merge: true }
+            )
+            return
+        }
+
+        const items = await fetchNewsItems({
+            symbols: watchlistTickers,
+            publishedAfter: rule.lastCheckedAt,
+        })
+
+        for (const item of items) {
+            const sentiment = normalizeNewsApiSentiment(item.sentiment)
+            if (!sentiment || !rule.sentiments.includes(sentiment)) {
+                continue
+            }
+
+            const articleId = String(item.id)
+            const matchRef = snapshot.ref.collection('matches').doc(articleId)
+            const existingMatch = await matchRef.get()
+
+            if (existingMatch.exists) {
+                continue
+            }
+
+            const bounds = getNewsWindowBounds(
+                item.published_at,
+                rule.burstWindowMinutes
+            )
+
+            await matchRef.set({
+                ticker: item.symbol ? item.symbol.trim().toUpperCase() : null,
+                title: item.title || 'Watchlist news item',
+                sentiment,
+                publishedAt: item.published_at,
+                windowStart: bounds.windowStart,
+                windowEnd: bounds.windowEnd,
+                status: 'pending',
+                deliveredAt: null,
+            } satisfies WatchlistNewsAlertMatchDocument)
+        }
+
+        const pendingSnapshot = await snapshot.ref
+            .collection('matches')
+            .where('status', '==', 'pending')
+            .where('windowEnd', '<=', nowIso)
+            .orderBy('windowEnd', 'asc')
+            .get()
+
+        const groupedMatches = new Map<
+            string,
+            Array<{ id: string; data: WatchlistNewsAlertMatchDocument }>
+        >()
+
+        pendingSnapshot.docs.forEach((pendingDoc) => {
+            const data = pendingDoc.data() as WatchlistNewsAlertMatchDocument
+            const groupKey = `${data.windowStart}::${data.windowEnd}`
+            const current = groupedMatches.get(groupKey) ?? []
+            current.push({
+                id: pendingDoc.id,
+                data,
+            })
+            groupedMatches.set(groupKey, current)
+        })
+
+        let lastTriggeredAt = rule.lastTriggeredAt
+
+        for (const [, matches] of groupedMatches) {
+            if (matches.length === 0) {
+                continue
+            }
+
+            const notification = buildNewsNotificationRecord(
+                snapshot.id,
+                matches,
+                nowIso
+            )
+            const tickers = Array.from(
+                new Set(
+                    matches
+                        .map((match) => match.data.ticker)
+                        .filter((ticker): ticker is string => Boolean(ticker))
+                )
+            )
+
+            await writeNotification(userId, notification)
+            await sendNotificationToDevices(
+                userId,
+                notification.title,
+                notification.body,
+                {
+                    kind: 'news',
+                    ruleId: snapshot.id,
+                    count: String(matches.length),
+                    tickers: tickers.join(','),
+                },
+                {
+                    pushEnabled: userState.preferences.pushEnabled,
+                    url: getNewsNotificationUrl(tickers),
+                }
+            )
+
+            const batch = db.batch()
+            matches.forEach((match) => {
+                batch.set(
+                    snapshot.ref.collection('matches').doc(match.id),
+                    {
+                        status: 'delivered',
+                        deliveredAt: nowIso,
+                    },
+                    { merge: true }
+                )
+            })
+            await batch.commit()
+            lastTriggeredAt = nowIso
+        }
+
+        await snapshot.ref.set(
+            {
+                lastCheckedAt: nowIso,
+                lastTriggeredAt,
+                lastEvaluatedAt: nowIso,
+                updatedAt: nowIso,
+            },
+            { merge: true }
+        )
+    } catch (error) {
+        logger.error('News alert rule evaluation failed', {
+            ruleId: snapshot.id,
+            userId,
+            error: error instanceof Error ? error.message : String(error),
+        })
+
+        await snapshot.ref.set(
+            {
+                lastCheckedAt: nowIso,
+                lastEvaluatedAt: nowIso,
                 updatedAt: nowIso,
             },
             { merge: true }
@@ -682,6 +1285,24 @@ export const evaluateAlertRules = onSchedule(
 
         for (const ruleSnapshot of snapshot.docs) {
             await evaluateRuleSnapshot(ruleSnapshot)
+        }
+    }
+)
+
+export const evaluateNewsAlertRules = onSchedule(
+    {
+        schedule: '* * * * *',
+        timeZone: 'UTC',
+    },
+    async () => {
+        const snapshot = await db
+            .collectionGroup('news_alert_rules')
+            .where('status', '==', 'active')
+            .limit(100)
+            .get()
+
+        for (const ruleSnapshot of snapshot.docs) {
+            await evaluateNewsRuleSnapshot(ruleSnapshot)
         }
     }
 )

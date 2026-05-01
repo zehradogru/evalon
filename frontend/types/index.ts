@@ -913,11 +913,21 @@ export type UserAlertStatus = 'active' | 'triggered'
 
 export type AlertRuleStatus = 'active' | 'paused'
 export type NotificationKind = 'price' | 'indicator' | 'system' | 'news'
+export type NotificationKindFilter = 'all' | NotificationKind
 export type NotificationDevicePermission =
     | 'default'
     | 'denied'
     | 'granted'
     | 'unsupported'
+export type NewsAlertScopeType = 'watchlist'
+export type NewsAlertSentiment = 'OLUMLU' | 'OLUMSUZ' | 'NOTR'
+export type NewsAlertMatchStatus = 'pending' | 'delivered'
+export type NotificationPayloadValue =
+    | string
+    | number
+    | boolean
+    | null
+    | string[]
 
 export interface UserAlert {
     id: string
@@ -944,6 +954,31 @@ export interface AlertRule {
     updatedAt: string
 }
 
+export interface WatchlistNewsAlertRule {
+    id: string
+    status: AlertRuleStatus
+    scopeType: NewsAlertScopeType
+    sentiments: NewsAlertSentiment[]
+    burstWindowMinutes: 10
+    lastCheckedAt: string | null
+    lastTriggeredAt: string | null
+    lastEvaluatedAt: string | null
+    createdAt: string
+    updatedAt: string
+}
+
+export interface WatchlistNewsAlertMatch {
+    id: string
+    ticker: string | null
+    title: string
+    sentiment: NewsAlertSentiment | null
+    publishedAt: string | null
+    windowStart: string
+    windowEnd: string
+    status: NewsAlertMatchStatus
+    deliveredAt: string | null
+}
+
 export interface UserNotification {
     id: string
     kind: NotificationKind
@@ -955,7 +990,7 @@ export interface UserNotification {
     isRead: boolean
     createdAt: string
     readAt: string | null
-    payload: Record<string, string | number | boolean | null> | null
+    payload: Record<string, NotificationPayloadValue> | null
 }
 
 export interface NotificationDevice {

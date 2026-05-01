@@ -56,6 +56,9 @@ function SettingsForm({
     const [indicatorAlerts, setIndicatorAlerts] = useState(
         initialPreferences.notifications.indicatorAlerts
     )
+    const [newsAlerts, setNewsAlerts] = useState(
+        initialPreferences.notifications.newsAlerts
+    )
     const [newsDigest, setNewsDigest] = useState(
         initialPreferences.notifications.newsDigest
     )
@@ -74,6 +77,7 @@ function SettingsForm({
         pushEnabled !== initialPreferences.notifications.pushEnabled ||
         priceAlerts !== initialPreferences.notifications.priceAlerts ||
         indicatorAlerts !== initialPreferences.notifications.indicatorAlerts ||
+        newsAlerts !== initialPreferences.notifications.newsAlerts ||
         newsDigest !== initialPreferences.notifications.newsDigest
 
     const handleSaveSettings = async () => {
@@ -87,6 +91,7 @@ function SettingsForm({
                     pushEnabled,
                     priceAlerts,
                     indicatorAlerts,
+                    newsAlerts,
                     newsDigest,
                 },
             })
@@ -237,6 +242,21 @@ function SettingsForm({
                             <Switch
                                 checked={indicatorAlerts}
                                 onCheckedChange={setIndicatorAlerts}
+                                disabled={controlsDisabled}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label>Watchlist News Alerts</Label>
+                                {!isWidget && (
+                                    <div className="text-sm text-muted-foreground">
+                                        Deliver grouped watchlist news notifications to inbox and browser push
+                                    </div>
+                                )}
+                            </div>
+                            <Switch
+                                checked={newsAlerts}
+                                onCheckedChange={setNewsAlerts}
                                 disabled={controlsDisabled}
                             />
                         </div>

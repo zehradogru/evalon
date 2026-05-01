@@ -264,6 +264,14 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      match /news_alert_rules/{ruleId} {
+        allow read, write: if isOwner(userId);
+
+        match /matches/{matchId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+
       match /notifications/{notificationId} {
         allow read, write: if isOwner(userId);
       }

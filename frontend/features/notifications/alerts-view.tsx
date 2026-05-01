@@ -26,6 +26,14 @@ import {
     useUpdateAlertRule,
 } from '@/hooks/use-alert-rules'
 import {
+    useCreateNewsAlertRule,
+    useDeleteNewsAlertRule,
+    useNewsAlertRules,
+    useSetNewsAlertRuleStatus,
+    useUpdateNewsAlertRule,
+} from '@/hooks/use-news-alert-rules'
+import { useUserWatchlist } from '@/hooks/use-user-watchlist'
+import {
     ALERT_RULE_MAX_FILTERS,
     describeAlertRuleFilters,
     getAlertRuleCadence,
@@ -33,7 +41,11 @@ import {
 } from '@/lib/notification-rules'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/use-auth-store'
-import type { AlertRule } from '@/types'
+import type {
+    AlertRule,
+    NewsAlertSentiment,
+    WatchlistNewsAlertRule,
+} from '@/types'
 import type {
     FilterLogic,
     ScreenerFilter,
@@ -45,6 +57,30 @@ import { SCREENER_TIMEFRAMES } from '@/types/screener'
 export interface AlertsViewProps {
     isWidget?: boolean
 }
+
+const NEWS_SENTIMENT_OPTIONS: Array<{
+    value: NewsAlertSentiment
+    label: string
+    description: string
+}> = [
+    {
+        value: 'OLUMLU',
+        label: 'Positive',
+        description: 'Highlights optimistic watchlist coverage.',
+    },
+    {
+        value: 'OLUMSUZ',
+        label: 'Negative',
+        description: 'Catches risk-heavy watchlist headlines.',
+    },
+    {
+        value: 'NOTR',
+        label: 'Neutral',
+        description: 'Includes low-signal or mixed sentiment items.',
+    },
+]
+
+const DEFAULT_NEWS_SENTIMENTS: NewsAlertSentiment[] = ['OLUMLU', 'OLUMSUZ']
 
 interface AlertRuleFormState {
     ticker: string
@@ -92,12 +128,37 @@ function buildFormFromRule(rule: AlertRule): AlertRuleFormState {
     }
 }
 
+function formatSentiments(sentiments: NewsAlertSentiment[]): string {
+    return sentiments
+        .map((sentiment) =>
+            NEWS_SENTIMENT_OPTIONS.find((option) => option.value === sentiment)?.label ??
+            sentiment
+        )
+        .join(', ')
+}
+
+function describeWatchlistCoverage(tickers: string[]): string {
+    if (tickers.length === 0) {
+        return 'No watchlist tickers configured.'
+    }
+
+    if (tickers.length <= 4) {
+        return tickers.join(', ')
+    }
+
+    return `${tickers.slice(0, 4).join(', ')} +${tickers.length - 4} more`
+}
+
 function AlertsPreview({
     rules,
+    newsRule,
+    watchlistTickers,
     isLoading,
     isError,
 }: {
     rules: AlertRule[]
+    newsRule: WatchlistNewsAlertRule | null
+    watchlistTickers: string[]
     isLoading: boolean
     isError: boolean
 }) {
@@ -112,7 +173,9 @@ function AlertsPreview({
                         Alert Rules
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                        {rules.filter((rule) => rule.status === 'active').length} active
+                        {rules.filter((rule) => rule.status === 'active').length +
+                            (newsRule?.status === 'active' ? 1 : 0)}{' '}
+                        active
                     </p>
                 </div>
                 <Button asChild variant="ghost" size="sm" className="gap-1 text-xs">
@@ -132,7 +195,7 @@ function AlertsPreview({
                     <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
                         Alert rules could not be loaded.
                     </div>
-                ) : previewRules.length === 0 ? (
+                ) : previewRules.length === 0 && !newsRule ? (
                     <div className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
                         No rules yet. Open the full page to create your first alert rule.
                     </div>
@@ -179,6 +242,37 @@ function AlertsPreview({
                                 </div>
                             )
                         })}
+                        {newsRule ? (
+                            <div className="rounded-xl border border-border bg-card p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        <span className="truncate text-sm font-semibold">
+                                            Watchlist News
+                                        </span>
+                                        <Badge
+                                            variant="outline"
+                                            className={cn(
+                                                'text-[10px]',
+                                                newsRule.status === 'active'
+                                                    ? 'border-primary/30 text-primary'
+                                                    : 'border-muted text-muted-foreground'
+                                            )}
+                                        >
+                                            {newsRule.status}
+                                        </Badge>
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground">
+                                        {newsRule.burstWindowMinutes}m burst
+                                    </span>
+                                </div>
+                                <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                                    {formatSentiments(newsRule.sentiments)}
+                                </p>
+                                <p className="mt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                    {describeWatchlistCoverage(watchlistTickers)}
+                                </p>
+                            </div>
+                        ) : null}
                     </div>
                 )}
             </div>
@@ -189,24 +283,53 @@ function AlertsPreview({
 export function AlertsView({ isWidget = false }: AlertsViewProps) {
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
     const { data: rules = [], isLoading, isError } = useAlertRules()
+    const {
+        data: newsRules = [],
+        isLoading: isLoadingNewsRules,
+        isError: isNewsRulesError,
+    } = useNewsAlertRules()
+    const { data: watchlist } = useUserWatchlist()
     const createRuleMutation = useCreateAlertRule()
     const updateRuleMutation = useUpdateAlertRule()
     const deleteRuleMutation = useDeleteAlertRule()
     const setRuleStatusMutation = useSetAlertRuleStatus()
+    const createNewsRuleMutation = useCreateNewsAlertRule()
+    const updateNewsRuleMutation = useUpdateNewsAlertRule()
+    const deleteNewsRuleMutation = useDeleteNewsAlertRule()
+    const setNewsRuleStatusMutation = useSetNewsAlertRuleStatus()
 
     const [form, setForm] = useState<AlertRuleFormState>(DEFAULT_RULE_FORM)
     const [editingRuleId, setEditingRuleId] = useState<string | null>(null)
     const [feedback, setFeedback] = useState<string | null>(null)
+    const [newsSentimentsDraft, setNewsSentimentsDraft] = useState<
+        NewsAlertSentiment[] | null
+    >(null)
+    const [newsFeedback, setNewsFeedback] = useState<string | null>(null)
 
     const isBusy =
         createRuleMutation.isPending ||
         updateRuleMutation.isPending ||
         deleteRuleMutation.isPending ||
         setRuleStatusMutation.isPending
+    const isNewsBusy =
+        createNewsRuleMutation.isPending ||
+        updateNewsRuleMutation.isPending ||
+        deleteNewsRuleMutation.isPending ||
+        setNewsRuleStatusMutation.isPending
+    const watchlistTickers = watchlist?.tickers ?? []
+    const currentNewsRule = newsRules[0] ?? null
+    const newsSentiments =
+        newsSentimentsDraft ??
+        currentNewsRule?.sentiments ??
+        DEFAULT_NEWS_SENTIMENTS
 
     const activeRules = useMemo(
         () => rules.filter((rule) => rule.status === 'active'),
         [rules]
+    )
+    const activeNewsRules = useMemo(
+        () => newsRules.filter((rule) => rule.status === 'active'),
+        [newsRules]
     )
 
     const handleSaveRule = async () => {
@@ -280,6 +403,86 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
         }
     }
 
+    const handleToggleNewsSentiment = (sentiment: NewsAlertSentiment) => {
+        setNewsFeedback(null)
+        setNewsSentimentsDraft((currentDraft) => {
+            const current = currentDraft ?? newsSentiments
+            return current.includes(sentiment)
+                ? current.filter((item) => item !== sentiment)
+                : [...current, sentiment]
+        })
+    }
+
+    const resetNewsDraft = () => {
+        setNewsSentimentsDraft(null)
+    }
+
+    const handleSaveNewsRule = async () => {
+        setNewsFeedback(null)
+
+        try {
+            if (currentNewsRule) {
+                await updateNewsRuleMutation.mutateAsync({
+                    ruleId: currentNewsRule.id,
+                    payload: { sentiments: newsSentiments },
+                })
+                resetNewsDraft()
+                return
+            }
+
+            await createNewsRuleMutation.mutateAsync({
+                sentiments: newsSentiments,
+            })
+            resetNewsDraft()
+        } catch (error) {
+            setNewsFeedback(
+                error instanceof Error
+                    ? error.message
+                    : 'News rule could not be saved.'
+            )
+        }
+    }
+
+    const handleDeleteNewsRule = async () => {
+        if (!currentNewsRule) {
+            return
+        }
+
+        setNewsFeedback(null)
+        try {
+            await deleteNewsRuleMutation.mutateAsync(currentNewsRule.id)
+            resetNewsDraft()
+        } catch (error) {
+            setNewsFeedback(
+                error instanceof Error
+                    ? error.message
+                    : 'News rule could not be deleted.'
+            )
+        }
+    }
+
+    const handleToggleNewsRuleStatus = async () => {
+        if (!currentNewsRule) {
+            return
+        }
+
+        setNewsFeedback(null)
+        try {
+            await setNewsRuleStatusMutation.mutateAsync({
+                ruleId: currentNewsRule.id,
+                status:
+                    currentNewsRule.status === 'active' ? 'paused' : 'active',
+            })
+            resetNewsDraft()
+        } catch (error) {
+            setNewsFeedback(
+                error instanceof Error
+                    ? error.message
+                    : 'News rule status could not be updated.'
+            )
+        }
+    }
+
     if (!isAuthenticated) {
         return (
             <div className={cn('flex h-full items-center justify-center', !isWidget && 'p-6')}>
@@ -297,8 +500,10 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
         return (
             <AlertsPreview
                 rules={rules}
-                isLoading={isLoading}
-                isError={isError}
+                newsRule={currentNewsRule}
+                watchlistTickers={watchlistTickers}
+                isLoading={isLoading || isLoadingNewsRules}
+                isError={isError || isNewsRulesError}
             />
         )
     }
@@ -308,12 +513,207 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold tracking-tight">Alert Rules</h1>
                 <p className="text-muted-foreground">
-                    Create ticker-based price and indicator rules, then deliver matches to the notification center.
+                    Manage ticker-based market rules and grouped watchlist news alerts from one place.
                 </p>
             </div>
 
             <Card className="border-border bg-card p-5">
+                <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <div>
+                            <h2 className="text-lg font-semibold">Watchlist News Rule</h2>
+                            <p className="text-sm text-muted-foreground">
+                                Group watchlist news into 10-minute bursts and deliver them to inbox plus browser push.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                                {watchlistTickers.length} watchlist tickers
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                                {activeNewsRules.length} active
+                            </Badge>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+                        <div className="rounded-2xl border border-border bg-background/40 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <h3 className="text-sm font-semibold">
+                                        Sentiment Filters
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        Choose which watchlist headlines should open a grouped burst.
+                                    </p>
+                                </div>
+                                <Badge variant="outline" className="text-xs">
+                                    Fixed 10m burst
+                                </Badge>
+                            </div>
+
+                            <div className="mt-4 grid gap-3 md:grid-cols-3">
+                                {NEWS_SENTIMENT_OPTIONS.map((option) => {
+                                    const isSelected = newsSentiments.includes(option.value)
+
+                                    return (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() =>
+                                                handleToggleNewsSentiment(option.value)
+                                            }
+                                            disabled={isNewsBusy}
+                                            className={cn(
+                                                'rounded-2xl border p-4 text-left transition-colors',
+                                                isSelected
+                                                    ? 'border-primary/40 bg-primary/10'
+                                                    : 'border-border bg-card hover:border-primary/20'
+                                            )}
+                                        >
+                                            <p className="text-sm font-semibold">
+                                                {option.label}
+                                            </p>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                {option.description}
+                                            </p>
+                                        </button>
+                                    )
+                                })}
+                            </div>
+
+                            {newsFeedback ? (
+                                <p className="mt-4 text-sm text-destructive">
+                                    {newsFeedback}
+                                </p>
+                            ) : null}
+
+                            {watchlistTickers.length === 0 ? (
+                                <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+                                    Add tickers to the watchlist before enabling watchlist news alerts.
+                                </div>
+                            ) : null}
+
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                                <p className="text-xs text-muted-foreground">
+                                    {currentNewsRule
+                                        ? 'Updating the news rule keeps article dedupe state intact.'
+                                        : 'Only one watchlist news rule is supported in this version.'}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Button
+                                        onClick={handleSaveNewsRule}
+                                        disabled={isNewsBusy || watchlistTickers.length === 0}
+                                    >
+                                        {isNewsBusy ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : currentNewsRule ? (
+                                            'Update News Rule'
+                                        ) : (
+                                            <>
+                                                <Plus className="h-4 w-4" />
+                                                Create News Rule
+                                            </>
+                                        )}
+                                    </Button>
+                                    {currentNewsRule ? (
+                                        <Button
+                                            variant="outline"
+                                            onClick={handleToggleNewsRuleStatus}
+                                            disabled={isNewsBusy}
+                                        >
+                                            {currentNewsRule.status === 'active' ? (
+                                                <>
+                                                    <Pause className="h-4 w-4" />
+                                                    Pause
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Play className="h-4 w-4" />
+                                                    Resume
+                                                </>
+                                            )}
+                                        </Button>
+                                    ) : null}
+                                    {currentNewsRule ? (
+                                        <Button
+                                            variant="ghost"
+                                            className="text-destructive hover:text-destructive"
+                                            onClick={handleDeleteNewsRule}
+                                            disabled={isNewsBusy}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                            Delete
+                                        </Button>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-border bg-background/40 p-4">
+                            <h3 className="text-sm font-semibold">Rule Summary</h3>
+                            {isLoadingNewsRules ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                </div>
+                            ) : isNewsRulesError ? (
+                                <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                                    News rule could not be loaded.
+                                </div>
+                            ) : currentNewsRule ? (
+                                <div className="mt-4 space-y-3 text-sm">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-muted-foreground">Status</span>
+                                        <Badge
+                                            variant="outline"
+                                            className={cn(
+                                                currentNewsRule.status === 'active'
+                                                    ? 'border-primary/30 text-primary'
+                                                    : 'border-muted text-muted-foreground'
+                                            )}
+                                        >
+                                            {currentNewsRule.status}
+                                        </Badge>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-muted-foreground">Sentiments</span>
+                                        <span>{formatSentiments(currentNewsRule.sentiments)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-muted-foreground">Watchlist</span>
+                                        <span>{watchlistTickers.length} tickers</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-muted-foreground">Last check</span>
+                                        <span>{formatDateTime(currentNewsRule.lastCheckedAt)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-muted-foreground">Last trigger</span>
+                                        <span>{formatDateTime(currentNewsRule.lastTriggeredAt)}</span>
+                                    </div>
+                                    <div className="rounded-xl border border-border bg-card p-3 text-xs text-muted-foreground">
+                                        {describeWatchlistCoverage(watchlistTickers)}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="mt-4 rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                                    No watchlist news rule created yet.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </Card>
+
+            <Card className="border-border bg-card p-5">
                 <div className="flex flex-col gap-4">
+                    <div>
+                        <h2 className="text-lg font-semibold">Market Rules</h2>
+                        <p className="text-sm text-muted-foreground">
+                            Create ticker-based price and indicator rules, then deliver matches to the notification center.
+                        </p>
+                    </div>
+
                     <div className="flex flex-col gap-2 md:flex-row md:items-end">
                         <label className="flex flex-1 flex-col gap-2">
                             <span className="text-sm font-medium">Ticker</span>

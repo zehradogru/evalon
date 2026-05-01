@@ -15,6 +15,7 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAlertRules } from '@/hooks/use-alert-rules';
+import { useNewsAlertRules } from '@/hooks/use-news-alert-rules';
 import { useUnreadNotificationsCount } from '@/hooks/use-notifications';
 import { cn } from '@/lib/utils';
 
@@ -37,8 +38,11 @@ interface SidebarProps {
 export function Sidebar({ activePanel, onTogglePanel }: SidebarProps) {
     const pathname = usePathname();
     const { data: alertRules = [] } = useAlertRules();
+    const { data: newsAlertRules = [] } = useNewsAlertRules();
     const { data: unreadNotifications = 0 } = useUnreadNotificationsCount();
-    const activeAlertCount = alertRules.filter((rule) => rule.status === 'active').length;
+    const activeAlertCount =
+        alertRules.filter((rule) => rule.status === 'active').length +
+        newsAlertRules.filter((rule) => rule.status === 'active').length;
 
     const handleToolClick = (e: React.MouseEvent, tool: typeof tools[0]) => {
         if (tool.isWidget && onTogglePanel) {

@@ -20,6 +20,7 @@ import {
 } from '@/lib/notification-firestore'
 import type {
     NotificationCursor,
+    NotificationKindFilter,
     NotificationKind,
     NotificationPage,
     UserNotification,
@@ -29,6 +30,7 @@ export type NotificationListFilter = 'all' | 'unread'
 
 export interface GetNotificationsPageOptions {
     filter: NotificationListFilter
+    kind: NotificationKindFilter
     cursor?: NotificationCursor | null
     limit?: number
 }
@@ -67,9 +69,32 @@ function normalizeNotification(
     }
 
     const payload =
-        isRecord(rawValue.payload) || rawValue.payload === null
-            ? (rawValue.payload as UserNotification['payload'])
-            : null
+        rawValue.payload === null
+            ? null
+            : isRecord(rawValue.payload)
+              ? Object.entries(rawValue.payload).reduce<
+                  NonNullable<UserNotification['payload']>
+              >((accumulator, [key, value]) => {
+                  if (
+                      typeof value === 'string' ||
+                      typeof value === 'number' ||
+                      typeof value === 'boolean' ||
+                      value === null
+                  ) {
+                      accumulator[key] = value
+                      return accumulator
+                  }
+
+                  if (
+                      Array.isArray(value) &&
+                      value.every((item) => typeof item === 'string')
+                  ) {
+                      accumulator[key] = value
+                  }
+
+                  return accumulator
+              }, {})
+              : null
 
     return {
         id: notificationId,
@@ -95,12 +120,14 @@ function normalizeNotification(
 export const notificationsService = {
     async getPage({
         filter,
+        kind,
         cursor = null,
         limit: pageSize = 25,
     }: GetNotificationsPageOptions): Promise<NotificationPage> {
         const firebaseUser = ensureCurrentUser()
         const baseConstraints = [
             ...(filter === 'unread' ? [where('isRead', '==', false)] : []),
+            ...(kind !== 'all' ? [where('kind', '==', kind)] : []),
             orderBy('createdAt', 'desc'),
             limit(pageSize + 1),
         ] as const

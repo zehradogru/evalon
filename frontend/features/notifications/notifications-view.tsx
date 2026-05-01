@@ -40,6 +40,7 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/use-auth-store'
 import type {
     NotificationDevicePermission,
+    NotificationKindFilter,
     NotificationKind,
     UserNotification,
 } from '@/types'
@@ -90,6 +91,34 @@ function getPermissionLabel(permission: NotificationDevicePermission) {
         default:
             return 'Not requested'
     }
+}
+
+function getNotificationLink(notification: UserNotification): string | null {
+    if (notification.kind === 'news') {
+        const tickers = notification.payload?.tickers
+        if (Array.isArray(tickers) && tickers.length > 0) {
+            const params = new URLSearchParams({
+                symbols: tickers.join(','),
+            })
+            return `/news?${params.toString()}`
+        }
+
+        return '/news'
+    }
+
+    if (notification.ticker) {
+        return `/markets/${notification.ticker}`
+    }
+
+    if (notification.ruleId) {
+        return `/alerts#rule-${notification.ruleId}`
+    }
+
+    return null
+}
+
+function getNotificationLinkLabel(notification: UserNotification): string {
+    return notification.kind === 'news' ? 'News' : notification.ticker ?? 'Rule'
 }
 
 function NotificationList({
@@ -144,16 +173,16 @@ function NotificationList({
 
                             <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
                                 <span>{formatDateTime(notification.createdAt)}</span>
-                                {notification.ticker ? (
+                                {getNotificationLink(notification) ? (
                                     <Link
-                                        href={`/markets/${notification.ticker}`}
+                                        href={getNotificationLink(notification) as string}
                                         className="inline-flex items-center gap-1 text-primary hover:underline"
                                     >
-                                        {notification.ticker}
+                                        {getNotificationLinkLabel(notification)}
                                         <ExternalLink size={12} />
                                     </Link>
                                 ) : null}
-                                {notification.ruleId ? (
+                                {notification.kind !== 'news' && notification.ruleId ? (
                                     <Link
                                         href={`/alerts#rule-${notification.ruleId}`}
                                         className="inline-flex items-center gap-1 text-primary hover:underline"
@@ -164,6 +193,12 @@ function NotificationList({
                                 ) : null}
                                 {notification.timeframe ? (
                                     <span>{notification.timeframe}</span>
+                                ) : null}
+                                {notification.kind === 'news' &&
+                                Array.isArray(notification.payload?.tickers) ? (
+                                    <span>
+                                        {(notification.payload.tickers as string[]).join(', ')}
+                                    </span>
                                 ) : null}
                             </div>
                         </div>
@@ -187,7 +222,7 @@ function NotificationList({
 
 function NotificationsPreview() {
     const unreadCountQuery = useUnreadNotificationsCount()
-    const unreadQuery = useNotifications('unread', 5)
+    const unreadQuery = useNotifications('unread', 'all', 5)
     const items = unreadQuery.data?.pages.flatMap((page) => page.items) ?? []
 
     return (
@@ -253,9 +288,10 @@ export function NotificationsView({ isWidget = false }: NotificationsViewProps) 
     const { data: profile } = useProfile()
     const { toast } = useToast()
     const [tab, setTab] = useState<'unread' | 'all'>('unread')
+    const [kindFilter, setKindFilter] = useState<NotificationKindFilter>('all')
     const [permission, setPermission] = useState<NotificationDevicePermission>('default')
 
-    const notificationsQuery = useNotifications(tab, 25)
+    const notificationsQuery = useNotifications(tab, kindFilter, 25)
     const unreadCountQuery = useUnreadNotificationsCount()
     const markAsReadMutation = useMarkNotificationAsRead()
     const markAllAsReadMutation = useMarkAllNotificationsAsRead()
@@ -469,6 +505,14 @@ export function NotificationsView({ isWidget = false }: NotificationsViewProps) 
                                     : 'Disabled'}
                             </span>
                         </p>
+                        <p>
+                            News alerts:{' '}
+                            <span className="font-medium text-foreground">
+                                {profile?.preferences.notifications.newsAlerts
+                                    ? 'Enabled'
+                                    : 'Disabled'}
+                            </span>
+                        </p>
                         {permission === 'denied' ? (
                             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200">
                                 Browser permission is denied. Re-enable notifications from browser site settings.
@@ -490,7 +534,10 @@ export function NotificationsView({ isWidget = false }: NotificationsViewProps) 
 
             <Card className="border-border bg-card p-5">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <Tabs defaultValue="unread" onValueChange={(value) => setTab(value as 'unread' | 'all')}>
+                    <Tabs
+                        defaultValue="unread"
+                        onValueChange={(value) => setTab(value as 'unread' | 'all')}
+                    >
                         <TabsList>
                             <TabsTrigger value="unread">Unread</TabsTrigger>
                             <TabsTrigger value="all">All</TabsTrigger>
@@ -526,6 +573,28 @@ export function NotificationsView({ isWidget = false }: NotificationsViewProps) 
                             Mark all read
                         </Button>
                     </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                    {(
+                        [
+                            ['all', 'All'],
+                            ['price', 'Price'],
+                            ['indicator', 'Indicator'],
+                            ['news', 'News'],
+                            ['system', 'System'],
+                        ] as Array<[NotificationKindFilter, string]>
+                    ).map(([value, label]) => (
+                        <Button
+                            key={value}
+                            type="button"
+                            variant={kindFilter === value ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setKindFilter(value)}
+                        >
+                            {label}
+                        </Button>
+                    ))}
                 </div>
 
                 <div className="mt-5">

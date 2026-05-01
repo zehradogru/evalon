@@ -13,7 +13,7 @@ import {
     type NotificationListFilter,
 } from '@/services/notifications.service'
 import { useAuthStore } from '@/store/use-auth-store'
-import type { NotificationPage } from '@/types'
+import type { NotificationKindFilter, NotificationPage } from '@/types'
 
 const NOTIFICATIONS_QUERY_KEY = 'notifications'
 const NOTIFICATIONS_UNREAD_COUNT_QUERY_KEY = 'notifications-unread-count'
@@ -25,17 +25,19 @@ type NotificationInfiniteData = InfiniteData<
 
 export function useNotifications(
     filter: NotificationListFilter,
+    kind: NotificationKindFilter,
     pageSize = 25
 ) {
     const userId = useAuthStore((state) => state.user?.id ?? null)
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 
     return useInfiniteQuery({
-        queryKey: [NOTIFICATIONS_QUERY_KEY, userId, filter, pageSize],
+        queryKey: [NOTIFICATIONS_QUERY_KEY, userId, filter, kind, pageSize],
         initialPageParam: null as NotificationPage['nextCursor'],
         queryFn: ({ pageParam }) =>
             notificationsService.getPage({
                 filter,
+                kind,
                 cursor: pageParam,
                 limit: pageSize,
             }),

@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
@@ -45,28 +46,52 @@ interface NewsViewProps {
 }
 
 export function NewsView({ isWidget = false }: NewsViewProps) {
+    const searchParams = useSearchParams();
+    const initialSearchQ = searchParams.get('q') ?? '';
+    const rawInitialSentiment = (searchParams.get('sentiment') ?? 'ALL').toUpperCase();
+    const initialSentiment =
+        rawInitialSentiment === 'NÖTR' ? 'NOTR' : rawInitialSentiment;
     const [selectedNews, setSelectedNews] = useState<number | null>(null);
     const [extraPages, setExtraPages] = useState<{
         searchQ: string;
+        sentiment: string;
+        symbolsKey: string;
         page: number;
         items: NewsItem[];
         hasMore: boolean;
-    }>({ searchQ: '', page: 1, items: [], hasMore: true });
+    }>({ searchQ: '', sentiment: '', symbolsKey: '', page: 1, items: [], hasMore: true });
     const [loadingMore, setLoadingMore] = useState(false);
-    const [searchQ, setSearchQ] = useState('');
+    const [searchQ, setSearchQ] = useState(initialSearchQ);
+    const [sentimentFilter, setSentimentFilter] = useState(initialSentiment);
     const sentinelRef = useRef<HTMLDivElement>(null);
+    const symbolsFromQuery = (searchParams.get('symbols') ?? searchParams.get('symbol') ?? '')
+        .split(',')
+        .map((value) => value.trim().toUpperCase())
+        .filter(Boolean);
+    const symbolsKey = symbolsFromQuery.join(',');
 
     const firstPageQuery = useQuery({
-        queryKey: ['news-list', searchQ],
-        queryFn: () => fetchNews({ limit: PAGE_SIZE, page: 1, q: searchQ || undefined }),
+        queryKey: ['news-list', searchQ, sentimentFilter, symbolsKey],
+        queryFn: () =>
+            fetchNews({
+                limit: PAGE_SIZE,
+                page: 1,
+                q: searchQ || undefined,
+                sentiment: sentimentFilter === 'ALL' ? undefined : sentimentFilter,
+                symbols: symbolsFromQuery.length > 0 ? symbolsFromQuery : undefined,
+            }),
         staleTime: 30_000,
     });
 
     const activeExtraPages =
-        extraPages.searchQ === searchQ
+        extraPages.searchQ === searchQ &&
+        extraPages.sentiment === sentimentFilter &&
+        extraPages.symbolsKey === symbolsKey
             ? extraPages
             : {
                 searchQ,
+                sentiment: sentimentFilter,
+                symbolsKey,
                 page: 1,
                 items: [],
                 hasMore: (firstPageQuery.data?.items.length ?? PAGE_SIZE) === PAGE_SIZE,
@@ -82,12 +107,25 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
         if (loadingMore || !hasMore || !firstPageQuery.data) return;
         const nextPage = activeExtraPages.page + 1;
         setLoadingMore(true);
-        fetchNews({ limit: PAGE_SIZE, page: nextPage, q: searchQ || undefined })
+        fetchNews({
+            limit: PAGE_SIZE,
+            page: nextPage,
+            q: searchQ || undefined,
+            sentiment: sentimentFilter === 'ALL' ? undefined : sentimentFilter,
+            symbols: symbolsFromQuery.length > 0 ? symbolsFromQuery : undefined,
+        })
             .then(res => {
                 setExtraPages((prev) => {
-                    const currentItems = prev.searchQ === searchQ ? prev.items : [];
+                    const currentItems =
+                        prev.searchQ === searchQ &&
+                        prev.sentiment === sentimentFilter &&
+                        prev.symbolsKey === symbolsKey
+                            ? prev.items
+                            : [];
                     return {
                         searchQ,
+                        sentiment: sentimentFilter,
+                        symbolsKey,
                         page: nextPage,
                         items: [...currentItems, ...res.items],
                         hasMore: res.items.length === PAGE_SIZE,
@@ -96,7 +134,16 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
             })
             .catch(() => { /* silently ignore load-more errors */ })
             .finally(() => setLoadingMore(false));
-    }, [activeExtraPages.page, firstPageQuery.data, hasMore, loadingMore, searchQ]);
+    }, [
+        activeExtraPages.page,
+        firstPageQuery.data,
+        hasMore,
+        loadingMore,
+        searchQ,
+        sentimentFilter,
+        symbolsFromQuery,
+        symbolsKey,
+    ]);
 
     // IntersectionObserver — fires loadMore when sentinel scrolls into view
     useEffect(() => {
@@ -157,14 +204,28 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
                             <Zap className="text-chart-4 fill-chart-4" size={20} /> BIST Haberleri
                         </h1>
                         <div className="flex items-center gap-2">
-                            <Select className="w-[120px] h-8 text-xs bg-secondary/50 border-0">
-                                <option>All News</option>
+                            <Select
+                                value={sentimentFilter}
+                                onChange={(event) => setSentimentFilter(event.target.value)}
+                                className="w-[120px] h-8 text-xs bg-secondary/50 border-0"
+                            >
+                                <option value="ALL">All News</option>
                                 <option value="OLUMLU">Olumlu</option>
                                 <option value="OLUMSUZ">Olumsuz</option>
-                                <option value="NÖTR">Neutral</option>
+                                <option value="NOTR">Neutral</option>
                             </Select>
                         </div>
                     </div>
+                    {symbolsFromQuery.length > 0 && (
+                        <div className="mb-3 flex flex-wrap gap-2">
+                            <Badge variant="secondary" className="text-xs">
+                                Watchlist filter
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                                {symbolsFromQuery.join(', ')}
+                            </span>
+                        </div>
+                    )}
                     <div className="relative">
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
