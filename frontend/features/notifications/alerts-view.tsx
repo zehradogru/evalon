@@ -80,7 +80,11 @@ const NEWS_SENTIMENT_OPTIONS: Array<{
     },
 ]
 
-const DEFAULT_NEWS_SENTIMENTS: NewsAlertSentiment[] = ['OLUMLU', 'OLUMSUZ']
+const DEFAULT_NEWS_SENTIMENTS: NewsAlertSentiment[] = [
+    'OLUMLU',
+    'OLUMSUZ',
+    'NOTR',
+]
 
 interface AlertRuleFormState {
     ticker: string

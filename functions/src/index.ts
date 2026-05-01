@@ -714,6 +714,10 @@ function getNewsWindowBounds(
 function normalizeNewsApiSentiment(
     value: string | null
 ): NewsAlertSentiment | null {
+    if (typeof value === 'string' && value.trim().toUpperCase() === 'BEKLIYOR') {
+        return 'NOTR'
+    }
+
     return normalizeNewsAlertSentiment(value)
 }
 

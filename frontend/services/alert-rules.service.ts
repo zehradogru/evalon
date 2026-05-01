@@ -268,12 +268,30 @@ async function migrateLegacyAlertsIfNeeded(userId: string) {
     await batch.commit()
 }
 
-function toStoredRule(rule: AlertRule) {
+function stripUndefinedDeep<T>(value: T): T {
+    if (Array.isArray(value)) {
+        return value.map((item) => stripUndefinedDeep(item)) as T
+    }
+
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(
+            Object.entries(value).flatMap(([key, currentValue]) =>
+                currentValue === undefined
+                    ? []
+                    : [[key, stripUndefinedDeep(currentValue)]]
+            )
+        ) as T
+    }
+
+    return value
+}
+
+function toStoredRule(rule: AlertRule): Omit<AlertRule, 'id'> {
     return {
         ticker: rule.ticker,
         timeframe: rule.timeframe,
         logic: rule.logic,
-        filters: rule.filters,
+        filters: stripUndefinedDeep(rule.filters),
         status: rule.status,
         lastMatchState: rule.lastMatchState,
         lastTriggeredAt: rule.lastTriggeredAt,
