@@ -16,6 +16,7 @@ const columns = {
     { label: 'Market Overview', href: '/markets' },
     { label: 'Watchlist', href: '/watchlist' },
     { label: 'Top Movers', href: '/markets/movers' },
+    { label: 'Co-Movement', href: '/markets/co-movement' },
     { label: 'News Feed', href: '/news' },
     { label: 'Brokers', href: '/brokers' },
   ],

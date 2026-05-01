@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { BookOpen, Check, ChevronDown, ChevronUp, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -60,11 +60,6 @@ export function RuleCatalogToolResult({ result, onAddToInput }: RuleCatalogToolR
   )
   const [expanded, setExpanded] = useState(true)
   const [savedMsg, setSavedMsg] = useState<string | null>(null)
-
-  // Re-sync if blueprint changes while catalog is open (e.g. another catalog instance adds rules)
-  useEffect(() => {
-    setAlreadyAdded(collectBlueprintRuleIds(readActiveBlueprint()))
-  }, [])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()

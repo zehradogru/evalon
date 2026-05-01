@@ -16,6 +16,7 @@ const footerLinks = {
     { label: 'Watchlist', href: '/watchlist' },
     { label: 'Top Movers', href: '/markets/movers' },
     { label: 'Correlation', href: '/correlation' },
+    { label: 'Co-Movement', href: '/markets/co-movement' },
     { label: 'News', href: '/news' },
   ],
   Community: [

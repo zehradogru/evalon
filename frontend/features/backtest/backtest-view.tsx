@@ -752,8 +752,8 @@ export function BacktestView() {
                       width={54}
                     />
                     <Tooltip
-                      formatter={(v) => [
-                        `₺${(v as number).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`,
+                      formatter={(value) => [
+                        `₺${Number(value ?? 0).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`,
                         'Bakiye',
                       ]}
                       labelFormatter={(l) => `Tarih: ${l}`}

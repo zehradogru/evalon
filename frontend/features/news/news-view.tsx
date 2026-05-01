@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,45 +46,57 @@ interface NewsViewProps {
 
 export function NewsView({ isWidget = false }: NewsViewProps) {
     const [selectedNews, setSelectedNews] = useState<number | null>(null);
-    const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
-    const [loading, setLoading] = useState(true);
+    const [extraPages, setExtraPages] = useState<{
+        searchQ: string;
+        page: number;
+        items: NewsItem[];
+        hasMore: boolean;
+    }>({ searchQ: '', page: 1, items: [], hasMore: true });
     const [loadingMore, setLoadingMore] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [searchQ, setSearchQ] = useState('');
     const sentinelRef = useRef<HTMLDivElement>(null);
 
-    // Reset + fetch first page when searchQ changes
-    useEffect(() => {
-        setLoading(true);
-        setError(null);
-        setNewsItems([]);
-        setPage(1);
-        setHasMore(true);
-        fetchNews({ limit: PAGE_SIZE, page: 1, q: searchQ || undefined })
-            .then(res => {
-                setNewsItems(res.items);
-                setHasMore(res.items.length === PAGE_SIZE);
-            })
-            .catch(err => setError(err.message))
-            .finally(() => setLoading(false));
-    }, [searchQ]);
+    const firstPageQuery = useQuery({
+        queryKey: ['news-list', searchQ],
+        queryFn: () => fetchNews({ limit: PAGE_SIZE, page: 1, q: searchQ || undefined }),
+        staleTime: 30_000,
+    });
+
+    const activeExtraPages =
+        extraPages.searchQ === searchQ
+            ? extraPages
+            : {
+                searchQ,
+                page: 1,
+                items: [],
+                hasMore: (firstPageQuery.data?.items.length ?? PAGE_SIZE) === PAGE_SIZE,
+            };
+    const newsItems = [...(firstPageQuery.data?.items ?? []), ...activeExtraPages.items];
+    const loading = firstPageQuery.isLoading;
+    const error =
+        firstPageQuery.error instanceof Error ? firstPageQuery.error.message : null;
+    const hasMore = Boolean(firstPageQuery.data) && activeExtraPages.hasMore;
 
     // Load next page
     const loadMore = useCallback(() => {
-        if (loadingMore || !hasMore) return;
-        const nextPage = page + 1;
+        if (loadingMore || !hasMore || !firstPageQuery.data) return;
+        const nextPage = activeExtraPages.page + 1;
         setLoadingMore(true);
         fetchNews({ limit: PAGE_SIZE, page: nextPage, q: searchQ || undefined })
             .then(res => {
-                setNewsItems(prev => [...prev, ...res.items]);
-                setPage(nextPage);
-                setHasMore(res.items.length === PAGE_SIZE);
+                setExtraPages((prev) => {
+                    const currentItems = prev.searchQ === searchQ ? prev.items : [];
+                    return {
+                        searchQ,
+                        page: nextPage,
+                        items: [...currentItems, ...res.items],
+                        hasMore: res.items.length === PAGE_SIZE,
+                    };
+                });
             })
             .catch(() => { /* silently ignore load-more errors */ })
             .finally(() => setLoadingMore(false));
-    }, [loadingMore, hasMore, page, searchQ]);
+    }, [activeExtraPages.page, firstPageQuery.data, hasMore, loadingMore, searchQ]);
 
     // IntersectionObserver — fires loadMore when sentinel scrolls into view
     useEffect(() => {

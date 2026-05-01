@@ -255,7 +255,7 @@ export function PostDetailView({ postId }: PostDetailViewProps) {
     const currentPost = postQuery.data
 
     return (
-        <div className="relative overflow-hidden">
+        <div className="relative shrink-0 overflow-x-hidden">
             {/* Animated background mesh */}
             <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] overflow-hidden">
                 <div className="animate-aurora absolute -left-32 top-0 h-72 w-[36rem] rounded-full bg-[radial-gradient(ellipse,rgba(40,98,255,0.15),transparent_60%)] blur-3xl" />

@@ -136,7 +136,7 @@ export function BacktestToolResult({ runId, initialResult }: BacktestToolResultP
         : 0)
 
   // Build a terminal-style log from phase progression.
-  const logLines = useMemo(() => {
+  const logLines = (() => {
     const currentIdx = Math.max(
       0,
       PHASE_ORDER.findIndex((p) => p === phase)
@@ -171,7 +171,7 @@ export function BacktestToolResult({ runId, initialResult }: BacktestToolResultP
       lines.push({ text: `  ${status.progress.message}`, state: 'active' })
     }
     return lines
-  }, [isDone, isFailed, isUnavailable, phase, progressPct, status?.error, status?.progress?.currentSymbol, status?.progress?.message, statusError])
+  })()
 
   const summary = status?.summary ?? (isBacktestSummary(initialSummary) ? initialSummary : undefined)
   const result = (status?.result ?? initialNestedResult ?? initialResult) as Record<string, unknown> | undefined

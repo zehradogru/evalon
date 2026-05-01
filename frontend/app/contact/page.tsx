@@ -80,7 +80,7 @@ export default function ContactPage() {
         </div>
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Contact Us</h1>
         <p className="text-[#787b86] text-lg max-w-xl mx-auto">
-          Questions, feedback, or just want to say hello? We're here for you.
+          Questions, feedback, or just want to say hello? We&apos;re here for you.
         </p>
       </div>
 
@@ -96,7 +96,7 @@ export default function ContactPage() {
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-2">Message Sent!</h3>
                 <p className="text-[#787b86] max-w-sm">
-                  Thanks for reaching out. We'll get back to you at <span className="text-white">{form.email}</span> within one business day.
+                  Thanks for reaching out. We&apos;ll get back to you at <span className="text-white">{form.email}</span> within one business day.
                 </p>
                 <button
                   onClick={() => { setSubmitted(false); setForm({ name: '', email: '', subject: '', message: '' }) }}

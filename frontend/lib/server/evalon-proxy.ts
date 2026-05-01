@@ -43,7 +43,7 @@ function toSearchParams(input?: ProxySearchParams): URLSearchParams {
     return params
 }
 
-async function readProxyPayload(response: Response): Promise<unknown> {
+export async function readProxyPayload(response: Response): Promise<unknown> {
     const contentType = response.headers.get('content-type') || ''
     if (contentType.includes('application/json')) {
         return response.json()

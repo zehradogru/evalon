@@ -682,6 +682,219 @@ export interface AiMessageResponse {
     resolvedContext: Record<string, unknown>
 }
 
+export type CoMovementMatrixName =
+    | 'pearson'
+    | 'spearman'
+    | 'dtw_distance'
+    | 'dtw_similarity'
+    | 'hybrid_similarity'
+
+export interface CoMovementSnapshotMeta {
+    snapshot_id: string
+    label: string
+    created_at: string
+    symbol_count: number
+    edge_count: number
+    community_count: number
+    date_range: {
+        start: string
+        end: string
+        aligned_start?: string
+        aligned_end?: string
+        timeframe?: string
+        rows?: number
+    }
+    config: {
+        top_k: number
+        min_similarity: number
+        rolling_window: number
+        rolling_step: number
+        max_missing_ratio: number
+        min_history_rows: number
+    }
+    available_matrices: CoMovementMatrixName[]
+}
+
+export interface CoMovementPair {
+    source: string
+    target: string
+    pearson?: number
+    spearman?: number
+    dtw_similarity?: number
+    hybrid_similarity?: number
+}
+
+export interface CoMovementRollingStabilityRow {
+    pair: string
+    source: string
+    target: string
+    stability: number
+    strong_windows: number
+    total_windows: number
+    hybrid_similarity: number
+}
+
+export interface CoMovementCommunity {
+    community_id: number
+    stocks: string[]
+    size: number
+    avg_similarity: number
+}
+
+export interface CoMovementNode {
+    id: string
+    label: string
+    community_id?: number
+}
+
+export interface CoMovementEdge {
+    source: string
+    target: string
+    weight: number
+    pearson: number
+    dtw_similarity: number
+}
+
+export interface CoMovementDataQualityRow {
+    symbol: string
+    rows: number
+    observed_rows: number
+    filled_rows: number
+    missing_ratio: number
+}
+
+export interface CoMovementExcludedSymbol {
+    symbol: string
+    reason: string
+    rows?: number
+    required_rows?: number
+    missing_ratio?: number
+}
+
+export interface CoMovementMetrics {
+    modularity: number
+    community_count: number
+    edge_count: number
+    node_count: number
+    pair_count: number
+    rolling_window_count: number
+    louvain_method: string
+}
+
+export interface CoMovementConfig {
+    top_k: number
+    min_similarity: number
+    rolling_window: number
+    rolling_step: number
+    max_missing_ratio: number
+    min_history_rows: number
+}
+
+export interface CoMovementDateRange {
+    start: string
+    end: string
+    aligned_start?: string
+    aligned_end?: string
+    timeframe?: string
+    rows?: number
+}
+
+export type CoMovementMatrixDictionary = Record<string, Record<string, number | null>>
+
+export interface CoMovementPairRankings {
+    pearson: CoMovementPair[]
+    dtw: CoMovementPair[]
+    hybrid: CoMovementPair[]
+}
+
+interface CoMovementResultBase {
+    symbols: string[]
+    requested_symbols: string[]
+    excluded_symbols: CoMovementExcludedSymbol[]
+    date_range: CoMovementDateRange
+    config: CoMovementConfig
+    top_pairs: CoMovementPair[]
+    pair_rankings: CoMovementPairRankings
+    graph: {
+        nodes: CoMovementNode[]
+        edges: CoMovementEdge[]
+    }
+    communities: CoMovementCommunity[]
+    metrics: CoMovementMetrics
+    rolling_stability: CoMovementRollingStabilityRow[]
+    data_quality: CoMovementDataQualityRow[]
+}
+
+export interface CoMovementSnapshotSummary extends CoMovementResultBase {
+    matrices: {
+        storage: string
+        available: CoMovementMatrixName[]
+        symbols: string[]
+    }
+    snapshot: CoMovementSnapshotMeta
+    snapshot_summary: {
+        top_pairs_total: number
+        top_pairs_saved: number
+        rolling_stability_total: number
+        rolling_stability_saved: number
+        pair_rankings_total: Record<string, number>
+        pair_rankings_saved: Record<string, number>
+    }
+}
+
+export interface CoMovementAnalyzeRequest {
+    symbols: string[]
+    start_date: string
+    end_date: string
+    top_k: number
+    min_similarity: number
+    rolling_window: number
+    rolling_step?: number
+    max_missing_ratio?: number
+    min_history_rows?: number
+    timeframe?: '1d'
+}
+
+export interface CoMovementAnalyzeResponse extends CoMovementResultBase {
+    matrices: Record<CoMovementMatrixName, CoMovementMatrixDictionary>
+}
+
+export interface CoMovementMatrixResponse {
+    matrix_name: CoMovementMatrixName
+    symbols: string[]
+    matrix: CoMovementMatrixDictionary
+}
+
+export interface CoMovementExplainRequest {
+    top_pairs: CoMovementPair[]
+    communities: CoMovementCommunity[]
+    metrics: Partial<CoMovementMetrics>
+    language: string
+    symbols?: string[]
+    date_range?: Partial<CoMovementDateRange>
+}
+
+export interface CoMovementExplainResponse {
+    summary: string
+    warnings: string[]
+    source: string
+    model: string | null
+}
+
+export interface CoMovementSymbolSearchResponse {
+    count: number
+    total_available: number
+    search: string
+    symbols: Array<{
+        symbol: string
+    }>
+}
+
+export interface CoMovementSnapshotListResponse {
+    count: number
+    snapshots: CoMovementSnapshotMeta[]
+}
+
 export interface UserWatchlist {
     tickers: string[]
     updatedAt: string

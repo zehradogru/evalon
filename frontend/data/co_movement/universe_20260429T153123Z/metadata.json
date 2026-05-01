@@ -1,0 +1,31 @@
+{
+  "snapshot_id": "universe_20260429T153123Z",
+  "label": "universe",
+  "created_at": "2026-04-29T15:31:23.564841+00:00",
+  "symbol_count": 577,
+  "edge_count": 1426,
+  "community_count": 51,
+  "date_range": {
+    "start": "2025-04-28",
+    "end": "2026-04-28",
+    "aligned_start": "2025-08-01",
+    "aligned_end": "2026-04-28",
+    "timeframe": "1d",
+    "rows": 189
+  },
+  "config": {
+    "top_k": 3,
+    "min_similarity": 0.6,
+    "rolling_window": 90,
+    "rolling_step": 20,
+    "max_missing_ratio": 0.15,
+    "min_history_rows": 180
+  },
+  "available_matrices": [
+    "pearson",
+    "spearman",
+    "dtw_distance",
+    "dtw_similarity",
+    "hybrid_similarity"
+  ]
+}

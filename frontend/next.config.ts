@@ -6,6 +6,9 @@ const EVALON_API_URL =
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  outputFileTracingExcludes: {
+    "*": ["./next.config.ts"],
+  },
   turbopack: {
     root: __dirname,
   },
