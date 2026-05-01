@@ -1,5 +1,6 @@
 ﻿'use client'
 
+import { useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMarketMovers } from '@/hooks/use-dashboard-data'
 import { cn } from '@/lib/utils'
@@ -8,10 +9,15 @@ import type { DashboardTicker } from '@/hooks/use-dashboard-data'
 export function TickerTape() {
   const router = useRouter()
   const { data: moversData } = useMarketMovers()
+  const isClient = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  )
 
   const items: DashboardTicker[] = moversData?.all || []
 
-  if (items.length === 0) {
+  if (!isClient || items.length === 0) {
     return <div className="w-full h-[38px] bg-background border-b border-border" />
   }
 

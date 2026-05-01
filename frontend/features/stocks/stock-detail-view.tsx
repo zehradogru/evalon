@@ -1,6 +1,7 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowUpRight, ArrowDownRight, Activity, Loader2 } from 'lucide-react';
@@ -20,32 +21,22 @@ function relativeTime(dateStr: string | null): string {
 }
 
 export function StockDetailView({ ticker }: { ticker: string }) {
-    const [price, setPrice] = useState<number | null>(null);
-    const [change, setChange] = useState<number | null>(null);
-    const [changePercent, setChangePercent] = useState<number | null>(null);
-    const [priceLoading, setPriceLoading] = useState(true);
     const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
     const [newsLoading, setNewsLoading] = useState(false);
 
-    useEffect(() => {
-        setPriceLoading(true);
-        fetchPrices({ ticker, timeframe: '1d', limit: 2 })
-            .then(res => {
-                const bars = res.data;
-                if (bars.length >= 1) {
-                    const last = bars[bars.length - 1];
-                    setPrice(last.c);
-                    if (bars.length >= 2) {
-                        const prev = bars[bars.length - 2];
-                        const chg = last.c - prev.c;
-                        setChange(chg);
-                        setChangePercent((chg / prev.c) * 100);
-                    }
-                }
-            })
-            .catch(() => { })
-            .finally(() => setPriceLoading(false));
-    }, [ticker]);
+    const priceQuery = useQuery({
+        queryKey: ['stock-detail-price', ticker],
+        queryFn: () => fetchPrices({ ticker, timeframe: '1d', limit: 2 }),
+        staleTime: 60_000,
+    });
+
+    const bars = priceQuery.data?.data ?? [];
+    const lastBar = bars.at(-1) ?? null;
+    const prevBar = bars.length >= 2 ? bars[bars.length - 2] : null;
+    const price = lastBar?.c ?? null;
+    const change = lastBar && prevBar ? lastBar.c - prevBar.c : null;
+    const changePercent = change !== null && prevBar ? (change / prevBar.c) * 100 : null;
+    const priceLoading = priceQuery.isLoading;
 
     function loadNews() {
         if (newsLoading || newsItems.length > 0) return;

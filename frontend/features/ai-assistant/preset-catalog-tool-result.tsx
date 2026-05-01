@@ -136,7 +136,7 @@ function PresetCard({
       {isPreviewOpen && (
         <div className="px-2.5 pb-2">
           <div className="rounded border border-border/30 bg-black/30 px-2 py-1.5">
-            <p className="text-[9px] text-muted-foreground/60 mb-1 uppercase tracking-wider">Kural ID'leri</p>
+            <p className="text-[9px] text-muted-foreground/60 mb-1 uppercase tracking-wider">Kural ID&apos;leri</p>
             <div className="flex flex-wrap gap-1">
               {preset.ruleIds.map((id) => (
                 <span key={id} className="inline-flex px-1.5 h-4 items-center rounded text-[9px] font-mono border border-border/30 bg-black/20 text-muted-foreground">

@@ -150,12 +150,29 @@ function useCountdown(targetIso: string): string {
   return label
 }
 
+function useNow(intervalMs = 1_000): number {
+  const [now, setNow] = useState(0)
+
+  useEffect(() => {
+    function update() {
+      setNow(Date.now())
+    }
+
+    update()
+    const id = setInterval(update, intervalMs)
+    return () => clearInterval(id)
+  }, [intervalMs])
+
+  return now
+}
+
 // ---------------------------------------------------------------------------
 // EventRow
 // ---------------------------------------------------------------------------
 
 function EventRow({ event, isNext }: { event: CalendarEvent; isNext: boolean }) {
-  const isPast = new Date(event.date).getTime() < Date.now()
+  const now = useNow()
+  const isPast = now > 0 && new Date(event.date).getTime() < now
   const countdown = useCountdown(event.date)
 
   const timeClass = isPast
@@ -197,8 +214,9 @@ function EventRow({ event, isNext }: { event: CalendarEvent; isNext: boolean }) 
 // CalendarView
 // ---------------------------------------------------------------------------
 
-export function CalendarView() {
+export function CalendarView({ isWidget = false }: { isWidget?: boolean } = {}) {
   const today = useMemo(() => new Date(), [])
+  const now = useNow(30_000)
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedDay, setSelectedDay] = useState<Date>(today)
   const [minImportance, setMinImportance] = useState<1 | 2 | 3>(2)
@@ -214,7 +232,7 @@ export function CalendarView() {
   const weekDays = useMemo(() => getWeekDays(weekBase), [weekBase])
 
   const { data, isLoading, isFetching, refetch } = useCalendar(FIXED_COUNTRIES, minImportance)
-  const allEvents = data?.events ?? []
+  const allEvents = useMemo(() => data?.events ?? [], [data?.events])
 
   const grouped = useMemo(() => groupByDay(allEvents), [allEvents])
 
@@ -230,9 +248,9 @@ export function CalendarView() {
   const isOutOfRange = weekOffset < -1 || weekOffset > 1
 
   const nextEvent = useMemo(() => {
-    const now = Date.now()
+    if (now === 0) return null
     return allEvents.find((e) => new Date(e.date).getTime() > now) ?? null
-  }, [allEvents])
+  }, [allEvents, now])
 
   const scrollDayIntoView = useCallback((index: number) => {
     const strip = dayStripRef.current
@@ -258,7 +276,7 @@ export function CalendarView() {
   function goToday() { setWeekOffset(0); setSelectedDay(today) }
 
   return (
-    <div className="flex flex-col min-h-0 h-full bg-background">
+    <div className={cn('flex flex-col min-h-0 h-full bg-background', isWidget && 'border-0')}>
 
       {/* ── Top navigation bar ── */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">

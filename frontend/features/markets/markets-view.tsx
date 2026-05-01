@@ -1,9 +1,8 @@
 ﻿'use client'
 
-import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react'
+import { useCallback, useMemo, useState, type RefObject } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MarketDataStatusChip } from '@/components/market-data-status-chip'
@@ -38,47 +37,47 @@ type SortDirection = ListSortDirection
 
 
 function useCryptoList() {
-    const [items, setItems] = useState<MarketListItem[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const [isError, setIsError] = useState(false)
+    const query = useQuery({
+        queryKey: ['markets-crypto-list'],
+        queryFn: async () => {
+            const results = await Promise.all(
+                MARKET_TICKERS.CRYPTO.map(async (t): Promise<MarketListItem | null> => {
+                    try {
+                        const res = await fetchPrices({ ticker: t.ticker, timeframe: '1d', limit: 2 })
+                        const bars = res.data
+                        if (bars.length === 0) return null
+                        const last = bars[bars.length - 1]
+                        const prev = bars.length >= 2 ? bars[bars.length - 2] : null
+                        return {
+                            ticker: t.ticker,
+                            name: t.name,
+                            price: last.c,
+                            changePct: prev ? ((last.c - prev.c) / prev.c) * 100 : 0,
+                            changeVal: prev ? last.c - prev.c : 0,
+                            high: last.h,
+                            low: last.l,
+                            vol: last.v,
+                            rating: 'Neutral' as const,
+                            marketCap: null,
+                            pe: null,
+                            eps: null,
+                            sector: null,
+                        } satisfies MarketListItem
+                    } catch {
+                        return null
+                    }
+                })
+            )
+            return results.filter((r): r is MarketListItem => r !== null)
+        },
+        staleTime: 60_000,
+    })
 
-    useEffect(() => {
-        setIsLoading(true)
-        setIsError(false)
-        void Promise.all(
-            MARKET_TICKERS.CRYPTO.map(async (t) => {
-                try {
-                    const res = await fetchPrices({ ticker: t.ticker, timeframe: '1d', limit: 2 })
-                    const bars = res.data
-                    if (bars.length === 0) return null
-                    const last = bars[bars.length - 1]
-                    const prev = bars.length >= 2 ? bars[bars.length - 2] : null
-                    return {
-                        ticker: t.ticker,
-                        name: t.name,
-                        price: last.c,
-                        changePct: prev ? ((last.c - prev.c) / prev.c) * 100 : 0,
-                        changeVal: prev ? last.c - prev.c : 0,
-                        high: last.h,
-                        low: last.l,
-                        vol: last.v,
-                        rating: 'Neutral' as const,
-                        marketCap: null,
-                        pe: null,
-                        eps: null,
-                        sector: null,
-                    } satisfies MarketListItem
-                } catch {
-                    return null
-                }
-            })
-        )
-            .then((results: (MarketListItem | null)[]) => setItems(results.filter((r): r is MarketListItem => r !== null)))
-            .catch(() => setIsError(true))
-            .finally(() => setIsLoading(false))
-    }, [])
-
-    return { items, isLoading, isError }
+    return {
+        items: query.data ?? [],
+        isLoading: query.isLoading,
+        isError: query.isError,
+    }
 }
 
 function formatVolume(vol: number | null) {
