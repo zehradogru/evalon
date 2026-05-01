@@ -21,7 +21,7 @@ from data_clients.bist_prices_client import BistPricesClient
 
 
 class AnalyzeCoMovementRequest(BaseModel):
-    symbols: list[str] = Field(..., min_length=2, max_length=60)
+    symbols: list[str] = Field(..., min_length=2, max_length=700)
     start_date: date
     end_date: date
     top_k: int = Field(3, ge=1, le=10)
