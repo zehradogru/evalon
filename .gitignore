@@ -41,7 +41,12 @@ functions/lib/
 **/.DS_Store
 
 # Models and Training
-model_train/
+**/checkpoint-*/
+**/*.safetensors
+**/*.bin
+**/*.pt
+**/final_model_*/
+**/*.zip
 *.pdf
 
 # Local docs
