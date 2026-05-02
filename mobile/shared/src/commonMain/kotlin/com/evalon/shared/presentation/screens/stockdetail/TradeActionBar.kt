@@ -35,6 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.evalon.shared.presentation.ui.theme.*
+import com.evalon.shared.util.format
+import com.evalon.shared.util.formatTurkishCurrency
 
 // Evalon Color Aliases
 private val BuyGradientStart = EvalonGreen
@@ -211,7 +213,7 @@ private fun PriceChangeBadge(
             .padding(horizontal = 6.dp, vertical = 2.dp)
     ) {
         Text(
-            text = "$sign%.2f%% $arrow".format(changePercent),
+            text = "$sign${changePercent.format(2)}% $arrow",
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = textColor,
@@ -323,11 +325,5 @@ private fun PremiumTradeButton(
  * Formats currency with Turkish Lira symbol.
  */
 private fun formatCurrency(amount: Double): String {
-    val formatted = "%,.2f".format(amount)
-    // Convert to Turkish format: 1,234.56 -> 1.234,56
-    val turkishFormat = formatted
-        .replace(",", "X")
-        .replace(".", ",")
-        .replace("X", ".")
-    return "$turkishFormat ₺"
+    return amount.formatTurkishCurrency()
 }

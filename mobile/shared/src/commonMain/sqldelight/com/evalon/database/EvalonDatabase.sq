@@ -82,12 +82,92 @@ CREATE TABLE watchlist (
     added_at INTEGER NOT NULL
 );
 
+-- Market snapshot cache for stale-first market lists and overview cards.
+CREATE TABLE market_snapshot_cache (
+    cache_key TEXT PRIMARY KEY,
+    payload_json TEXT NOT NULL,
+    fetched_at INTEGER NOT NULL,
+    stale INTEGER NOT NULL DEFAULT 0
+);
+
+-- News cache stores rendered feed pages for offline/stale states.
+CREATE TABLE news_cache (
+    id TEXT PRIMARY KEY,
+    symbol TEXT,
+    source TEXT,
+    title TEXT NOT NULL,
+    summary TEXT,
+    url TEXT,
+    published_at INTEGER,
+    fetched_at INTEGER NOT NULL
+);
+
+-- Generic JSON catalog cache for indicators, screener presets, AI tools and backtest catalogs.
+CREATE TABLE feature_catalog_cache (
+    cache_key TEXT PRIMARY KEY,
+    payload_json TEXT NOT NULL,
+    fetched_at INTEGER NOT NULL
+);
+
+-- Lightweight AI session metadata cache; message bodies stay in the API/Firebase store.
+CREATE TABLE ai_session_cache (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    last_message TEXT,
+    updated_at INTEGER NOT NULL,
+    payload_json TEXT
+);
+
+-- Paper trading local mirror for offline portfolio rendering.
+CREATE TABLE paper_order_cache (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    side TEXT NOT NULL,
+    order_type TEXT NOT NULL,
+    quantity REAL NOT NULL,
+    limit_price REAL,
+    status TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    payload_json TEXT
+);
+
+CREATE TABLE paper_trade_cache (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    side TEXT NOT NULL,
+    quantity REAL NOT NULL,
+    price REAL NOT NULL,
+    executed_at INTEGER NOT NULL,
+    payload_json TEXT
+);
+
+-- Community feed cache for post-detail deep links and stale feed rendering.
+CREATE TABLE community_post_cache (
+    id TEXT PRIMARY KEY,
+    author_id TEXT NOT NULL,
+    author_name TEXT,
+    ticker TEXT,
+    body TEXT NOT NULL,
+    like_count INTEGER NOT NULL DEFAULT 0,
+    comment_count INTEGER NOT NULL DEFAULT 0,
+    saved INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    payload_json TEXT
+);
+
 -- Indexes for better query performance
 CREATE INDEX idx_strategies_user_id ON strategies(user_id);
 CREATE INDEX idx_rules_strategy_id ON rules(strategy_id);
 CREATE INDEX idx_backtest_results_strategy_id ON backtest_results(strategy_id);
 CREATE INDEX idx_positions_user_id ON positions_cache(user_id);
 CREATE INDEX idx_market_data_symbol_timestamp ON market_data_cache(symbol, timestamp);
+CREATE INDEX idx_news_cache_published_at ON news_cache(published_at);
+CREATE INDEX idx_paper_order_user_created ON paper_order_cache(user_id, created_at);
+CREATE INDEX idx_paper_trade_user_executed ON paper_trade_cache(user_id, executed_at);
+CREATE INDEX idx_community_post_created ON community_post_cache(created_at);
 
 -- ─── Strategy queries ──────────────────────────────────────────────────────
 
@@ -156,3 +236,63 @@ DELETE FROM watchlist WHERE symbol = ?;
 
 isInWatchlist:
 SELECT COUNT(*) FROM watchlist WHERE symbol = ?;
+
+-- ─── Generic stale-first product cache queries ────────────────────────────
+
+upsertMarketSnapshot:
+INSERT OR REPLACE INTO market_snapshot_cache(cache_key, payload_json, fetched_at, stale)
+VALUES (?, ?, ?, ?);
+
+selectMarketSnapshot:
+SELECT * FROM market_snapshot_cache WHERE cache_key = ?;
+
+deleteMarketSnapshot:
+DELETE FROM market_snapshot_cache WHERE cache_key = ?;
+
+upsertNewsItem:
+INSERT OR REPLACE INTO news_cache(id, symbol, source, title, summary, url, published_at, fetched_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+selectNewsPage:
+SELECT * FROM news_cache ORDER BY published_at DESC LIMIT ? OFFSET ?;
+
+deleteOldNews:
+DELETE FROM news_cache WHERE fetched_at < ?;
+
+upsertFeatureCatalog:
+INSERT OR REPLACE INTO feature_catalog_cache(cache_key, payload_json, fetched_at)
+VALUES (?, ?, ?);
+
+selectFeatureCatalog:
+SELECT * FROM feature_catalog_cache WHERE cache_key = ?;
+
+upsertAiSession:
+INSERT OR REPLACE INTO ai_session_cache(id, title, last_message, updated_at, payload_json)
+VALUES (?, ?, ?, ?, ?);
+
+selectAiSessions:
+SELECT * FROM ai_session_cache ORDER BY updated_at DESC;
+
+upsertPaperOrder:
+INSERT OR REPLACE INTO paper_order_cache(id, user_id, symbol, side, order_type, quantity, limit_price, status, created_at, payload_json)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectPaperOrdersForUser:
+SELECT * FROM paper_order_cache WHERE user_id = ? ORDER BY created_at DESC;
+
+upsertPaperTrade:
+INSERT OR REPLACE INTO paper_trade_cache(id, user_id, symbol, side, quantity, price, executed_at, payload_json)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+selectPaperTradesForUser:
+SELECT * FROM paper_trade_cache WHERE user_id = ? ORDER BY executed_at DESC;
+
+upsertCommunityPost:
+INSERT OR REPLACE INTO community_post_cache(id, author_id, author_name, ticker, body, like_count, comment_count, saved, created_at, updated_at, payload_json)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectCommunityFeed:
+SELECT * FROM community_post_cache ORDER BY created_at DESC LIMIT ? OFFSET ?;
+
+selectCommunityPost:
+SELECT * FROM community_post_cache WHERE id = ?;

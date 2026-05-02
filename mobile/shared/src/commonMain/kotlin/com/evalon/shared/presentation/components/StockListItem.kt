@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.evalon.shared.presentation.ui.theme.*
+import com.evalon.shared.util.format
 
 data class StockItemData(
     val symbol: String,
@@ -78,13 +79,13 @@ fun StockListItem(
         // Price column
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = "₺${String.format("%.2f", stock.price)}",
+                text = "₺${stock.price.format(2)}",
                 color = EvalonTextPrimary,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 15.sp
             )
             Text(
-                text = "$changePrefix${String.format("%.2f", stock.changePercent)}%",
+                text = "$changePrefix${stock.changePercent.format(2)}%",
                 color = changeColor,
                 fontWeight = FontWeight.Medium,
                 fontSize = 13.sp

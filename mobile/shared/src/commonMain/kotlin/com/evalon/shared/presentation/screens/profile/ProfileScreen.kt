@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.evalon.shared.presentation.components.*
 import com.evalon.shared.presentation.ui.theme.*
+import com.evalon.shared.util.format
 
 @Composable
 fun ProfileScreen(
@@ -91,7 +92,7 @@ fun ProfileScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             StatCard("Portföy", profile.portfolioValue, EvalonGreen, Modifier.weight(1f))
-                            StatCard("Kazanma", "${String.format("%.1f", profile.winRate)}%", EvalonBlue, Modifier.weight(1f))
+                            StatCard("Kazanma", "${profile.winRate.format(1)}%", EvalonBlue, Modifier.weight(1f))
                             StatCard("İşlem", "${profile.totalTrades}", EvalonOrange, Modifier.weight(1f))
                         }
                     }

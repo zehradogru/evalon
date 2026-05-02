@@ -31,6 +31,7 @@ import com.evalon.shared.presentation.ui.theme.*
 import com.evalon.shared.presentation.viewmodel.DashboardViewModel
 import com.evalon.shared.presentation.viewmodel.DashboardUiState
 import com.evalon.shared.util.format
+import com.evalon.shared.util.formatTurkishCurrency
 
 // Evalon Color Aliases (from central Color.kt)
 private val DarkBackground = EvalonDarkBg
@@ -602,10 +603,5 @@ private fun StrategyCard(
 }
 
 private fun formatCurrency(amount: Double): String {
-    val formatted = "%,.2f".format(amount)
-    val turkishFormat = formatted
-        .replace(",", "X")
-        .replace(".", ",")
-        .replace("X", ".")
-    return "$turkishFormat ₺"
+    return amount.formatTurkishCurrency()
 }

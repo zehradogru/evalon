@@ -4,10 +4,7 @@ package com.evalon.shared.domain.model
  * Exchange category for filtering tickers.
  */
 enum class ExchangeCategory(val displayName: String) {
-    BIST("BIST"),
-    NASDAQ("NASDAQ"),
-    CRYPTO("Kripto"),
-    FOREX("Döviz")
+    BIST("BIST")
 }
 
 /**
@@ -51,35 +48,6 @@ object StockConstants {
         "ZEDUR", "ZOREN"
     )
 
-    // ─── NASDAQ / US Stocks ─────────────────────────────────────────────
-
-    val NASDAQ_TICKERS = listOf(
-        "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA", "NFLX",
-        "AMD", "INTC", "PYPL", "ADBE", "CRM", "ORCL", "CSCO", "QCOM",
-        "AVGO", "TXN", "SHOP", "SQ", "UBER", "ABNB", "COIN", "ROKU",
-        "ZM", "SNAP", "PINS", "RBLX", "PLTR", "DKNG",
-        "BA", "DIS", "KO", "PEP", "MCD", "WMT", "NKE", "SBUX",
-        "JPM", "GS", "V", "MA", "BAC", "C",
-        "XOM", "CVX", "PFE", "JNJ", "UNH", "ABBV"
-    )
-
-    // ─── Crypto ─────────────────────────────────────────────────────────
-
-    val CRYPTO_TICKERS = listOf(
-        "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT",
-        "ADAUSDT", "DOGEUSDT", "DOTUSDT", "AVAXUSDT", "MATICUSDT",
-        "LINKUSDT", "UNIUSDT", "ATOMUSDT", "LTCUSDT", "ETCUSDT",
-        "FILUSDT", "APTUSDT", "NEARUSDT", "ARBUSDT", "OPUSDT"
-    )
-
-    // ─── Forex / Döviz ──────────────────────────────────────────────────
-
-    val FOREX_TICKERS = listOf(
-        "USDTRY", "EURTRY", "GBPTRY", "JPYTRY", "CHFTRY",
-        "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD",
-        "USOIL", "UKOIL", "XAUUSD", "XAGUSD", "NATGAS"
-    )
-
     // ─── Helper ─────────────────────────────────────────────────────────
 
     /**
@@ -87,14 +55,11 @@ object StockConstants {
      */
     fun tickersForExchange(exchange: ExchangeCategory): List<String> = when (exchange) {
         ExchangeCategory.BIST -> BIST_TICKERS
-        ExchangeCategory.NASDAQ -> NASDAQ_TICKERS
-        ExchangeCategory.CRYPTO -> CRYPTO_TICKERS
-        ExchangeCategory.FOREX -> FOREX_TICKERS
     }
 
     /**
      * All tickers across all exchanges.
      */
     val SUPPORTED_TICKERS: List<String>
-        get() = BIST_TICKERS + NASDAQ_TICKERS + CRYPTO_TICKERS + FOREX_TICKERS
+        get() = BIST_TICKERS
 }
