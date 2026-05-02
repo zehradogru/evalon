@@ -83,15 +83,29 @@ class CoMovementExplainer:
         try:  # pragma: no cover - optional runtime
             from google.genai import types
 
+            thinking_config = None
+            try:
+                thinking_config = types.ThinkingConfig(thinking_budget=0)
+            except Exception:
+                pass
+
             response = client.models.generate_content(
                 model=self._model,
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     temperature=0.3,
-                    max_output_tokens=1024,
+                    max_output_tokens=2048,
+                    **({"thinking_config": thinking_config} if thinking_config is not None else {}),
                 ),
             )
-            text = getattr(response, "text", None)
+            try:
+                text = response.text
+            except Exception:
+                candidates = getattr(response, "candidates", None) or []
+                text = ""
+                if candidates:
+                    parts = getattr(getattr(candidates[0], "content", None), "parts", None) or []
+                    text = "".join(getattr(p, "text", "") or "" for p in parts)
             return text.strip() if isinstance(text, str) else ""
         except Exception as exc:
             _log.error("[CoMovementExplainer] generate_content failed: %s", exc)
@@ -107,16 +121,17 @@ class CoMovementExplainer:
         symbols: list[str],
         date_range: dict[str, Any],
     ) -> str:
+        lang = "Turkish" if language.lower().startswith("tr") else language
+        top_communities = sorted(communities, key=lambda c: c.get("size", 0), reverse=True)[:6]
         return (
-            "You are a financial data analysis assistant.\n"
-            "Do not give investment advice.\n"
-            "Explain detected co-moving stock groups based only on the provided metrics.\n"
-            "Mention correlation, DTW similarity, hybrid similarity and community detection results.\n"
-            f"Write in clear {'Turkish' if language.lower().startswith('tr') else language}.\n\n"
-            f"Symbols: {json.dumps(symbols, ensure_ascii=True)}\n"
-            f"Date range: {json.dumps(date_range, ensure_ascii=True, default=str)}\n"
-            f"Top pairs: {json.dumps(top_pairs[:12], ensure_ascii=True, default=str)}\n"
-            f"Communities: {json.dumps(communities[:8], ensure_ascii=True, default=str)}\n"
+            f"You are a financial data analysis assistant. Write in {lang}.\n"
+            "Write a concise 4-6 sentence summary of the co-movement analysis results below.\n"
+            "Focus on: strongest pairs, largest communities, modularity score, and what this means for the market structure.\n"
+            "Do not give investment advice. Do not repeat raw numbers verbatim — interpret them.\n\n"
+            f"Symbol count: {len(symbols)}\n"
+            f"Date range: {date_range.get('start')} to {date_range.get('end')}\n"
+            f"Top pairs (hybrid similarity): {json.dumps(top_pairs[:8], ensure_ascii=True, default=str)}\n"
+            f"Largest communities: {json.dumps(top_communities, ensure_ascii=True, default=str)}\n"
             f"Metrics: {json.dumps(metrics, ensure_ascii=True, default=str)}\n"
         )
 
