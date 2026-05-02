@@ -15,6 +15,7 @@ import {
     RefreshCw,
     Sparkles,
     TrendingUp,
+    X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -314,7 +315,7 @@ function ExplanationCard({
                 <div className="space-y-4 px-5 py-4">
                     {explanation ? (
                         <>
-                            <p className="text-sm leading-7 text-foreground/90">
+                            <p className="whitespace-pre-wrap text-sm leading-7 text-foreground/90">
                                 {explanation.summary}
                             </p>
                             <div className="space-y-2">
@@ -797,11 +798,13 @@ function NodeDetailCard({
     selectedNodeId,
     visibleNodes,
     visibleEdges,
+    onClose,
 }: {
     result: CoMovementResult
     selectedNodeId: string | null
     visibleNodes?: CoMovementResult['graph']['nodes']
     visibleEdges?: CoMovementResult['graph']['edges']
+    onClose?: () => void
 }) {
     const nodes = visibleNodes ?? result.graph.nodes
     const edges = visibleEdges ?? result.graph.edges
@@ -823,10 +826,19 @@ function NodeDetailCard({
 
     return (
         <div className="flex h-full flex-col">
-            <div className="border-b border-border/50 px-4 py-3">
+            <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                     Hisse Detayı
                 </p>
+                {onClose && (
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="text-muted-foreground/40 transition-colors hover:text-foreground"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                )}
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto p-4">
                 {!node ? (
@@ -1243,9 +1255,9 @@ function SnapshotExplorerView({
                     hint={`Hizalanmış: ${formatDateLabel(snapshot.date_range.aligned_start)} → ${formatDateLabel(snapshot.date_range.aligned_end)}`}
                 />
                 <StatCard
-                    label="Snapshot"
-                    value={snapshot.snapshot.snapshot_id}
-                    hint={formatDateLabel(snapshot.snapshot.created_at)}
+                    label="Oluşturulma"
+                    value={formatDateLabel(snapshot.snapshot.created_at)}
+                    hint={snapshot.snapshot.snapshot_id}
                 />
                 <StatCard
                     label="Yapılandırma"
@@ -1254,7 +1266,7 @@ function SnapshotExplorerView({
                 />
             </div>
 
-            {/* B: Tam genişlik ağ grafiği + overlay panel */}
+            {/* B: Ağ grafiği + topluluk / hisse detay kenar paneli */}
             <div className="overflow-hidden rounded-2xl border border-border/60 bg-[#080808]">
                 <div className="flex items-center justify-between gap-4 border-b border-border/50 px-5 py-3.5">
                     <div className="flex items-center gap-3">
@@ -1286,28 +1298,120 @@ function SnapshotExplorerView({
                         ))}
                     </div>
                 </div>
-                <div className="relative">
-                    <CoMovementGraph
-                        title=""
-                        description=""
-                        nodes={snapshotGraphData.nodes}
-                        edges={snapshotGraphData.edges}
-                        selectedNodeId={effectiveSelectedSnapshotNodeId}
-                        onSelectNode={setSelectedSnapshotNodeId}
-                        height={550}
-                        className="border-0 bg-transparent shadow-none"
-                    />
-                    {effectiveSelectedSnapshotNodeId && (
-                        <div className="animate-slide-in-right absolute right-0 top-0 h-full w-[300px] border-l border-border/50 bg-[#060606]/95 backdrop-blur-sm">
+
+                <div className="flex" style={{ height: 550 }}>
+                    {/* Grafik */}
+                    <div className="relative min-w-0 flex-1 overflow-hidden">
+                        <CoMovementGraph
+                            title=""
+                            description=""
+                            nodes={snapshotGraphData.nodes}
+                            edges={snapshotGraphData.edges}
+                            selectedNodeId={effectiveSelectedSnapshotNodeId}
+                            onSelectNode={setSelectedSnapshotNodeId}
+                            height={550}
+                            bare
+                        />
+                    </div>
+
+                    {/* Kenar panel: topluluklar veya hisse detayı */}
+                    <div className="flex w-[270px] shrink-0 flex-col overflow-hidden border-l border-border/50 bg-[#060606]">
+                        {selectedSnapshotNodeId ? (
                             <NodeDetailCard
                                 result={snapshot}
-                                selectedNodeId={effectiveSelectedSnapshotNodeId}
+                                selectedNodeId={selectedSnapshotNodeId}
                                 visibleNodes={snapshotGraphData.nodes}
                                 visibleEdges={snapshotGraphData.edges}
+                                onClose={() => setSelectedSnapshotNodeId(null)}
                             />
-                        </div>
-                    )}
+                        ) : (
+                            <>
+                                <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-4 py-3">
+                                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                        Topluluklar
+                                    </p>
+                                    <span className="text-[10px] text-muted-foreground/50">
+                                        {snapshot.communities.length} grup
+                                    </span>
+                                </div>
+                                <div className="flex-1 space-y-1 overflow-y-auto p-2">
+                                    {snapshot.communities.map((community) => {
+                                        const color = communityColor(community.community_id)
+                                        const isSelected = selectedCommunityId === community.community_id
+                                        const { visible } = compactStockPreview(community.stocks, 4)
+                                        return (
+                                            <button
+                                                key={community.community_id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSnapshotGraphScope('focus')
+                                                    setSnapshotFocusMode('community')
+                                                    setSelectedCommunityId(community.community_id)
+                                                }}
+                                                className="relative w-full overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-all"
+                                                style={{
+                                                    borderLeftWidth: 3,
+                                                    borderLeftColor: color,
+                                                    borderTopColor: isSelected ? `${color}40` : 'transparent',
+                                                    borderRightColor: isSelected ? `${color}40` : 'transparent',
+                                                    borderBottomColor: isSelected ? `${color}40` : 'transparent',
+                                                    backgroundColor: isSelected ? `${color}0a` : 'rgba(255,255,255,0.01)',
+                                                }}
+                                            >
+                                                {isSelected && (
+                                                    <div
+                                                        className="pointer-events-none absolute inset-0"
+                                                        style={{
+                                                            background: `radial-gradient(ellipse 80% 60% at 0% 50%, ${color}10, transparent)`,
+                                                        }}
+                                                    />
+                                                )}
+                                                <div className="relative flex items-center justify-between gap-1.5">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span
+                                                            className="h-2 w-2 shrink-0 rounded-full"
+                                                            style={{ backgroundColor: color }}
+                                                        />
+                                                        <span className="text-xs font-semibold text-foreground">
+                                                            G{community.community_id}
+                                                        </span>
+                                                        <span className="rounded border border-border/40 px-1 text-[9px] text-muted-foreground/60">
+                                                            {community.size}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-[10px] text-cyan-300/70">
+                                                        {formatNumber(community.avg_similarity, 3)}
+                                                    </span>
+                                                </div>
+                                                <div className="relative mt-1.5 flex flex-wrap gap-1">
+                                                    {visible.map((stock) => (
+                                                        <span
+                                                            key={stock}
+                                                            className="rounded px-1 py-0.5 text-[9px] font-medium"
+                                                            style={{
+                                                                backgroundColor: `${color}18`,
+                                                                color: color,
+                                                                border: `1px solid ${color}30`,
+                                                            }}
+                                                        >
+                                                            {stock}
+                                                        </span>
+                                                    ))}
+                                                    {community.stocks.length > 4 && (
+                                                        <span className="rounded border border-border/40 px-1 py-0.5 text-[9px] text-muted-foreground/50">
+                                                            +{community.stocks.length - 4}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
+
                 <div className="flex flex-wrap gap-4 border-t border-border/40 px-5 py-2.5 text-[10px] text-muted-foreground/50">
                     <span>Node rengi community kimliğini gösterir</span>
                     <span>Node boyutu bağlantı yoğunluğuna göre ölçeklenir</span>
@@ -1315,25 +1419,13 @@ function SnapshotExplorerView({
                 </div>
             </div>
 
-            {/* C: Topluluklar + En güçlü eşleşmeler */}
-            <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-                <CommunitiesCard
-                    communities={snapshot.communities}
-                    edges={snapshot.graph.edges}
-                    selectedCommunityId={selectedCommunityId}
-                    onSelect={(communityId) => {
-                        setSnapshotGraphScope('focus')
-                        setSnapshotFocusMode('community')
-                        setSelectedCommunityId(communityId)
-                    }}
-                />
-                <PairsTable
-                    title="En Güçlü Eşleşmeler"
-                    description="Hybrid similarity skoruna göre en yakın hareket eden hisseler."
-                    pairs={snapshot.top_pairs}
-                    limit={12}
-                />
-            </div>
+            {/* C: En güçlü eşleşmeler */}
+            <PairsTable
+                title="En Güçlü Eşleşmeler"
+                description="Hybrid similarity skoruna göre en yakın hareket eden hisseler."
+                pairs={snapshot.top_pairs}
+                limit={15}
+            />
 
             {/* D: Matrisler — collapsible */}
             <div className="overflow-hidden rounded-2xl border border-border/60">
@@ -1607,6 +1699,8 @@ export function CoMovementSection() {
     const [customMinSimilarity, setCustomMinSimilarity] = useState(0.6)
     const [customRollingWindow, setCustomRollingWindow] = useState(90)
     const [customResult, setCustomResult] = useState<CoMovementAnalyzeResponse | null>(null)
+    const [selectedCustomCommunityId, setSelectedCustomCommunityId] = useState<number | null>(null)
+    const [customGraphScope, setCustomGraphScope] = useState<SnapshotGraphScope>('market')
     const customStartDate =
         customStartDateOverride ??
         latestSnapshotQuery.data?.date_range.start ??
@@ -1631,17 +1725,36 @@ export function CoMovementSection() {
         })
 
         setCustomResult(response)
-        setSelectedAnalysisNodeId(
-            chooseDefaultNode(response.graph.nodes, response.graph.edges)
-        )
+        setSelectedAnalysisNodeId(chooseDefaultNode(response.graph.nodes, response.graph.edges))
+        setSelectedCustomCommunityId(null)
+        setCustomGraphScope('market')
         setAnalysisExplanation(null)
     }
 
+    const customGraphData = useMemo(() => {
+        if (!customResult) return { nodes: [] as CoMovementResult['graph']['nodes'], edges: [] as CoMovementResult['graph']['edges'] }
+        if (customGraphScope === 'market') {
+            return {
+                nodes: customResult.graph.nodes,
+                edges: customResult.graph.edges.map((edge) => ({
+                    ...edge,
+                    source: edgeSourceId(edge),
+                    target: edgeTargetId(edge),
+                })),
+            }
+        }
+        const community = customResult.communities.find(
+            (c) => c.community_id === selectedCustomCommunityId
+        )
+        if (!community) return { nodes: customResult.graph.nodes, edges: [] as typeof customResult.graph.edges }
+        return filterGraphBySymbols(customResult, community.stocks)
+    }, [customResult, customGraphScope, selectedCustomCommunityId])
+
     const effectiveSelectedAnalysisNodeId =
-        customResult?.graph.nodes.some((node) => node.id === selectedAnalysisNodeId)
+        customGraphData.nodes.some((node) => node.id === selectedAnalysisNodeId)
             ? selectedAnalysisNodeId
             : customResult
-              ? chooseDefaultNode(customResult.graph.nodes, customResult.graph.edges)
+              ? chooseDefaultNode(customGraphData.nodes, customGraphData.edges)
               : null
 
     const customMatrixSymbols = useMemo(() => {
@@ -1740,7 +1853,7 @@ export function CoMovementSection() {
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/50 bg-[#080808] px-5 py-3.5">
                         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                             <span className="h-2 w-2 rounded-full bg-[#24a693] animate-pulse" />
-                            Piyasa Snapshot
+                            Piyasa Görünümü
                         </div>
                         <div className="flex items-center gap-2">
                             <Select
@@ -1749,7 +1862,7 @@ export function CoMovementSection() {
                                     setSelectedSnapshotMode(event.target.value)
                                 }
                             >
-                                <option value="latest">Güncel snapshot</option>
+                                <option value="latest">Güncel</option>
                                 {historicalSnapshots.map((snapshot) => (
                                     <option
                                         key={snapshot.snapshot_id}
@@ -2007,7 +2120,7 @@ export function CoMovementSection() {
                                 />
                             </div>
 
-                            {/* Analiz grafiği */}
+                            {/* Analiz grafiği + topluluk kenar paneli */}
                             <div className="overflow-hidden rounded-2xl border border-border/60 bg-[#080808]">
                                 <div className="flex items-center justify-between gap-4 border-b border-border/50 px-5 py-3.5">
                                     <div className="flex items-center gap-3">
@@ -2017,51 +2130,151 @@ export function CoMovementSection() {
                                         <div>
                                             <p className="text-sm font-semibold text-foreground">Analiz Grafiği</p>
                                             <p className="text-[11px] text-muted-foreground">
-                                                {customResult.graph.nodes.length} hisse · {customResult.graph.edges.length} bağlantı
+                                                {customGraphData.nodes.length} hisse · {customGraphData.edges.length} bağlantı
                                             </p>
                                         </div>
                                     </div>
+                                    <div className="flex items-center gap-1 rounded-xl bg-[#111111] p-1">
+                                        {(['market', 'focus'] as const).map((scope) => (
+                                            <button
+                                                key={scope}
+                                                type="button"
+                                                onClick={() => setCustomGraphScope(scope)}
+                                                className={cn(
+                                                    'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
+                                                    customGraphScope === scope
+                                                        ? 'bg-[#1e1e1e] text-foreground shadow-sm'
+                                                        : 'text-muted-foreground hover:text-foreground/70'
+                                                )}
+                                            >
+                                                {scope === 'market' ? 'Tüm' : 'Odaklı'}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="relative">
-                                    <CoMovementGraph
-                                        title=""
-                                        description=""
-                                        nodes={customResult.graph.nodes}
-                                        edges={customResult.graph.edges}
-                                        selectedNodeId={effectiveSelectedAnalysisNodeId}
-                                        onSelectNode={setSelectedAnalysisNodeId}
-                                        height={500}
-                                        className="border-0 bg-transparent shadow-none"
-                                    />
-                                    {effectiveSelectedAnalysisNodeId && (
-                                        <div className="animate-slide-in-right absolute right-0 top-0 h-full w-[300px] border-l border-border/50 bg-[#060606]/95 backdrop-blur-sm">
+
+                                <div className="flex" style={{ height: 500 }}>
+                                    <div className="relative min-w-0 flex-1 overflow-hidden">
+                                        <CoMovementGraph
+                                            title=""
+                                            description=""
+                                            nodes={customGraphData.nodes}
+                                            edges={customGraphData.edges}
+                                            selectedNodeId={effectiveSelectedAnalysisNodeId}
+                                            onSelectNode={setSelectedAnalysisNodeId}
+                                            height={500}
+                                            bare
+                                        />
+                                    </div>
+
+                                    <div className="flex w-[270px] shrink-0 flex-col overflow-hidden border-l border-border/50 bg-[#060606]">
+                                        {selectedAnalysisNodeId ? (
                                             <NodeDetailCard
                                                 result={customResult}
-                                                selectedNodeId={effectiveSelectedAnalysisNodeId}
-                                                visibleNodes={customResult.graph.nodes}
-                                                visibleEdges={customResult.graph.edges}
+                                                selectedNodeId={selectedAnalysisNodeId}
+                                                visibleNodes={customGraphData.nodes}
+                                                visibleEdges={customGraphData.edges}
+                                                onClose={() => setSelectedAnalysisNodeId(null)}
                                             />
-                                        </div>
-                                    )}
+                                        ) : (
+                                            <>
+                                                <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-4 py-3">
+                                                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                                        Topluluklar
+                                                    </p>
+                                                    <span className="text-[10px] text-muted-foreground/50">
+                                                        {customResult.communities.length} grup
+                                                    </span>
+                                                </div>
+                                                <div className="flex-1 space-y-1 overflow-y-auto p-2">
+                                                    {customResult.communities.map((community) => {
+                                                        const color = communityColor(community.community_id)
+                                                        const isSelected = selectedCustomCommunityId === community.community_id
+                                                        const { visible } = compactStockPreview(community.stocks, 4)
+                                                        return (
+                                                            <button
+                                                                key={community.community_id}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setCustomGraphScope('focus')
+                                                                    setSelectedCustomCommunityId(community.community_id)
+                                                                }}
+                                                                className="relative w-full overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-all"
+                                                                style={{
+                                                                    borderLeftWidth: 3,
+                                                                    borderLeftColor: color,
+                                                                    borderTopColor: isSelected ? `${color}40` : 'transparent',
+                                                                    borderRightColor: isSelected ? `${color}40` : 'transparent',
+                                                                    borderBottomColor: isSelected ? `${color}40` : 'transparent',
+                                                                    backgroundColor: isSelected ? `${color}0a` : 'rgba(255,255,255,0.01)',
+                                                                }}
+                                                            >
+                                                                {isSelected && (
+                                                                    <div
+                                                                        className="pointer-events-none absolute inset-0"
+                                                                        style={{
+                                                                            background: `radial-gradient(ellipse 80% 60% at 0% 50%, ${color}10, transparent)`,
+                                                                        }}
+                                                                    />
+                                                                )}
+                                                                <div className="relative flex items-center justify-between gap-1.5">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span
+                                                                            className="h-2 w-2 shrink-0 rounded-full"
+                                                                            style={{ backgroundColor: color }}
+                                                                        />
+                                                                        <span className="text-xs font-semibold text-foreground">
+                                                                            G{community.community_id}
+                                                                        </span>
+                                                                        <span className="rounded border border-border/40 px-1 text-[9px] text-muted-foreground/60">
+                                                                            {community.size}
+                                                                        </span>
+                                                                    </div>
+                                                                    <span className="text-[10px] text-cyan-300/70">
+                                                                        {formatNumber(community.avg_similarity, 3)}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="relative mt-1.5 flex flex-wrap gap-1">
+                                                                    {visible.map((stock) => (
+                                                                        <span
+                                                                            key={stock}
+                                                                            className="rounded px-1 py-0.5 text-[9px] font-medium"
+                                                                            style={{
+                                                                                backgroundColor: `${color}18`,
+                                                                                color: color,
+                                                                                border: `1px solid ${color}30`,
+                                                                            }}
+                                                                        >
+                                                                            {stock}
+                                                                        </span>
+                                                                    ))}
+                                                                    {community.stocks.length > 4 && (
+                                                                        <span className="rounded border border-border/40 px-1 py-0.5 text-[9px] text-muted-foreground/50">
+                                                                            +{community.stocks.length - 4}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </button>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
+
                                 <div className="flex flex-wrap gap-4 border-t border-border/40 px-5 py-2.5 text-[10px] text-muted-foreground/50">
                                     <span>Node rengi community kimliğini gösterir</span>
                                     <span>Kenar kalınlığı hybrid similarity ağırlığını gösterir</span>
                                 </div>
                             </div>
 
-                            <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-                                <CommunitiesCard
-                                    communities={customResult.communities}
-                                    edges={customResult.graph.edges}
-                                />
-                                <PairsTable
-                                    title="En Güçlü Eşleşmeler"
-                                    description="Hybrid similarity skoruna göre sıralanan eşleşmeler."
-                                    pairs={customResult.top_pairs}
-                                    limit={12}
-                                />
-                            </div>
+                            <PairsTable
+                                title="En Güçlü Eşleşmeler"
+                                description="Hybrid similarity skoruna göre sıralanan eşleşmeler."
+                                pairs={customResult.top_pairs}
+                                limit={15}
+                            />
 
                             <div className="overflow-hidden rounded-2xl border border-border/60">
                                 <div className="px-5 py-4">

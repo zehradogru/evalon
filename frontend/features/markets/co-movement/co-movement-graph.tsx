@@ -30,6 +30,7 @@ interface CoMovementGraphProps {
     onSelectNode?: (nodeId: string | null) => void
     height?: number
     className?: string
+    bare?: boolean
 }
 
 type GraphNode = CoMovementNode & {
@@ -55,6 +56,7 @@ export function CoMovementGraph({
     onSelectNode,
     height = 520,
     className,
+    bare = false,
 }: CoMovementGraphProps) {
     const containerRef = useRef<HTMLDivElement | null>(null)
     const [dimensions, setDimensions] = useState({ width: 800, height })
@@ -160,6 +162,82 @@ export function CoMovementGraph({
         }
     }, [nodes, edges])
 
+    const fgProps = {
+        width: dimensions.width,
+        height: dimensions.height,
+        graphData,
+        backgroundColor: 'rgba(0,0,0,0)',
+        cooldownTicks: 120,
+        nodeRelSize: 6,
+        linkDirectionalParticles: (link: GraphLink) =>
+            highlightedLinks.has(
+                createPairKey(graphNodeId(link.source), graphNodeId(link.target))
+            )
+                ? 2
+                : 0,
+        linkDirectionalParticleWidth: 2,
+        linkWidth: (link: GraphLink) => {
+            const key = createPairKey(graphNodeId(link.source), graphNodeId(link.target))
+            return highlightedLinks.has(key) ? 2 + link.weight * 6 : 0.8 + link.weight * 3.5
+        },
+        linkColor: (link: GraphLink) => {
+            const key = createPairKey(graphNodeId(link.source), graphNodeId(link.target))
+            return highlightedLinks.has(key) ? 'rgba(255,255,255,0.95)' : 'rgba(148,163,184,0.35)'
+        },
+        nodeCanvasObject: (
+            node: GraphNode,
+            context: CanvasRenderingContext2D,
+            globalScale: number
+        ) => {
+            const nodeId = node.id
+            const nodeColor = communityColor(node.community_id)
+            const isHighlighted = highlightedNodes.has(nodeId)
+            const degree = degreeMap.get(nodeId) ?? 0
+            const x = node.x ?? 0
+            const y = node.y ?? 0
+            const r = Math.max(4.5, Math.min(12, 5 + degree * 0.35))
+            const showLabel = isHighlighted || nodes.length <= 90
+            const fontSize = isHighlighted ? 12 / globalScale : 9 / globalScale
+
+            context.beginPath()
+            context.arc(x, y, r, 0, 2 * Math.PI)
+            context.fillStyle = nodeColor
+            context.fill()
+            context.lineWidth = isHighlighted ? 2 : 1
+            context.strokeStyle = isHighlighted ? 'rgba(255,255,255,0.95)' : 'rgba(15,23,42,0.7)'
+            context.stroke()
+
+            if (showLabel) {
+                context.font = `${fontSize}px sans-serif`
+                context.textAlign = 'center'
+                context.textBaseline = 'top'
+                context.fillStyle = 'rgba(241,245,249,0.95)'
+                context.fillText(node.label, x, y + r + 2)
+            }
+        },
+        onNodeHover: (node: GraphNode | null) => {
+            setHoveredNodeId(node ? node.id : null)
+        },
+        onNodeClick: (node: GraphNode | null) => {
+            onSelectNode?.(node ? node.id : null)
+        },
+    }
+
+    if (bare) {
+        return nodes.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Ağ grafiği verisi bekleniyor.
+            </div>
+        ) : (
+            <div
+                ref={containerRef}
+                className="h-full w-full overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.08),_transparent_40%),linear-gradient(180deg,rgba(15,23,42,0.55),rgba(15,23,42,0.1))]"
+            >
+                <ForceGraph2D {...fgProps} />
+            </div>
+        )
+    }
+
     return (
         <Card className={cn("border-border/60 bg-card/80 shadow-none", className)}>
             <CardHeader className="border-b border-border/50">
@@ -176,91 +254,9 @@ export function CoMovementGraph({
                         ref={containerRef}
                         className="overflow-hidden rounded-2xl border border-border/50 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.08),_transparent_40%),linear-gradient(180deg,rgba(15,23,42,0.55),rgba(15,23,42,0.1))]"
                     >
-                        <ForceGraph2D
-                            width={dimensions.width}
-                            height={dimensions.height}
-                            graphData={graphData}
-                            backgroundColor="rgba(0,0,0,0)"
-                            cooldownTicks={120}
-                            nodeRelSize={6}
-                            linkDirectionalParticles={(link: GraphLink) =>
-                                highlightedLinks.has(
-                                    createPairKey(
-                                        graphNodeId(link.source),
-                                        graphNodeId(link.target)
-                                    )
-                                )
-                                    ? 2
-                                    : 0
-                            }
-                            linkDirectionalParticleWidth={2}
-                            linkWidth={(link: GraphLink) => {
-                                const linkKey = createPairKey(
-                                    graphNodeId(link.source),
-                                    graphNodeId(link.target)
-                                )
-                                return highlightedLinks.has(linkKey)
-                                    ? 2 + link.weight * 6
-                                    : 0.8 + link.weight * 3.5
-                            }}
-                            linkColor={(link: GraphLink) => {
-                                const linkKey = createPairKey(
-                                    graphNodeId(link.source),
-                                    graphNodeId(link.target)
-                                )
-                                return highlightedLinks.has(linkKey)
-                                    ? 'rgba(255,255,255,0.95)'
-                                    : 'rgba(148,163,184,0.35)'
-                            }}
-                            nodeCanvasObject={(
-                                node: GraphNode,
-                                context: CanvasRenderingContext2D,
-                                globalScale: number
-                            ) => {
-                                const nodeId = node.id
-                                const nodeColor = communityColor(node.community_id)
-                                const isHighlighted = highlightedNodes.has(nodeId)
-                                const degree = degreeMap.get(nodeId) ?? 0
-                                const x = node.x ?? 0
-                                const y = node.y ?? 0
-                                const radius = Math.max(
-                                    4.5,
-                                    Math.min(12, 5 + degree * 0.35)
-                                )
-                                const showLabel = isHighlighted || nodes.length <= 90
-                                const fontSize = isHighlighted
-                                    ? 12 / globalScale
-                                    : 9 / globalScale
-
-                                context.beginPath()
-                                context.arc(x, y, radius, 0, 2 * Math.PI)
-                                context.fillStyle = nodeColor
-                                context.fill()
-
-                                context.lineWidth = isHighlighted ? 2 : 1
-                                context.strokeStyle = isHighlighted
-                                    ? 'rgba(255,255,255,0.95)'
-                                    : 'rgba(15,23,42,0.7)'
-                                context.stroke()
-
-                                if (showLabel) {
-                                    context.font = `${fontSize}px sans-serif`
-                                    context.textAlign = 'center'
-                                    context.textBaseline = 'top'
-                                    context.fillStyle = 'rgba(241,245,249,0.95)'
-                                    context.fillText(node.label, x, y + radius + 2)
-                                }
-                            }}
-                            onNodeHover={(node: GraphNode | null) => {
-                                setHoveredNodeId(node ? node.id : null)
-                            }}
-                            onNodeClick={(node: GraphNode | null) => {
-                                onSelectNode?.(node ? node.id : null)
-                            }}
-                        />
+                        <ForceGraph2D {...fgProps} />
                     </div>
                 )}
-
                 <div className="mt-4 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
                     <span>Node rengi community kimliğini gösterir.</span>
                     <span>Node boyutu bağlantı yoğunluğu arttıkça büyür.</span>
