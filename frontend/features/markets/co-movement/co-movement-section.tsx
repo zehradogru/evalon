@@ -450,34 +450,31 @@ function PairsTable({
                     <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
                 </div>
             )}
-            <div className="divide-y divide-border/30">
+            <div className="divide-y divide-border/20">
                 {rows.length === 0 ? (
                     <p className="py-8 text-center text-sm text-muted-foreground">
                         Pair verisi bulunamadı.
                     </p>
                 ) : (
-                    rows.map((pair) => (
+                    rows.map((pair, index) => (
                         <div
                             key={`${pair.source}-${pair.target}`}
-                            className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/10"
+                            className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.02]"
                         >
-                            <div className="flex min-w-0 flex-1 items-center gap-2">
-                                <span className="inline-flex items-center rounded-lg border border-[#2862ff]/30 bg-[#2862ff]/8 px-2 py-0.5 text-[11px] font-semibold text-[#2862ff]/90">
-                                    {pair.source}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground/40">vs</span>
-                                <span className="inline-flex items-center rounded-lg border border-[#2862ff]/30 bg-[#2862ff]/8 px-2 py-0.5 text-[11px] font-semibold text-[#2862ff]/90">
-                                    {pair.target}
-                                </span>
-                            </div>
-                            <div className="w-28 shrink-0">
-                                <div className="mb-1 flex items-center justify-between">
-                                    <span className="text-[10px] text-muted-foreground/50">hybrid</span>
-                                    <span className="text-xs font-semibold text-cyan-300">
-                                        {formatNumber(pair.hybrid_similarity, 3)}
+                            <span className="w-5 shrink-0 text-right font-mono text-[10px] text-muted-foreground/30">
+                                {index + 1}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-sm font-bold tracking-tight text-foreground">
+                                        {pair.source}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground/30">·</span>
+                                    <span className="text-sm font-bold tracking-tight text-foreground">
+                                        {pair.target}
                                     </span>
                                 </div>
-                                <div className="h-[3px] w-full rounded-full bg-border/30">
+                                <div className="mt-1.5 h-[2px] w-full overflow-hidden rounded-full bg-border/20">
                                     <div
                                         className="cmo-progress-bar h-full rounded-full"
                                         style={{
@@ -485,15 +482,18 @@ function PairsTable({
                                         }}
                                     />
                                 </div>
-                            </div>
-                            <div className="hidden w-36 shrink-0 flex-col gap-0.5 text-right lg:flex">
-                                <span className="text-[10px] text-muted-foreground/60">
+                                <div className="mt-1 text-[10px] text-muted-foreground/40">
                                     P {formatNumber(pair.pearson, 3)} · D{' '}
                                     {formatNumber(pair.dtw_similarity, 3)}
+                                </div>
+                            </div>
+                            <div className="shrink-0 text-right">
+                                <span className="text-base font-bold tabular-nums text-cyan-300">
+                                    {formatNumber(pair.hybrid_similarity, 3)}
                                 </span>
-                                <span className="text-[10px] text-muted-foreground/60">
-                                    Sp {formatNumber(pair.spearman, 3)}
-                                </span>
+                                <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40">
+                                    hybrid
+                                </p>
                             </div>
                         </div>
                     ))
@@ -1247,23 +1247,37 @@ function SnapshotExplorerView({
             {/* A: Ana metrik kartlar */}
             {snapshotSummaryCards(snapshot)}
 
-            {/* A2: İkincil bilgi kartları */}
-            <div className="grid gap-3 md:grid-cols-3">
-                <StatCard
-                    label="Tarih Aralığı"
-                    value={`${formatDateLabel(snapshot.date_range.start)} → ${formatDateLabel(snapshot.date_range.end)}`}
-                    hint={`Hizalanmış: ${formatDateLabel(snapshot.date_range.aligned_start)} → ${formatDateLabel(snapshot.date_range.aligned_end)}`}
-                />
-                <StatCard
-                    label="Oluşturulma"
-                    value={formatDateLabel(snapshot.snapshot.created_at)}
-                    hint={snapshot.snapshot.snapshot_id}
-                />
-                <StatCard
-                    label="Yapılandırma"
-                    value={`top_k ${snapshot.config.top_k}`}
-                    hint={`min sim ${formatNumber(snapshot.config.min_similarity, 2)} · rolling ${snapshot.config.rolling_window}`}
-                />
+            {/* A2: Kompakt analiz detay satırı */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-border/50 bg-[#080808] px-5 py-3.5 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground/50">Dönem</span>
+                    <span className="font-medium text-foreground">
+                        {formatDateLabel(snapshot.date_range.start)} – {formatDateLabel(snapshot.date_range.end)}
+                    </span>
+                    {snapshot.date_range.rows ? (
+                        <span className="text-muted-foreground/40">({snapshot.date_range.rows} işlem günü)</span>
+                    ) : null}
+                </span>
+                <span className="h-3 w-px bg-border/40" />
+                <span className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground/50">Oluşturulma</span>
+                    <span className="font-medium text-foreground">
+                        {formatDateLabel(snapshot.snapshot.created_at)}
+                    </span>
+                </span>
+                <span className="h-3 w-px bg-border/40" />
+                <span className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground/50">top_k</span>
+                    <span className="font-medium text-foreground">{snapshot.config.top_k}</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground/50">min benzerlik</span>
+                    <span className="font-medium text-foreground">{formatNumber(snapshot.config.min_similarity, 2)}</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground/50">rolling</span>
+                    <span className="font-medium text-foreground">{snapshot.config.rolling_window} gün</span>
+                </span>
             </div>
 
             {/* B: Ağ grafiği + topluluk / hisse detay kenar paneli */}
@@ -1326,87 +1340,102 @@ function SnapshotExplorerView({
                             />
                         ) : (
                             <>
-                                <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-4 py-3">
-                                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                                        Topluluklar
-                                    </p>
-                                    <span className="text-[10px] text-muted-foreground/50">
-                                        {snapshot.communities.length} grup
-                                    </span>
-                                </div>
-                                <div className="flex-1 space-y-1 overflow-y-auto p-2">
-                                    {snapshot.communities.map((community) => {
-                                        const color = communityColor(community.community_id)
-                                        const isSelected = selectedCommunityId === community.community_id
-                                        const { visible } = compactStockPreview(community.stocks, 4)
-                                        return (
-                                            <button
-                                                key={community.community_id}
-                                                type="button"
-                                                onClick={() => {
-                                                    setSnapshotGraphScope('focus')
-                                                    setSnapshotFocusMode('community')
-                                                    setSelectedCommunityId(community.community_id)
-                                                }}
-                                                className="relative w-full overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-all"
-                                                style={{
-                                                    borderLeftWidth: 3,
-                                                    borderLeftColor: color,
-                                                    borderTopColor: isSelected ? `${color}40` : 'transparent',
-                                                    borderRightColor: isSelected ? `${color}40` : 'transparent',
-                                                    borderBottomColor: isSelected ? `${color}40` : 'transparent',
-                                                    backgroundColor: isSelected ? `${color}0a` : 'rgba(255,255,255,0.01)',
-                                                }}
-                                            >
-                                                {isSelected && (
-                                                    <div
-                                                        className="pointer-events-none absolute inset-0"
-                                                        style={{
-                                                            background: `radial-gradient(ellipse 80% 60% at 0% 50%, ${color}10, transparent)`,
-                                                        }}
-                                                    />
-                                                )}
-                                                <div className="relative flex items-center justify-between gap-1.5">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span
-                                                            className="h-2 w-2 shrink-0 rounded-full"
-                                                            style={{ backgroundColor: color }}
-                                                        />
-                                                        <span className="text-xs font-semibold text-foreground">
-                                                            G{community.community_id}
-                                                        </span>
-                                                        <span className="rounded border border-border/40 px-1 text-[9px] text-muted-foreground/60">
-                                                            {community.size}
-                                                        </span>
-                                                    </div>
-                                                    <span className="text-[10px] text-cyan-300/70">
-                                                        {formatNumber(community.avg_similarity, 3)}
-                                                    </span>
-                                                </div>
-                                                <div className="relative mt-1.5 flex flex-wrap gap-1">
-                                                    {visible.map((stock) => (
-                                                        <span
-                                                            key={stock}
-                                                            className="rounded px-1 py-0.5 text-[9px] font-medium"
-                                                            style={{
-                                                                backgroundColor: `${color}18`,
-                                                                color: color,
-                                                                border: `1px solid ${color}30`,
-                                                            }}
-                                                        >
-                                                            {stock}
-                                                        </span>
-                                                    ))}
-                                                    {community.stocks.length > 4 && (
-                                                        <span className="rounded border border-border/40 px-1 py-0.5 text-[9px] text-muted-foreground/50">
-                                                            +{community.stocks.length - 4}
+                                {(() => {
+                                    const sorted = [...snapshot.communities]
+                                        .sort((a, b) => b.size - a.size || b.avg_similarity - a.avg_similarity)
+                                    const grouped = sorted.filter((c) => c.size > 1)
+                                    const isolated = sorted.filter((c) => c.size === 1)
+                                    return (
+                                        <>
+                                            <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-4 py-3">
+                                                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                                    Topluluklar
+                                                </p>
+                                                <span className="text-[10px] text-muted-foreground/50">
+                                                    {grouped.length} aktif
+                                                    {isolated.length > 0 && (
+                                                        <span className="ml-1 text-muted-foreground/30">
+                                                            · {isolated.length} izole
                                                         </span>
                                                     )}
-                                                </div>
-                                            </button>
-                                        )
-                                    })}
-                                </div>
+                                                </span>
+                                            </div>
+                                            <div className="flex-1 space-y-1 overflow-y-auto p-2">
+                                                {grouped.map((community) => {
+                                                    const color = communityColor(community.community_id)
+                                                    const isSelected = selectedCommunityId === community.community_id
+                                                    const { visible } = compactStockPreview(community.stocks, 4)
+                                                    return (
+                                                        <button
+                                                            key={community.community_id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSnapshotGraphScope('focus')
+                                                                setSnapshotFocusMode('community')
+                                                                setSelectedCommunityId(community.community_id)
+                                                            }}
+                                                            className="relative w-full overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-all"
+                                                            style={{
+                                                                borderLeftWidth: 3,
+                                                                borderLeftColor: color,
+                                                                borderTopColor: isSelected ? `${color}40` : 'transparent',
+                                                                borderRightColor: isSelected ? `${color}40` : 'transparent',
+                                                                borderBottomColor: isSelected ? `${color}40` : 'transparent',
+                                                                backgroundColor: isSelected ? `${color}0a` : 'rgba(255,255,255,0.01)',
+                                                            }}
+                                                        >
+                                                            {isSelected && (
+                                                                <div
+                                                                    className="pointer-events-none absolute inset-0"
+                                                                    style={{
+                                                                        background: `radial-gradient(ellipse 80% 60% at 0% 50%, ${color}10, transparent)`,
+                                                                    }}
+                                                                />
+                                                            )}
+                                                            <div className="relative flex items-center justify-between gap-1.5">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span
+                                                                        className="h-2 w-2 shrink-0 rounded-full"
+                                                                        style={{ backgroundColor: color }}
+                                                                    />
+                                                                    <span className="text-xs font-semibold text-foreground">
+                                                                        G{community.community_id}
+                                                                    </span>
+                                                                    <span className="rounded border border-border/40 px-1 text-[9px] text-muted-foreground/60">
+                                                                        {community.size} hisse
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-[10px] text-cyan-300/70">
+                                                                    {formatNumber(community.avg_similarity, 3)}
+                                                                </span>
+                                                            </div>
+                                                            <div className="relative mt-1.5 flex flex-wrap gap-1">
+                                                                {visible.map((stock) => (
+                                                                    <span
+                                                                        key={stock}
+                                                                        className="rounded px-1 py-0.5 text-[9px] font-medium"
+                                                                        style={{
+                                                                            backgroundColor: `${color}18`,
+                                                                            color: color,
+                                                                            border: `1px solid ${color}30`,
+                                                                        }}
+                                                                    >
+                                                                        {stock}
+                                                                    </span>
+                                                                ))}
+                                                                {community.stocks.length > 4 && (
+                                                                    <span className="rounded border border-border/40 px-1 py-0.5 text-[9px] text-muted-foreground/50">
+                                                                        +{community.stocks.length - 4}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </button>
+                                                    )
+                                                })}
+                                            </div>
+                                        </>
+                                    )
+                                })()}
                             </>
                         )}
                     </div>
@@ -2102,22 +2131,34 @@ export function CoMovementSection() {
                         <div className="space-y-4">
                             {analysisSummaryCards(customResult)}
 
-                            <div className="grid gap-3 md:grid-cols-3">
-                                <StatCard
-                                    label="Tarih Aralığı"
-                                    value={`${formatDateLabel(customResult.date_range.start)} → ${formatDateLabel(customResult.date_range.end)}`}
-                                    hint={`Hizalanmış: ${formatDateLabel(customResult.date_range.aligned_start)} → ${formatDateLabel(customResult.date_range.aligned_end)}`}
-                                />
-                                <StatCard
-                                    label="İstenen Hisse"
-                                    value={String(customResult.requested_symbols.length)}
-                                    hint={`${customResult.symbols.length} kullanılabilir hisse`}
-                                />
-                                <StatCard
-                                    label="Yapılandırma"
-                                    value={`top_k ${customResult.config.top_k}`}
-                                    hint={`min sim ${formatNumber(customResult.config.min_similarity, 2)} · rolling ${customResult.config.rolling_window}`}
-                                />
+                            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-border/50 bg-[#080808] px-5 py-3.5 text-[11px] text-muted-foreground">
+                                <span className="flex items-center gap-1.5">
+                                    <span className="text-muted-foreground/50">Dönem</span>
+                                    <span className="font-medium text-foreground">
+                                        {formatDateLabel(customResult.date_range.start)} – {formatDateLabel(customResult.date_range.end)}
+                                    </span>
+                                    {customResult.date_range.rows ? (
+                                        <span className="text-muted-foreground/40">({customResult.date_range.rows} işlem günü)</span>
+                                    ) : null}
+                                </span>
+                                <span className="h-3 w-px bg-border/40" />
+                                <span className="flex items-center gap-1.5">
+                                    <span className="text-muted-foreground/50">Kullanılan</span>
+                                    <span className="font-medium text-foreground">{customResult.symbols.length} / {customResult.requested_symbols.length} hisse</span>
+                                </span>
+                                <span className="h-3 w-px bg-border/40" />
+                                <span className="flex items-center gap-1.5">
+                                    <span className="text-muted-foreground/50">top_k</span>
+                                    <span className="font-medium text-foreground">{customResult.config.top_k}</span>
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                    <span className="text-muted-foreground/50">min benzerlik</span>
+                                    <span className="font-medium text-foreground">{formatNumber(customResult.config.min_similarity, 2)}</span>
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                    <span className="text-muted-foreground/50">rolling</span>
+                                    <span className="font-medium text-foreground">{customResult.config.rolling_window} gün</span>
+                                </span>
                             </div>
 
                             {/* Analiz grafiği + topluluk kenar paneli */}
@@ -2178,86 +2219,101 @@ export function CoMovementSection() {
                                             />
                                         ) : (
                                             <>
-                                                <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-4 py-3">
-                                                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                                                        Topluluklar
-                                                    </p>
-                                                    <span className="text-[10px] text-muted-foreground/50">
-                                                        {customResult.communities.length} grup
-                                                    </span>
-                                                </div>
-                                                <div className="flex-1 space-y-1 overflow-y-auto p-2">
-                                                    {customResult.communities.map((community) => {
-                                                        const color = communityColor(community.community_id)
-                                                        const isSelected = selectedCustomCommunityId === community.community_id
-                                                        const { visible } = compactStockPreview(community.stocks, 4)
-                                                        return (
-                                                            <button
-                                                                key={community.community_id}
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    setCustomGraphScope('focus')
-                                                                    setSelectedCustomCommunityId(community.community_id)
-                                                                }}
-                                                                className="relative w-full overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-all"
-                                                                style={{
-                                                                    borderLeftWidth: 3,
-                                                                    borderLeftColor: color,
-                                                                    borderTopColor: isSelected ? `${color}40` : 'transparent',
-                                                                    borderRightColor: isSelected ? `${color}40` : 'transparent',
-                                                                    borderBottomColor: isSelected ? `${color}40` : 'transparent',
-                                                                    backgroundColor: isSelected ? `${color}0a` : 'rgba(255,255,255,0.01)',
-                                                                }}
-                                                            >
-                                                                {isSelected && (
-                                                                    <div
-                                                                        className="pointer-events-none absolute inset-0"
-                                                                        style={{
-                                                                            background: `radial-gradient(ellipse 80% 60% at 0% 50%, ${color}10, transparent)`,
-                                                                        }}
-                                                                    />
-                                                                )}
-                                                                <div className="relative flex items-center justify-between gap-1.5">
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <span
-                                                                            className="h-2 w-2 shrink-0 rounded-full"
-                                                                            style={{ backgroundColor: color }}
-                                                                        />
-                                                                        <span className="text-xs font-semibold text-foreground">
-                                                                            G{community.community_id}
-                                                                        </span>
-                                                                        <span className="rounded border border-border/40 px-1 text-[9px] text-muted-foreground/60">
-                                                                            {community.size}
-                                                                        </span>
-                                                                    </div>
-                                                                    <span className="text-[10px] text-cyan-300/70">
-                                                                        {formatNumber(community.avg_similarity, 3)}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="relative mt-1.5 flex flex-wrap gap-1">
-                                                                    {visible.map((stock) => (
-                                                                        <span
-                                                                            key={stock}
-                                                                            className="rounded px-1 py-0.5 text-[9px] font-medium"
-                                                                            style={{
-                                                                                backgroundColor: `${color}18`,
-                                                                                color: color,
-                                                                                border: `1px solid ${color}30`,
-                                                                            }}
-                                                                        >
-                                                                            {stock}
-                                                                        </span>
-                                                                    ))}
-                                                                    {community.stocks.length > 4 && (
-                                                                        <span className="rounded border border-border/40 px-1 py-0.5 text-[9px] text-muted-foreground/50">
-                                                                            +{community.stocks.length - 4}
+                                                {(() => {
+                                                    const sorted = [...customResult.communities]
+                                                        .sort((a, b) => b.size - a.size || b.avg_similarity - a.avg_similarity)
+                                                    const grouped = sorted.filter((c) => c.size > 1)
+                                                    const isolated = sorted.filter((c) => c.size === 1)
+                                                    return (
+                                                        <>
+                                                            <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-4 py-3">
+                                                                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                                                    Topluluklar
+                                                                </p>
+                                                                <span className="text-[10px] text-muted-foreground/50">
+                                                                    {grouped.length} aktif
+                                                                    {isolated.length > 0 && (
+                                                                        <span className="ml-1 text-muted-foreground/30">
+                                                                            · {isolated.length} izole
                                                                         </span>
                                                                     )}
-                                                                </div>
-                                                            </button>
-                                                        )
-                                                    })}
-                                                </div>
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex-1 space-y-1 overflow-y-auto p-2">
+                                                                {grouped.map((community) => {
+                                                                    const color = communityColor(community.community_id)
+                                                                    const isSelected = selectedCustomCommunityId === community.community_id
+                                                                    const { visible } = compactStockPreview(community.stocks, 4)
+                                                                    return (
+                                                                        <button
+                                                                            key={community.community_id}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setCustomGraphScope('focus')
+                                                                                setSelectedCustomCommunityId(community.community_id)
+                                                                            }}
+                                                                            className="relative w-full overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-all"
+                                                                            style={{
+                                                                                borderLeftWidth: 3,
+                                                                                borderLeftColor: color,
+                                                                                borderTopColor: isSelected ? `${color}40` : 'transparent',
+                                                                                borderRightColor: isSelected ? `${color}40` : 'transparent',
+                                                                                borderBottomColor: isSelected ? `${color}40` : 'transparent',
+                                                                                backgroundColor: isSelected ? `${color}0a` : 'rgba(255,255,255,0.01)',
+                                                                            }}
+                                                                        >
+                                                                            {isSelected && (
+                                                                                <div
+                                                                                    className="pointer-events-none absolute inset-0"
+                                                                                    style={{
+                                                                                        background: `radial-gradient(ellipse 80% 60% at 0% 50%, ${color}10, transparent)`,
+                                                                                    }}
+                                                                                />
+                                                                            )}
+                                                                            <div className="relative flex items-center justify-between gap-1.5">
+                                                                                <div className="flex items-center gap-1.5">
+                                                                                    <span
+                                                                                        className="h-2 w-2 shrink-0 rounded-full"
+                                                                                        style={{ backgroundColor: color }}
+                                                                                    />
+                                                                                    <span className="text-xs font-semibold text-foreground">
+                                                                                        G{community.community_id}
+                                                                                    </span>
+                                                                                    <span className="rounded border border-border/40 px-1 text-[9px] text-muted-foreground/60">
+                                                                                        {community.size} hisse
+                                                                                    </span>
+                                                                                </div>
+                                                                                <span className="text-[10px] text-cyan-300/70">
+                                                                                    {formatNumber(community.avg_similarity, 3)}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="relative mt-1.5 flex flex-wrap gap-1">
+                                                                                {visible.map((stock) => (
+                                                                                    <span
+                                                                                        key={stock}
+                                                                                        className="rounded px-1 py-0.5 text-[9px] font-medium"
+                                                                                        style={{
+                                                                                            backgroundColor: `${color}18`,
+                                                                                            color: color,
+                                                                                            border: `1px solid ${color}30`,
+                                                                                        }}
+                                                                                    >
+                                                                                        {stock}
+                                                                                    </span>
+                                                                                ))}
+                                                                                {community.stocks.length > 4 && (
+                                                                                    <span className="rounded border border-border/40 px-1 py-0.5 text-[9px] text-muted-foreground/50">
+                                                                                        +{community.stocks.length - 4}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </button>
+                                                                    )
+                                                                })}
+                                                            </div>
+                                                        </>
+                                                    )
+                                                })()}
                                             </>
                                         )}
                                     </div>
