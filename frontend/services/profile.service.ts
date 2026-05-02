@@ -28,7 +28,10 @@ const DEFAULT_PREFERENCES: UserPreferences = {
     currency: 'USD',
     theme: 'dark',
     notifications: {
+        pushEnabled: false,
         priceAlerts: true,
+        indicatorAlerts: true,
+        newsAlerts: false,
         newsDigest: false,
     },
 }
@@ -114,10 +117,22 @@ function normalizePreferences(value: unknown): UserPreferences {
         currency: isCurrency(raw.currency) ? raw.currency : DEFAULT_PREFERENCES.currency,
         theme: isTheme(raw.theme) ? raw.theme : DEFAULT_PREFERENCES.theme,
         notifications: {
+            pushEnabled:
+                typeof rawNotifications.pushEnabled === 'boolean'
+                    ? rawNotifications.pushEnabled
+                    : DEFAULT_PREFERENCES.notifications.pushEnabled,
             priceAlerts:
                 typeof rawNotifications.priceAlerts === 'boolean'
                     ? rawNotifications.priceAlerts
                     : DEFAULT_PREFERENCES.notifications.priceAlerts,
+            indicatorAlerts:
+                typeof rawNotifications.indicatorAlerts === 'boolean'
+                    ? rawNotifications.indicatorAlerts
+                    : DEFAULT_PREFERENCES.notifications.indicatorAlerts,
+            newsAlerts:
+                typeof rawNotifications.newsAlerts === 'boolean'
+                    ? rawNotifications.newsAlerts
+                    : DEFAULT_PREFERENCES.notifications.newsAlerts,
             newsDigest:
                 typeof rawNotifications.newsDigest === 'boolean'
                     ? rawNotifications.newsDigest
@@ -191,8 +206,16 @@ function mergePreferences(
         currency: updates.currency ?? current.currency,
         theme: updates.theme ?? current.theme,
         notifications: {
+            pushEnabled:
+                updates.notifications?.pushEnabled ??
+                current.notifications.pushEnabled,
             priceAlerts:
                 updates.notifications?.priceAlerts ?? current.notifications.priceAlerts,
+            indicatorAlerts:
+                updates.notifications?.indicatorAlerts ??
+                current.notifications.indicatorAlerts,
+            newsAlerts:
+                updates.notifications?.newsAlerts ?? current.notifications.newsAlerts,
             newsDigest:
                 updates.notifications?.newsDigest ?? current.notifications.newsDigest,
         },
