@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.evalon.shared.presentation.components.*
 import com.evalon.shared.presentation.ui.theme.*
+import com.evalon.shared.util.format
 
 @Composable
 fun BacktestScreen(
@@ -67,17 +68,17 @@ private fun BacktestResultCard(result: BacktestSummary) {
 
         // Stats grid
         Row(modifier = Modifier.fillMaxWidth()) {
-            StatItem("Getiri", "${if (isPositive) "+" else ""}${String.format("%.2f", result.totalReturnPercent)}%", returnColor, Modifier.weight(1f))
-            StatItem("Max DD", "${String.format("%.1f", result.maxDrawdown)}%", EvalonRed, Modifier.weight(1f))
-            StatItem("Sharpe", String.format("%.2f", result.sharpeRatio), EvalonTextPrimary, Modifier.weight(1f))
+            StatItem("Getiri", "${if (isPositive) "+" else ""}${result.totalReturnPercent.format(2)}%", returnColor, Modifier.weight(1f))
+            StatItem("Max DD", "${result.maxDrawdown.format(1)}%", EvalonRed, Modifier.weight(1f))
+            StatItem("Sharpe", result.sharpeRatio.format(2), EvalonTextPrimary, Modifier.weight(1f))
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         Row(modifier = Modifier.fillMaxWidth()) {
-            StatItem("Kazanma", "${String.format("%.1f", result.winRate)}%", EvalonGreen, Modifier.weight(1f))
+            StatItem("Kazanma", "${result.winRate.format(1)}%", EvalonGreen, Modifier.weight(1f))
             StatItem("İşlem", "${result.totalTrades}", EvalonTextPrimary, Modifier.weight(1f))
-            StatItem("Kâr", "₺${String.format("%.0f", result.totalReturn)}", returnColor, Modifier.weight(1f))
+            StatItem("Kâr", "₺${result.totalReturn.format(0)}", returnColor, Modifier.weight(1f))
         }
     }
 }

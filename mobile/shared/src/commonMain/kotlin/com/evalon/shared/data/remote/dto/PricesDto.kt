@@ -35,3 +35,23 @@ data class CandleDto(
     @SerialName("c") val close: Double,      // Close price
     @SerialName("v") val volume: Long        // Volume
 )
+
+@Serializable
+data class BatchPricesResponseDto(
+    val count: Int = 0,
+    val successCount: Int = 0,
+    val failedCount: Int = 0,
+    val data: List<BatchTickerResultDto> = emptyList(),
+    val failedTickers: List<String> = emptyList(),
+    val cached: Boolean = false,
+    val stale: Boolean = false,
+    val meta: MarketDataMetaDto? = null
+)
+
+@Serializable
+data class BatchTickerResultDto(
+    val ticker: String,
+    val current: CandleDto? = null,
+    val previous: CandleDto? = null,
+    val error: String? = null
+)

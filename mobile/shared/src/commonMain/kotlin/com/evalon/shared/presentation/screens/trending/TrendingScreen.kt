@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.evalon.shared.presentation.components.*
 import com.evalon.shared.presentation.ui.theme.*
+import com.evalon.shared.util.format
 
 @Composable
 fun TrendingScreen(
@@ -124,9 +125,9 @@ private fun TrendingStockRow(data: TrendingStockData, onClick: () -> Unit) {
         }
 
         Column(horizontalAlignment = Alignment.End) {
-            Text("₺${String.format("%.2f", data.stock.price)}", color = EvalonTextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text("₺${data.stock.price.format(2)}", color = EvalonTextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             Text(
-                "${if (isPositive) "+" else ""}${String.format("%.2f", data.stock.changePercent)}%",
+                "${if (isPositive) "+" else ""}${data.stock.changePercent.format(2)}%",
                 color = changeColor, fontWeight = FontWeight.Medium, fontSize = 13.sp
             )
         }
