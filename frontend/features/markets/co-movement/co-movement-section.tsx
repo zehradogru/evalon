@@ -2,13 +2,19 @@
 
 import { useMemo, useState } from 'react'
 import {
+    Activity,
     AlertCircle,
     BarChart3,
+    ChevronDown,
     FileText,
     GitBranch,
+    Info,
+    Layers,
     Loader2,
     Network,
     RefreshCw,
+    Sparkles,
+    TrendingUp,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -167,41 +173,69 @@ function StatCard({
     value,
     hint,
     tone = 'default',
+    icon,
 }: {
     label: string
     value: string
     hint?: string
     tone?: 'default' | 'success' | 'warning'
+    icon?: React.ReactNode
 }) {
+    const accentColor =
+        tone === 'success' ? '#24a693' : tone === 'warning' ? '#ef9005' : '#2862ff'
+    const valueColor =
+        tone === 'success'
+            ? 'text-emerald-300'
+            : tone === 'warning'
+              ? 'text-amber-200'
+              : 'text-foreground'
+
     return (
-        <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
-                {label}
-            </p>
-            <p
-                className={cn(
-                    'mt-2 text-2xl font-semibold tracking-tight',
-                    tone === 'success'
-                        ? 'text-emerald-300'
-                        : tone === 'warning'
-                          ? 'text-amber-200'
-                          : 'text-foreground'
-                )}
-            >
-                {value}
-            </p>
-            {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
+        <div
+            className="relative overflow-hidden rounded-2xl border border-border/60 bg-[#080808] p-4"
+            style={{ borderLeft: `3px solid ${accentColor}` }}
+        >
+            <div
+                className="pointer-events-none absolute inset-0 opacity-40"
+                style={{
+                    background: `radial-gradient(ellipse 70% 60% at 0% 50%, ${accentColor}18, transparent)`,
+                }}
+            />
+            <div className="relative flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                        {label}
+                    </p>
+                    <p className={cn('mt-1.5 text-2xl font-semibold tracking-tight', valueColor)}>
+                        {value}
+                    </p>
+                    {hint ? (
+                        <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+                    ) : null}
+                </div>
+                {icon ? (
+                    <div
+                        className="mt-0.5 shrink-0 rounded-xl p-2 text-muted-foreground/60"
+                        style={{ backgroundColor: `${accentColor}18` }}
+                    >
+                        {icon}
+                    </div>
+                ) : null}
+            </div>
         </div>
     )
 }
 
 function ErrorCard({ title, message }: { title: string; message: string }) {
     return (
-        <div className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        <div
+            className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+            style={{ borderLeft: '3px solid #f23645' }}
+        >
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
                 <p className="font-medium">{title}</p>
-                <p className="mt-1 text-destructive/90">{message}</p>
+                <p className="mt-1 text-destructive/80">{message}</p>
             </div>
         </div>
     )
@@ -217,17 +251,13 @@ function EmptyCard({
     icon: React.ReactNode
 }) {
     return (
-        <Card className="border-dashed border-border/60 bg-card/60 shadow-none">
-            <CardContent className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
-                <div className="rounded-full border border-border/60 bg-background/50 p-3 text-muted-foreground">
-                    {icon}
-                </div>
-                <div className="space-y-1">
-                    <p className="text-base font-medium text-foreground">{title}</p>
-                    <p className="max-w-xl text-sm text-muted-foreground">{description}</p>
-                </div>
-            </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-dashed border-border/40 bg-muted/5 py-16 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-border/50 bg-[#0f0f0f] text-muted-foreground">
+                {icon}
+            </div>
+            <p className="text-sm font-medium text-foreground">{title}</p>
+            <p className="mx-auto mt-1.5 max-w-md text-xs text-muted-foreground">{description}</p>
+        </div>
     )
 }
 
@@ -245,14 +275,25 @@ function ExplanationCard({
     title: string
 }) {
     return (
-        <Card className="border-border/60 bg-card/80 shadow-none">
-            <CardHeader className="border-b border-border/50">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <CardTitle className="text-base">{title}</CardTitle>
-                        <CardDescription>
-                            Hesaplanan metriklerin kısa bir yorumunu üretir.
-                        </CardDescription>
+        <div
+            className="relative rounded-2xl p-[1px]"
+            style={{
+                background:
+                    'linear-gradient(135deg, #2862ff40, #24a69340, #2e2e2e80)',
+            }}
+        >
+            <div className="h-full rounded-[calc(1rem-1px)] bg-[#0a0a0a]">
+                <div className="flex items-center justify-between gap-4 border-b border-border/40 px-5 py-4">
+                    <div className="flex items-center gap-2.5">
+                        <div className="rounded-lg bg-primary/10 p-1.5 text-primary">
+                            <Sparkles className="h-4 w-4" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-semibold text-foreground">{title}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                                Hesaplanan metriklerin kısa bir yorumunu üretir.
+                            </p>
+                        </div>
                     </div>
                     <Button
                         type="button"
@@ -260,46 +301,48 @@ function ExplanationCard({
                         variant="outline"
                         onClick={onGenerate}
                         disabled={disabled || isLoading}
-                        className="gap-2"
+                        className="gap-2 border-primary/30 text-primary hover:bg-primary/10"
                     >
                         {isLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
-                            <FileText className="h-4 w-4" />
+                            <Sparkles className="h-3.5 w-3.5" />
                         )}
                         Yorum Üret
                     </Button>
                 </div>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-6">
-                {explanation ? (
-                    <>
-                        <p className="text-sm leading-6 text-foreground/90">
-                            {explanation.summary}
+                <div className="space-y-4 px-5 py-4">
+                    {explanation ? (
+                        <>
+                            <p className="text-sm leading-7 text-foreground/90">
+                                {explanation.summary}
+                            </p>
+                            <div className="space-y-2">
+                                {explanation.warnings.map((warning) => (
+                                    <div
+                                        key={warning}
+                                        className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/8 px-3 py-2 text-xs text-amber-200"
+                                    >
+                                        <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+                                        {warning}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground/60">
+                                <span>Kaynak: {explanation.source}</span>
+                                <span>Model: {explanation.model ?? 'fallback'}</span>
+                            </div>
+                        </>
+                    ) : (
+                        <p className="text-xs leading-6 text-muted-foreground">
+                            Sonuçlar hazır olduğunda bu alandan yorum alınabilir.
+                            Çıktı yalnızca hesaplanan metrikleri açıklar; yatırım tavsiyesi
+                            içermez.
                         </p>
-                        <div className="space-y-2">
-                            {explanation.warnings.map((warning) => (
-                                <div
-                                    key={warning}
-                                    className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
-                                >
-                                    {warning}
-                                </div>
-                            ))}
-                        </div>
-                        <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-                            <span>Kaynak: {explanation.source}</span>
-                            <span>Model: {explanation.model ?? 'fallback'}</span>
-                        </div>
-                    </>
-                ) : (
-                    <p className="text-sm text-muted-foreground">
-                        Sonuçlar hazır olduğunda bu alandan yorum alınabilir. Çıktı yalnızca
-                        hesaplanan metrikleri açıklar; yatırım tavsiyesi içermez.
-                    </p>
-                )}
-            </CardContent>
-        </Card>
+                    )}
+                </div>
+            </div>
+        </div>
     )
 }
 
@@ -327,16 +370,16 @@ function MatrixTabsPanel({
     return (
         <div className="space-y-4">
             <div>
-                <h3 className="text-lg font-semibold text-foreground">{title}</h3>
-                <p className="text-sm text-muted-foreground">{description}</p>
+                <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+                <p className="text-xs text-muted-foreground">{description}</p>
             </div>
             <Tabs defaultValue={matrices[0]?.key}>
-                <TabsList className="h-auto flex-wrap gap-2 rounded-2xl bg-muted/40 p-1.5">
+                <TabsList className="flex h-auto flex-wrap gap-1.5 rounded-2xl bg-[#111111] p-1.5">
                     {matrices.map((item) => (
                         <TabsTrigger
                             key={item.key}
                             value={item.key}
-                            className="rounded-xl px-3 py-2 text-xs"
+                            className="rounded-xl px-3.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-foreground aria-selected:bg-[#1c1c1c] aria-selected:text-foreground aria-selected:shadow-sm"
                         >
                             {item.label}
                         </TabsTrigger>
@@ -382,65 +425,80 @@ function PairsTable({
     description,
     pairs,
     limit = 20,
+    bare = false,
 }: {
     title: string
     description: string
     pairs: CoMovementPair[]
     limit?: number
+    bare?: boolean
 }) {
     const rows = pairs.slice(0, limit)
+    const maxHybrid = Math.max(...rows.map((p) => p.hybrid_similarity ?? 0), 1)
 
     return (
-        <Card className="border-border/60 bg-card/80 shadow-none">
-            <CardHeader className="border-b border-border/50">
-                <CardTitle className="text-base">{title}</CardTitle>
-                <CardDescription>{description}</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Pair</TableHead>
-                            <TableHead className="text-right">Hybrid</TableHead>
-                            <TableHead className="text-right">Pearson</TableHead>
-                            <TableHead className="text-right">DTW</TableHead>
-                            <TableHead className="text-right">Spearman</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {rows.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                                    Pair verisi bulunamadı.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            rows.map((pair) => (
-                                <TableRow key={`${pair.source}-${pair.target}`}>
-                                    <TableCell className="font-medium">
-                                        {pair.source}
-                                        <span className="mx-2 text-muted-foreground/60">vs</span>
-                                        {pair.target}
-                                    </TableCell>
-                                    <TableCell className="text-right text-cyan-200">
+        <div
+            className={cn(
+                'overflow-hidden rounded-2xl border border-border/60 bg-[#080808]',
+                bare && 'rounded-none border-0'
+            )}
+        >
+            {!bare && (
+                <div className="border-b border-border/50 px-5 py-4">
+                    <p className="text-sm font-semibold text-foreground">{title}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+                </div>
+            )}
+            <div className="divide-y divide-border/30">
+                {rows.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                        Pair verisi bulunamadı.
+                    </p>
+                ) : (
+                    rows.map((pair) => (
+                        <div
+                            key={`${pair.source}-${pair.target}`}
+                            className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/10"
+                        >
+                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                                <span className="inline-flex items-center rounded-lg border border-[#2862ff]/30 bg-[#2862ff]/8 px-2 py-0.5 text-[11px] font-semibold text-[#2862ff]/90">
+                                    {pair.source}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground/40">vs</span>
+                                <span className="inline-flex items-center rounded-lg border border-[#2862ff]/30 bg-[#2862ff]/8 px-2 py-0.5 text-[11px] font-semibold text-[#2862ff]/90">
+                                    {pair.target}
+                                </span>
+                            </div>
+                            <div className="w-28 shrink-0">
+                                <div className="mb-1 flex items-center justify-between">
+                                    <span className="text-[10px] text-muted-foreground/50">hybrid</span>
+                                    <span className="text-xs font-semibold text-cyan-300">
                                         {formatNumber(pair.hybrid_similarity, 3)}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {formatNumber(pair.pearson, 3)}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {formatNumber(pair.dtw_similarity, 3)}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {formatNumber(pair.spearman, 3)}
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+                                    </span>
+                                </div>
+                                <div className="h-[3px] w-full rounded-full bg-border/30">
+                                    <div
+                                        className="cmo-progress-bar h-full rounded-full"
+                                        style={{
+                                            width: `${((pair.hybrid_similarity ?? 0) / maxHybrid) * 100}%`,
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                            <div className="hidden w-36 shrink-0 flex-col gap-0.5 text-right lg:flex">
+                                <span className="text-[10px] text-muted-foreground/60">
+                                    P {formatNumber(pair.pearson, 3)} · D{' '}
+                                    {formatNumber(pair.dtw_similarity, 3)}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground/60">
+                                    Sp {formatNumber(pair.spearman, 3)}
+                                </span>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
     )
 }
 
@@ -449,41 +507,43 @@ function PairRankingsCard({
 }: {
     rankings: CoMovementPairRankings
 }) {
-    return (
-        <Card className="border-border/60 bg-card/80 shadow-none">
-            <CardHeader className="border-b border-border/50">
-                <CardTitle className="text-base">Pair Rankings</CardTitle>
-                <CardDescription>
-                    Farklı skor kümelerine göre sıralanan öne çıkan hisse çiftleri.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-                <Tabs defaultValue="hybrid">
-                    <TabsList className="h-auto flex-wrap gap-2 rounded-2xl bg-muted/40 p-1.5">
-                        <TabsTrigger value="hybrid" className="rounded-xl px-3 py-2 text-xs">
-                            Hybrid
-                        </TabsTrigger>
-                        <TabsTrigger value="pearson" className="rounded-xl px-3 py-2 text-xs">
-                            Pearson
-                        </TabsTrigger>
-                        <TabsTrigger value="dtw" className="rounded-xl px-3 py-2 text-xs">
-                            DTW
-                        </TabsTrigger>
-                    </TabsList>
+    const [activeRankTab, setActiveRankTab] = useState<'hybrid' | 'pearson' | 'dtw'>('hybrid')
 
+    return (
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-[#080808]">
+            <div className="flex items-center justify-between border-b border-border/50 px-5 py-3.5">
+                <div>
+                    <p className="text-sm font-semibold text-foreground">Pair Sıralamaları</p>
+                    <p className="text-[11px] text-muted-foreground">
+                        Farklı skor kümelerine göre öne çıkan çiftler
+                    </p>
+                </div>
+                <div className="flex items-center gap-1 rounded-xl bg-[#111111] p-1">
                     {(['hybrid', 'pearson', 'dtw'] as const).map((key) => (
-                        <TabsContent key={key} value={key} className="mt-4">
-                            <PairsTable
-                                title={`${key.toUpperCase()} sıralaması`}
-                                description="İlk 12 eşleşme gösteriliyor."
-                                pairs={rankings[key]}
-                                limit={12}
-                            />
-                        </TabsContent>
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => setActiveRankTab(key)}
+                            className={cn(
+                                'rounded-lg px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide transition-all',
+                                activeRankTab === key
+                                    ? 'bg-[#1e1e1e] text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground/70'
+                            )}
+                        >
+                            {key}
+                        </button>
                     ))}
-                </Tabs>
-            </CardContent>
-        </Card>
+                </div>
+            </div>
+            <PairsTable
+                title=""
+                description=""
+                pairs={rankings[activeRankTab]}
+                limit={12}
+                bare
+            />
+        </div>
     )
 }
 
@@ -501,66 +561,94 @@ function CommunitiesCard({
     limit?: number
 }) {
     return (
-        <Card className="border-border/60 bg-card/80 shadow-none">
-            <CardHeader className="border-b border-border/50">
-                <CardTitle className="text-base">Topluluklar</CardTitle>
-                <CardDescription>
-                    Louvain tabanlı gruplar ve grup içi ortalama benzerlik görünümü.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-6">
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-[#080808]">
+            <div className="border-b border-border/50 px-5 py-4">
+                <p className="text-sm font-semibold text-foreground">Topluluklar</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                    Louvain tabanlı gruplar · grup içi ortalama benzerlik
+                </p>
+            </div>
+            <div className="space-y-2 p-3">
                 {communities.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Community verisi bulunamadı.</p>
+                    <p className="py-4 text-center text-sm text-muted-foreground">
+                        Community verisi bulunamadı.
+                    </p>
                 ) : (
                     communities.slice(0, limit).map((community) => {
                         const avgEdge = averageEdgeWeight(community, edges)
                         const isSelected = selectedCommunityId === community.community_id
+                        const color = communityColor(community.community_id)
+                        const { visible, remaining } = compactStockPreview(community.stocks, 7)
 
                         return (
                             <button
                                 key={community.community_id}
                                 type="button"
                                 onClick={() => onSelect?.(community.community_id)}
-                                className={cn(
-                                    'w-full rounded-2xl border px-4 py-4 text-left transition-colors',
-                                    isSelected
-                                        ? 'border-primary/40 bg-primary/10'
-                                        : 'border-border/50 bg-background/40 hover:border-border/70 hover:bg-muted/20'
-                                )}
+                                className="relative w-full overflow-hidden rounded-xl border px-4 py-3.5 text-left transition-all"
+                                style={{
+                                    borderLeft: `3px solid ${color}`,
+                                    borderColor: isSelected ? `${color}60` : undefined,
+                                    borderTopColor: isSelected ? `${color}60` : undefined,
+                                    borderRightColor: isSelected ? `${color}60` : undefined,
+                                    borderBottomColor: isSelected ? `${color}60` : undefined,
+                                    backgroundColor: isSelected
+                                        ? `${color}0a`
+                                        : 'rgba(255,255,255,0.02)',
+                                }}
                             >
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div className="flex items-center gap-3">
+                                {isSelected && (
+                                    <div
+                                        className="pointer-events-none absolute inset-0"
+                                        style={{
+                                            background: `radial-gradient(ellipse 80% 60% at 0% 50%, ${color}12, transparent)`,
+                                        }}
+                                    />
+                                )}
+                                <div className="relative flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2.5">
                                         <span
-                                            className="inline-block h-3 w-3 rounded-full"
-                                            style={{
-                                                backgroundColor: communityColor(
-                                                    community.community_id
-                                                ),
-                                            }}
+                                            className="h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-white/10"
+                                            style={{ backgroundColor: color }}
                                         />
-                                        <div>
-                                            <p className="text-sm font-medium text-foreground">
-                                                Community {community.community_id}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {community.size} hisse
-                                            </p>
-                                        </div>
+                                        <span className="text-sm font-semibold text-foreground">
+                                            Grup {community.community_id}
+                                        </span>
+                                        <span className="rounded-md border border-border/50 bg-muted/20 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                            {community.size} hisse
+                                        </span>
                                     </div>
-                                    <div className="flex gap-3 text-xs text-muted-foreground">
-                                        <span>Avg sim: {formatNumber(community.avg_similarity, 3)}</span>
-                                        <span>Avg edge: {formatNumber(avgEdge, 3)}</span>
+                                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground/70">
+                                        <span>sim {formatNumber(community.avg_similarity, 3)}</span>
+                                        <span>edge {formatNumber(avgEdge, 3)}</span>
                                     </div>
                                 </div>
-                                <p className="mt-3 line-clamp-2 text-xs leading-6 text-muted-foreground">
-                                    {community.stocks.join(', ')}
-                                </p>
+                                <div className="relative mt-2.5 flex flex-wrap gap-1.5">
+                                    {visible.map((stock) => (
+                                        <span
+                                            key={stock}
+                                            className="rounded-md px-2 py-0.5 text-[10px] font-medium"
+                                            style={{
+                                                backgroundColor: `${color}18`,
+                                                color: color,
+                                                border: `1px solid ${color}30`,
+                                            }}
+                                        >
+                                            {stock}
+                                        </span>
+                                    ))}
+                                    {remaining > 0 && (
+                                        <span className="rounded-md border border-border/40 px-2 py-0.5 text-[10px] text-muted-foreground/60">
+                                            +{remaining}
+                                        </span>
+                                    )}
+                                </div>
                             </button>
                         )
                     })
                 )}
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     )
 }
 
@@ -731,73 +819,90 @@ function NodeDetailCard({
         .slice(0, 10)
     const communityPreview = compactStockPreview(community?.stocks ?? [], 8)
 
+    const nodeColor = communityColor(node?.community_id)
+
     return (
-        <Card className="border-border/60 bg-card/80 shadow-none">
-            <CardHeader className="border-b border-border/50">
-                <CardTitle className="text-base">Hisse Detayı</CardTitle>
-                <CardDescription>
-                    Seçili hissenin community ve en güçlü bağlantıları.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-6">
+        <div className="flex h-full flex-col">
+            <div className="border-b border-border/50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Hisse Detayı
+                </p>
+            </div>
+            <div className="flex-1 space-y-3 overflow-y-auto p-4">
                 {!node ? (
-                    <p className="text-sm text-muted-foreground">
-                        Grafikten bir hisse seçildiğinde bağlantılar burada görünür.
-                    </p>
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <div className="mb-3 rounded-2xl border border-border/40 bg-muted/10 p-3 text-muted-foreground/40">
+                            <Network className="h-5 w-5" />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Grafikten bir hisse seçin
+                        </p>
+                    </div>
                 ) : (
                     <>
-                        <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div
+                            className="rounded-2xl border p-3.5"
+                            style={{
+                                borderColor: `${nodeColor}40`,
+                                backgroundColor: `${nodeColor}0c`,
+                            }}
+                        >
+                            <div className="flex items-start justify-between gap-2">
                                 <div>
-                                    <p className="text-lg font-semibold text-foreground">
+                                    <p
+                                        className="text-lg font-bold tracking-tight"
+                                        style={{ color: nodeColor }}
+                                    >
                                         {node.label}
                                     </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        Community {node.community_id ?? '—'}
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Grup {node.community_id ?? '—'} · {community?.size ?? 0} hisse
                                     </p>
                                 </div>
                                 <span
-                                    className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/50 px-3 py-1 text-xs text-muted-foreground"
-                                >
-                                    <span
-                                        className="inline-block h-2.5 w-2.5 rounded-full"
-                                        style={{
-                                            backgroundColor: communityColor(node.community_id),
-                                        }}
-                                    />
-                                    {community?.size ?? 0} hisse
-                                </span>
+                                    className="mt-1.5 h-3 w-3 rounded-full ring-2 ring-inset ring-white/20"
+                                    style={{ backgroundColor: nodeColor }}
+                                />
                             </div>
-                            <p className="mt-3 text-xs leading-6 text-muted-foreground">
-                                Bu community içinde {community?.size ?? 0} hisse var.
-                            </p>
-                            {communityPreview.visible.length > 0 ? (
-                                <div className="mt-3 flex flex-wrap gap-1.5">
+                            {communityPreview.visible.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-1">
                                     {communityPreview.visible.map((stock) => (
                                         <span
                                             key={stock}
-                                            className={cn(
-                                                'rounded-md border px-2 py-1 text-[11px]',
+                                            className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+                                            style={
                                                 stock === node.id
-                                                    ? 'border-primary/40 bg-primary/10 text-primary'
-                                                    : 'border-border/50 bg-background/50 text-muted-foreground'
-                                            )}
+                                                    ? {
+                                                          backgroundColor: `${nodeColor}30`,
+                                                          color: nodeColor,
+                                                          border: `1px solid ${nodeColor}50`,
+                                                      }
+                                                    : {
+                                                          backgroundColor: 'rgba(255,255,255,0.04)',
+                                                          color: '#787b86',
+                                                          border: '1px solid #2e2e2e',
+                                                      }
+                                            }
                                         >
                                             {stock}
                                         </span>
                                     ))}
-                                    {communityPreview.remaining > 0 ? (
-                                        <span className="rounded-md border border-border/50 bg-background/50 px-2 py-1 text-[11px] text-muted-foreground">
-                                            +{communityPreview.remaining} diğer
+                                    {communityPreview.remaining > 0 && (
+                                        <span className="rounded border border-border/40 px-1.5 py-0.5 text-[10px] text-muted-foreground/50">
+                                            +{communityPreview.remaining}
                                         </span>
-                                    ) : null}
+                                    )}
                                 </div>
-                            ) : null}
+                            )}
                         </div>
 
-                        <div className="space-y-2">
+                        <p className="pt-1 text-[10px] uppercase tracking-widest text-muted-foreground/60">
+                            En Güçlü Bağlantılar
+                        </p>
+
+                        <div className="space-y-1.5">
                             {connections.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-xs text-muted-foreground">
                                     Bu hisse için kenar bulunamadı.
                                 </p>
                             ) : (
@@ -806,23 +911,33 @@ function NodeDetailCard({
                                     const target = edgeTargetId(edge)
                                     const counterparty =
                                         source === selectedNodeId ? target : source
+                                    const counterColor = communityColor(
+                                        result.graph.nodes.find((n) => n.id === counterparty)
+                                            ?.community_id
+                                    )
 
                                     return (
                                         <div
                                             key={`${source}-${target}`}
-                                            className="rounded-2xl border border-border/60 bg-background/50 px-4 py-3"
+                                            className="flex items-center justify-between rounded-xl border border-border/40 bg-muted/5 px-3 py-2.5"
                                         >
-                                            <div className="flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <span
+                                                    className="h-2 w-2 shrink-0 rounded-full"
+                                                    style={{ backgroundColor: counterColor }}
+                                                />
                                                 <span className="text-sm font-medium text-foreground">
                                                     {counterparty}
                                                 </span>
-                                                <span className="text-sm text-cyan-200">
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-sm font-semibold text-cyan-300">
                                                     {formatNumber(edge.weight, 3)}
                                                 </span>
-                                            </div>
-                                            <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-                                                <span>Pearson {formatNumber(edge.pearson, 3)}</span>
-                                                <span>DTW {formatNumber(edge.dtw_similarity, 3)}</span>
+                                                <p className="text-[10px] text-muted-foreground/50">
+                                                    P {formatNumber(edge.pearson, 3)} · D{' '}
+                                                    {formatNumber(edge.dtw_similarity, 3)}
+                                                </p>
                                             </div>
                                         </div>
                                     )
@@ -831,35 +946,39 @@ function NodeDetailCard({
                         </div>
                     </>
                 )}
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     )
 }
 
 function snapshotSummaryCards(snapshot: CoMovementSnapshotSummary) {
     return (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
                 label="Hisse"
                 value={String(snapshot.metrics.node_count)}
                 hint={`İstenen ${snapshot.requested_symbols.length} sembolden kullanılabilenler`}
+                icon={<Activity className="h-4 w-4" />}
             />
             <StatCard
-                label="Community"
+                label="Topluluk"
                 value={String(snapshot.metrics.community_count)}
-                hint={`${snapshot.metrics.edge_count} edge ile`}
+                hint={`${snapshot.metrics.edge_count} bağlantı ile`}
+                icon={<Layers className="h-4 w-4" />}
             />
             <StatCard
                 label="Modularity"
                 value={formatNumber(snapshot.metrics.modularity, 3)}
                 hint={snapshot.metrics.louvain_method}
                 tone="success"
+                icon={<TrendingUp className="h-4 w-4" />}
             />
             <StatCard
                 label="Rolling Window"
                 value={String(snapshot.metrics.rolling_window_count)}
                 hint={`${snapshot.date_range.rows ?? 0} hizalanmış günlük satır`}
                 tone="warning"
+                icon={<RefreshCw className="h-4 w-4" />}
             />
         </div>
     )
@@ -867,28 +986,32 @@ function snapshotSummaryCards(snapshot: CoMovementSnapshotSummary) {
 
 function analysisSummaryCards(result: CoMovementAnalyzeResponse) {
     return (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
                 label="Hybrid Pair"
                 value={String(result.top_pairs.length)}
                 hint={`Pair count ${result.metrics.pair_count}`}
+                icon={<Activity className="h-4 w-4" />}
             />
             <StatCard
-                label="Community"
+                label="Topluluk"
                 value={String(result.metrics.community_count)}
-                hint={`${result.metrics.edge_count} edge`}
+                hint={`${result.metrics.edge_count} bağlantı`}
+                icon={<Layers className="h-4 w-4" />}
             />
             <StatCard
                 label="Modularity"
                 value={formatNumber(result.metrics.modularity, 3)}
                 hint={result.metrics.louvain_method}
                 tone="success"
+                icon={<TrendingUp className="h-4 w-4" />}
             />
             <StatCard
-                label="Excluded"
+                label="Dışlanan"
                 value={String(result.excluded_symbols.length)}
                 hint={`Rolling window ${result.metrics.rolling_window_count}`}
                 tone="warning"
+                icon={<RefreshCw className="h-4 w-4" />}
             />
         </div>
     )
@@ -923,6 +1046,8 @@ function SnapshotExplorerView({
     )
     const [showAdvancedSnapshotMatrices, setShowAdvancedSnapshotMatrices] =
         useState(false)
+    const [showMatrices, setShowMatrices] = useState(false)
+    const [showDetails, setShowDetails] = useState(false)
     const [selectedSnapshotNodeId, setSelectedSnapshotNodeId] = useState<string | null>(null)
     const [snapshotExplanation, setSnapshotExplanation] =
         useState<CoMovementExplainResponse | null>(null)
@@ -1106,125 +1231,304 @@ function SnapshotExplorerView({
     ]
 
     return (
-        <>
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-                <div className="space-y-4">
-                    {snapshotSummaryCards(snapshot)}
-                    <div className="grid gap-4 lg:grid-cols-3">
-                        <StatCard
-                            label="Date Range"
-                            value={`${formatDateLabel(snapshot.date_range.start)} → ${formatDateLabel(snapshot.date_range.end)}`}
-                            hint={`Aligned ${formatDateLabel(snapshot.date_range.aligned_start)} → ${formatDateLabel(snapshot.date_range.aligned_end)}`}
-                        />
-                        <StatCard
-                            label="Snapshot Id"
-                            value={snapshot.snapshot.snapshot_id}
-                            hint={formatDateLabel(snapshot.snapshot.created_at)}
-                        />
-                        <StatCard
-                            label="Config"
-                            value={`top_k ${snapshot.config.top_k}`}
-                            hint={`min sim ${formatNumber(snapshot.config.min_similarity, 2)} · rolling ${snapshot.config.rolling_window}`}
-                        />
-                    </div>
-                </div>
-                <ExplanationCard
-                    title="Özet Yorum"
-                    explanation={snapshotExplanation}
-                    onGenerate={() =>
-                        void explainMutation
-                            .mutateAsync({
-                                top_pairs: snapshot.top_pairs,
-                                communities: snapshot.communities,
-                                metrics: snapshot.metrics,
-                                language: 'tr',
-                                symbols: snapshot.symbols,
-                                date_range: snapshot.date_range,
-                            })
-                            .then(setSnapshotExplanation)
-                    }
-                    isLoading={explainMutation.isPending}
-                    disabled={explainMutation.isPending}
+        <div className="space-y-4">
+            {/* A: Ana metrik kartlar */}
+            {snapshotSummaryCards(snapshot)}
+
+            {/* A2: İkincil bilgi kartları */}
+            <div className="grid gap-3 md:grid-cols-3">
+                <StatCard
+                    label="Tarih Aralığı"
+                    value={`${formatDateLabel(snapshot.date_range.start)} → ${formatDateLabel(snapshot.date_range.end)}`}
+                    hint={`Hizalanmış: ${formatDateLabel(snapshot.date_range.aligned_start)} → ${formatDateLabel(snapshot.date_range.aligned_end)}`}
+                />
+                <StatCard
+                    label="Snapshot"
+                    value={snapshot.snapshot.snapshot_id}
+                    hint={formatDateLabel(snapshot.snapshot.created_at)}
+                />
+                <StatCard
+                    label="Yapılandırma"
+                    value={`top_k ${snapshot.config.top_k}`}
+                    hint={`min sim ${formatNumber(snapshot.config.min_similarity, 2)} · rolling ${snapshot.config.rolling_window}`}
                 />
             </div>
 
-            <Tabs defaultValue="overview" className="space-y-5">
-                <TabsList className="h-auto flex-wrap gap-2 rounded-lg bg-muted/40 p-1">
-                    <TabsTrigger value="overview" className="rounded-md px-4 py-2">
-                        Özet
-                    </TabsTrigger>
-                    <TabsTrigger value="matrices" className="rounded-md px-4 py-2">
-                        Matrisler
-                    </TabsTrigger>
-                    <TabsTrigger value="details" className="rounded-md px-4 py-2">
-                        Detaylar
-                    </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="overview" className="space-y-4">
-                    <Card className="border-border/60 bg-card/80 shadow-none">
-                        <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-foreground">
-                                    Graph kapsamı
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    {snapshotGraphScope === 'market'
-                                        ? `${snapshot.metrics.node_count} hisse ve ${snapshot.metrics.edge_count} bağlantı ile tüm piyasa ağı gösteriliyor.`
-                                        : `${snapshotGraphData.nodes.length} hisse ve ${snapshotGraphData.edges.length} bağlantı ile seçili odak gösteriliyor.`}
-                                </p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        snapshotGraphScope === 'market'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() => setSnapshotGraphScope('market')}
-                                >
-                                    Tüm Piyasa
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        snapshotGraphScope === 'focus'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() => setSnapshotGraphScope('focus')}
-                                >
-                                    Odaklı Graph
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_360px]">
-                        <CoMovementGraph
-                            title="Ağ Grafiği"
-                            description={
-                                snapshotGraphScope === 'market'
-                                    ? 'Tüm hisseler ve community ilişkileri tek ağda gösterilir. Kalabalık görünümde etiketler sadece seçili node ve komşularında açılır.'
-                                    : 'Seçili odaktaki hisseler gösterilir; renkler community bilgisini, çizgi kalınlığı hybrid similarity gücünü anlatır.'
-                            }
-                            nodes={snapshotGraphData.nodes}
-                            edges={snapshotGraphData.edges}
-                            selectedNodeId={effectiveSelectedSnapshotNodeId}
-                            onSelectNode={setSelectedSnapshotNodeId}
-                        />
-                        <NodeDetailCard
-                            result={snapshot}
-                            selectedNodeId={effectiveSelectedSnapshotNodeId}
-                            visibleNodes={snapshotGraphData.nodes}
-                            visibleEdges={snapshotGraphData.edges}
-                        />
+            {/* B: Tam genişlik ağ grafiği + overlay panel */}
+            <div className="overflow-hidden rounded-2xl border border-border/60 bg-[#080808]">
+                <div className="flex items-center justify-between gap-4 border-b border-border/50 px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2862ff]/10 text-[#2862ff]">
+                            <Network className="h-4 w-4" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-semibold text-foreground">Ağ Grafiği</p>
+                            <p className="text-[11px] text-muted-foreground">
+                                {snapshotGraphData.nodes.length} hisse · {snapshotGraphData.edges.length} bağlantı
+                            </p>
+                        </div>
                     </div>
+                    <div className="flex items-center gap-1 rounded-xl bg-[#111111] p-1">
+                        {(['market', 'focus'] as const).map((scope) => (
+                            <button
+                                key={scope}
+                                type="button"
+                                onClick={() => setSnapshotGraphScope(scope)}
+                                className={cn(
+                                    'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
+                                    snapshotGraphScope === scope
+                                        ? 'bg-[#1e1e1e] text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground/70'
+                                )}
+                            >
+                                {scope === 'market' ? 'Tüm Piyasa' : 'Odaklı'}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <div className="relative">
+                    <CoMovementGraph
+                        title=""
+                        description=""
+                        nodes={snapshotGraphData.nodes}
+                        edges={snapshotGraphData.edges}
+                        selectedNodeId={effectiveSelectedSnapshotNodeId}
+                        onSelectNode={setSelectedSnapshotNodeId}
+                        height={550}
+                        className="border-0 bg-transparent shadow-none"
+                    />
+                    {effectiveSelectedSnapshotNodeId && (
+                        <div className="animate-slide-in-right absolute right-0 top-0 h-full w-[300px] border-l border-border/50 bg-[#060606]/95 backdrop-blur-sm">
+                            <NodeDetailCard
+                                result={snapshot}
+                                selectedNodeId={effectiveSelectedSnapshotNodeId}
+                                visibleNodes={snapshotGraphData.nodes}
+                                visibleEdges={snapshotGraphData.edges}
+                            />
+                        </div>
+                    )}
+                </div>
+                <div className="flex flex-wrap gap-4 border-t border-border/40 px-5 py-2.5 text-[10px] text-muted-foreground/50">
+                    <span>Node rengi community kimliğini gösterir</span>
+                    <span>Node boyutu bağlantı yoğunluğuna göre ölçeklenir</span>
+                    <span>Kenar kalınlığı hybrid similarity ağırlığını gösterir</span>
+                </div>
+            </div>
 
-                    <div className="grid gap-4 xl:grid-cols-2">
+            {/* C: Topluluklar + En güçlü eşleşmeler */}
+            <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
+                <CommunitiesCard
+                    communities={snapshot.communities}
+                    edges={snapshot.graph.edges}
+                    selectedCommunityId={selectedCommunityId}
+                    onSelect={(communityId) => {
+                        setSnapshotGraphScope('focus')
+                        setSnapshotFocusMode('community')
+                        setSelectedCommunityId(communityId)
+                    }}
+                />
+                <PairsTable
+                    title="En Güçlü Eşleşmeler"
+                    description="Hybrid similarity skoruna göre en yakın hareket eden hisseler."
+                    pairs={snapshot.top_pairs}
+                    limit={12}
+                />
+            </div>
+
+            {/* D: Matrisler — collapsible */}
+            <div className="overflow-hidden rounded-2xl border border-border/60">
+                <button
+                    type="button"
+                    onClick={() => setShowMatrices((v) => !v)}
+                    className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-muted/5"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="rounded-lg bg-[#2862ff]/10 p-1.5">
+                            <BarChart3 className="h-4 w-4 text-[#2862ff]" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-semibold text-foreground">Matris Görünümleri</p>
+                            <p className="text-[11px] text-muted-foreground">
+                                Pearson · DTW · Hybrid similarity heatmap&apos;leri
+                            </p>
+                        </div>
+                    </div>
+                    <ChevronDown
+                        className={cn(
+                            'h-4 w-4 text-muted-foreground cmo-chevron',
+                            showMatrices ? 'cmo-chevron-open' : 'cmo-chevron-close'
+                        )}
+                    />
+                </button>
+
+                {showMatrices && (
+                    <div className="space-y-5 border-t border-border/50 px-5 py-5">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <p className="text-xs text-muted-foreground">Odak:</p>
+                            <div className="flex items-center gap-1 rounded-xl bg-[#111111] p-1">
+                                {(['community', 'pair', 'manual'] as const).map((mode) => (
+                                    <button
+                                        key={mode}
+                                        type="button"
+                                        onClick={() => setSnapshotFocusMode(mode)}
+                                        disabled={snapshotMode !== 'latest'}
+                                        className={cn(
+                                            'rounded-lg px-3 py-1.5 text-[11px] font-medium transition-all disabled:opacity-40',
+                                            snapshotFocusMode === mode
+                                                ? 'bg-[#1e1e1e] text-foreground shadow-sm'
+                                                : 'text-muted-foreground hover:text-foreground/70'
+                                        )}
+                                    >
+                                        {mode === 'community'
+                                            ? 'Topluluk'
+                                            : mode === 'pair'
+                                              ? 'Top Pair'
+                                              : 'Manuel'}
+                                    </button>
+                                ))}
+                            </div>
+                            {snapshotFocusMode === 'community' && (
+                                <Select
+                                    value={String(
+                                        selectedCommunityId ??
+                                            snapshot.communities[0]?.community_id ??
+                                            ''
+                                    )}
+                                    onChange={(event) => {
+                                        setSnapshotFocusMode('community')
+                                        setSelectedCommunityId(Number(event.target.value))
+                                    }}
+                                    disabled={snapshotMode !== 'latest'}
+                                >
+                                    {snapshot.communities.map((community) => (
+                                        <option
+                                            key={community.community_id}
+                                            value={community.community_id}
+                                        >
+                                            Grup {community.community_id} · {community.size} hisse
+                                        </option>
+                                    ))}
+                                </Select>
+                            )}
+                            {snapshotFocusMode === 'pair' && (
+                                <Select
+                                    value={
+                                        selectedPairKey ||
+                                        createPairKey(
+                                            snapshot.top_pairs[0]?.source ?? '',
+                                            snapshot.top_pairs[0]?.target ?? ''
+                                        )
+                                    }
+                                    onChange={(event) => {
+                                        setSnapshotFocusMode('pair')
+                                        setSelectedPairKey(event.target.value)
+                                    }}
+                                    disabled={snapshotMode !== 'latest'}
+                                >
+                                    {getTopPairOptions(snapshot.top_pairs).map((pair) => (
+                                        <option
+                                            key={createPairKey(pair.source, pair.target)}
+                                            value={createPairKey(pair.source, pair.target)}
+                                        >
+                                            {pair.source}–{pair.target}
+                                        </option>
+                                    ))}
+                                </Select>
+                            )}
+                        </div>
+
+                        {snapshotFocusMode === 'manual' && (
+                            <CoMovementSymbolPicker
+                                label="Manuel heatmap sepeti"
+                                helperText="2-12 hisse seçin."
+                                selectedSymbols={manualSnapshotSymbols}
+                                onChange={(symbols) => {
+                                    setSnapshotFocusMode('manual')
+                                    setManualSnapshotSymbols(symbols)
+                                }}
+                                maxSymbols={12}
+                                disabled={snapshotMode !== 'latest'}
+                                allowedSymbols={snapshot.symbols}
+                            />
+                        )}
+
+                        {snapshotMode !== 'latest' ? (
+                            <div className="rounded-xl border border-dashed border-border/50 px-4 py-6 text-center text-sm text-muted-foreground">
+                                Bu snapshot için özet gösteriliyor. Matris detayı latest pointer üzerinden okunabilir.
+                            </div>
+                        ) : (
+                            <>
+                                <MatrixTabsPanel
+                                    title="Ana Matrisler"
+                                    description="Pearson · DTW Similarity · Hybrid"
+                                    symbols={snapshotMatrixSymbols}
+                                    matrices={coreSnapshotMatrices}
+                                />
+                                <div>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowAdvancedSnapshotMatrices((v) => !v)
+                                        }
+                                        className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                                    >
+                                        <ChevronDown
+                                            className={cn(
+                                                'h-3.5 w-3.5 cmo-chevron',
+                                                showAdvancedSnapshotMatrices
+                                                    ? 'cmo-chevron-open'
+                                                    : 'cmo-chevron-close'
+                                            )}
+                                        />
+                                        {showAdvancedSnapshotMatrices
+                                            ? 'Ek matrisleri gizle'
+                                            : 'Spearman + DTW Distance göster'}
+                                    </button>
+                                    {showAdvancedSnapshotMatrices && (
+                                        <div className="mt-4">
+                                            <MatrixTabsPanel
+                                                title="Ek Matris Görünümleri"
+                                                description="Spearman · DTW Distance"
+                                                symbols={snapshotMatrixSymbols}
+                                                matrices={advancedSnapshotMatrices}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* E: Detaylar — collapsible */}
+            <div className="overflow-hidden rounded-2xl border border-border/60">
+                <button
+                    type="button"
+                    onClick={() => setShowDetails((v) => !v)}
+                    className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-muted/5"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="rounded-lg bg-[#ef9005]/10 p-1.5">
+                            <FileText className="h-4 w-4 text-[#ef9005]" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-semibold text-foreground">Detaylar</p>
+                            <p className="text-[11px] text-muted-foreground">
+                                Pair sıralamaları · Rolling stability · Veri kalitesi
+                            </p>
+                        </div>
+                    </div>
+                    <ChevronDown
+                        className={cn(
+                            'h-4 w-4 text-muted-foreground cmo-chevron',
+                            showDetails ? 'cmo-chevron-open' : 'cmo-chevron-close'
+                        )}
+                    />
+                </button>
+
+                {showDetails && (
+                    <div className="space-y-4 border-t border-border/50 px-5 py-5">
                         <CommunitiesCard
                             communities={snapshot.communities}
                             edges={snapshot.graph.edges}
@@ -1234,193 +1538,37 @@ function SnapshotExplorerView({
                                 setSnapshotFocusMode('community')
                                 setSelectedCommunityId(communityId)
                             }}
+                            limit={snapshot.communities.length}
                         />
-                        <PairsTable
-                            title="En Güçlü Eşleşmeler"
-                            description="Hybrid similarity skoruna göre en yakın hareket eden hisseler."
-                            pairs={snapshot.top_pairs}
-                            limit={12}
-                        />
+                        <div className="grid gap-4 xl:grid-cols-2">
+                            <PairRankingsCard rankings={snapshot.pair_rankings} />
+                            <RollingStabilityCard rows={snapshot.rolling_stability} />
+                        </div>
+                        <QualityCard result={snapshot} />
                     </div>
-                </TabsContent>
+                )}
+            </div>
 
-                <TabsContent value="matrices" className="space-y-4">
-                    <Card className="border-border/60 bg-card/80 shadow-none">
-                        <CardHeader className="border-b border-border/50">
-                            <CardTitle className="text-base">Matris Odağı</CardTitle>
-                            <CardDescription>
-                                Heatmap için küçük ve okunabilir bir hisse grubu seçin.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-5 pt-6">
-                            <div className="grid gap-4 lg:grid-cols-3">
-                                <label className="flex flex-col gap-1.5">
-                                    <span className="text-xs text-muted-foreground">Odak</span>
-                                    <Select
-                                        value={snapshotFocusMode}
-                                        onChange={(event) =>
-                                            setSnapshotFocusMode(
-                                                event.target.value as SnapshotFocusMode
-                                            )
-                                        }
-                                        disabled={snapshotMode !== 'latest'}
-                                    >
-                                        <option value="community">Community</option>
-                                        <option value="pair">Top pair çevresi</option>
-                                        <option value="manual">Manuel seçim</option>
-                                    </Select>
-                                </label>
-
-                                <label className="flex flex-col gap-1.5">
-                                    <span className="text-xs text-muted-foreground">Community</span>
-                                    <Select
-                                        value={String(
-                                            selectedCommunityId ??
-                                                snapshot.communities[0]?.community_id ??
-                                                ''
-                                        )}
-                                        onChange={(event) => {
-                                            setSnapshotFocusMode('community')
-                                            setSelectedCommunityId(Number(event.target.value))
-                                        }}
-                                        disabled={snapshotMode !== 'latest'}
-                                    >
-                                        {snapshot.communities.map((community) => (
-                                            <option
-                                                key={community.community_id}
-                                                value={community.community_id}
-                                            >
-                                                {community.community_id} · {community.size} hisse
-                                            </option>
-                                        ))}
-                                    </Select>
-                                </label>
-
-                                <label className="flex flex-col gap-1.5">
-                                    <span className="text-xs text-muted-foreground">Top pair</span>
-                                    <Select
-                                        value={
-                                            selectedPairKey ||
-                                            createPairKey(
-                                                snapshot.top_pairs[0]?.source ?? '',
-                                                snapshot.top_pairs[0]?.target ?? ''
-                                            )
-                                        }
-                                        onChange={(event) => {
-                                            setSnapshotFocusMode('pair')
-                                            setSelectedPairKey(event.target.value)
-                                        }}
-                                        disabled={snapshotMode !== 'latest'}
-                                    >
-                                        {getTopPairOptions(snapshot.top_pairs).map((pair) => (
-                                            <option
-                                                key={createPairKey(pair.source, pair.target)}
-                                                value={createPairKey(pair.source, pair.target)}
-                                            >
-                                                {pair.source}-{pair.target}
-                                            </option>
-                                        ))}
-                                    </Select>
-                                </label>
-                            </div>
-
-                            {snapshotFocusMode === 'manual' ? (
-                                <CoMovementSymbolPicker
-                                    label="Manuel heatmap sepeti"
-                                    helperText="2-12 hisse seçin."
-                                    selectedSymbols={manualSnapshotSymbols}
-                                    onChange={(symbols) => {
-                                        setSnapshotFocusMode('manual')
-                                        setManualSnapshotSymbols(symbols)
-                                    }}
-                                    maxSymbols={12}
-                                    disabled={snapshotMode !== 'latest'}
-                                    allowedSymbols={snapshot.symbols}
-                                />
-                            ) : (
-                                <div className="rounded-lg border border-border/60 bg-background/50 px-4 py-3 text-sm text-muted-foreground">
-                                    Seçili sepet:{' '}
-                                    <span className="font-medium text-foreground">
-                                        {snapshotMatrixSymbols.join(', ')}
-                                    </span>
-                                </div>
-                            )}
-
-                            {snapshotMode !== 'latest' ? (
-                                <div className="rounded-lg border border-dashed border-border/60 bg-background/50 px-4 py-6 text-sm text-muted-foreground">
-                                    Bu snapshot için summary gösteriliyor. Matris detayı latest
-                                    pointer üzerinden okunabiliyor.
-                                </div>
-                            ) : (
-                                <>
-                                    <MatrixTabsPanel
-                                        title="Ana Matrisler"
-                                        description="Pearson, DTW Similarity ve Hybrid görünümü."
-                                        symbols={snapshotMatrixSymbols}
-                                        matrices={coreSnapshotMatrices}
-                                    />
-
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <div>
-                                                <h3 className="text-lg font-semibold text-foreground">
-                                                    Ek Matrisler
-                                                </h3>
-                                                <p className="text-sm text-muted-foreground">
-                                                    Spearman ve DTW Distance gerektiğinde açılır.
-                                                </p>
-                                            </div>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() =>
-                                                    setShowAdvancedSnapshotMatrices(
-                                                        (value) => !value
-                                                    )
-                                                }
-                                            >
-                                                {showAdvancedSnapshotMatrices ? 'Gizle' : 'Göster'}
-                                            </Button>
-                                        </div>
-
-                                        {showAdvancedSnapshotMatrices ? (
-                                            <MatrixTabsPanel
-                                                title="Ek Matris Görünümleri"
-                                                description="Spearman sıra korelasyonu ve DTW mesafe matrisi."
-                                                symbols={snapshotMatrixSymbols}
-                                                matrices={advancedSnapshotMatrices}
-                                            />
-                                        ) : null}
-                                    </div>
-                                </>
-                            )}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="details" className="space-y-4">
-                    <CommunitiesCard
-                        communities={snapshot.communities}
-                        edges={snapshot.graph.edges}
-                        selectedCommunityId={selectedCommunityId}
-                        onSelect={(communityId) => {
-                            setSnapshotGraphScope('focus')
-                            setSnapshotFocusMode('community')
-                            setSelectedCommunityId(communityId)
-                        }}
-                        limit={snapshot.communities.length}
-                    />
-
-                    <div className="grid gap-4 xl:grid-cols-2">
-                        <PairRankingsCard rankings={snapshot.pair_rankings} />
-                        <RollingStabilityCard rows={snapshot.rolling_stability} />
-                    </div>
-
-                    <QualityCard result={snapshot} />
-                </TabsContent>
-            </Tabs>
-        </>
+            {/* F: Yorum */}
+            <ExplanationCard
+                title="Özet Yorum"
+                explanation={snapshotExplanation}
+                onGenerate={() =>
+                    void explainMutation
+                        .mutateAsync({
+                            top_pairs: snapshot.top_pairs,
+                            communities: snapshot.communities,
+                            metrics: snapshot.metrics,
+                            language: 'tr',
+                            symbols: snapshot.symbols,
+                            date_range: snapshot.date_range,
+                        })
+                        .then(setSnapshotExplanation)
+                }
+                isLoading={explainMutation.isPending}
+                disabled={explainMutation.isPending}
+            />
+        </div>
     )
 }
 
@@ -1449,6 +1597,7 @@ export function CoMovementSection() {
         )
     }, [latestSnapshotQuery.data?.snapshot.snapshot_id, snapshotsQuery.data?.snapshots])
 
+    const [activeMode, setActiveMode] = useState<'snapshot' | 'custom'>('snapshot')
     const [customSymbols, setCustomSymbols] = useState<string[]>(DEFAULT_CUSTOM_SYMBOLS)
     const [customStartDateOverride, setCustomStartDateOverride] = useState<string | null>(
         null
@@ -1517,135 +1666,168 @@ export function CoMovementSection() {
 
     return (
         <section className="space-y-6">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                <div className="space-y-2">
-                    <div className="inline-flex items-center gap-2 rounded-md border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-cyan-100">
-                        <Network className="h-3.5 w-3.5" />
-                        Co-Movement
+            {/* Hero Header */}
+            <div className="relative overflow-hidden rounded-3xl border border-border/50 bg-[#030303] px-6 py-8">
+                <div className="pointer-events-none absolute inset-0 cmo-hero-glow" />
+                <div className="relative space-y-4">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/25 bg-cyan-500/8 px-3.5 py-1.5 text-[10px] uppercase tracking-[0.2em] text-cyan-300">
+                        <Network className="h-3 w-3" />
+                        Network Analysis
                     </div>
-                    <div>
-                        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-                            Birlikte hareket eden hisseler
-                        </h2>
-                        <p className="mt-2 max-w-4xl text-sm leading-6 text-muted-foreground">
-                            Önce piyasa snapshot&apos;ını inceleyin, sonra seçtiğiniz hisselerle
-                            özel analiz çalıştırın. Graf, heatmap ve tablolar ayrı sekmelerde
-                            tutulduğu için ekran daha okunabilir kalır.
-                        </p>
+                    <div className="flex flex-wrap items-start justify-between gap-6">
+                        <div>
+                            <h2 className="text-3xl font-bold tracking-tight text-foreground">
+                                Birlikte Hareket Eden Hisseler
+                            </h2>
+                            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                                Louvain topluluğu, hybrid benzerlik ve rolling stability metrikleri üzerinden
+                                BIST hisselerinin ağ yapısını analiz eder.
+                            </p>
+                        </div>
+                        {currentSnapshot && (
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { label: 'Hisse', value: currentSnapshot.metrics.node_count },
+                                    { label: 'Bağlantı', value: currentSnapshot.metrics.edge_count },
+                                    { label: 'Grup', value: currentSnapshot.metrics.community_count },
+                                ].map(({ label, value }) => (
+                                    <div
+                                        key={label}
+                                        className="rounded-2xl border border-border/50 bg-[#0f0f0f] px-4 py-2 text-center"
+                                    >
+                                        <p className="text-lg font-bold text-foreground">{value}</p>
+                                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                                            {label}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                </div>
-                <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs leading-6 text-amber-100">
-                    Sonuçlar geçmiş fiyat verilerine dayanır. Sistem hesaplama ve yorum
-                    katmanlarını ayrı tutar; yatırım tavsiyesi üretmez.
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50">
+                        <Info className="h-3 w-3 shrink-0" />
+                        Sonuçlar geçmiş fiyat verilerine dayanır. Yatırım tavsiyesi içermez.
+                    </div>
                 </div>
             </div>
 
-            <Tabs defaultValue="snapshot">
-                <TabsList className="h-auto flex-wrap gap-2 rounded-lg bg-muted/40 p-1">
-                    <TabsTrigger value="snapshot" className="rounded-md px-4 py-2">
-                        Piyasa Snapshot
-                    </TabsTrigger>
-                    <TabsTrigger value="custom" className="rounded-md px-4 py-2">
-                        Özel Analiz
-                    </TabsTrigger>
-                </TabsList>
+            {/* Mode Toggle */}
+            <div className="flex gap-2 rounded-2xl border border-border/50 bg-[#080808] p-1.5">
+                {[
+                    { value: 'snapshot' as const, label: 'Piyasa Görünümü', icon: <BarChart3 className="h-4 w-4" /> },
+                    { value: 'custom' as const, label: 'Özel Analiz', icon: <GitBranch className="h-4 w-4" /> },
+                ].map((tab) => (
+                    <button
+                        key={tab.value}
+                        type="button"
+                        onClick={() => setActiveMode(tab.value)}
+                        className={cn(
+                            'flex flex-1 items-center justify-center gap-2.5 rounded-xl px-4 py-3 text-sm font-medium transition-all',
+                            activeMode === tab.value
+                                ? 'bg-[#1e1e1e] text-foreground shadow-md'
+                                : 'text-muted-foreground hover:text-foreground/70'
+                        )}
+                    >
+                        {tab.icon}
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
 
-                <TabsContent value="snapshot" className="mt-6 space-y-6">
-                    <Card className="border-border/60 bg-card/80 shadow-none">
-                        <CardHeader className="border-b border-border/50">
-                            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                                <div>
-                                    <CardTitle className="text-base">Piyasa Snapshot</CardTitle>
-                                    <CardDescription>
-                                        Hazır piyasa analizini açar; geçmiş kayıtlar arasında
-                                        geçiş yapılabilir.
-                                    </CardDescription>
-                                </div>
-                                <div className="flex flex-wrap items-end gap-3">
-                                    <label className="flex min-w-[260px] flex-col gap-1.5">
-                                        <span className="text-xs text-muted-foreground">
-                                            Snapshot
-                                        </span>
-                                        <Select
-                                            value={selectedSnapshotMode}
-                                            onChange={(event) =>
-                                                setSelectedSnapshotMode(event.target.value)
-                                            }
-                                        >
-                                            <option value="latest">Güncel snapshot</option>
-                                            {historicalSnapshots.map((snapshot) => (
-                                                <option
-                                                    key={snapshot.snapshot_id}
-                                                    value={snapshot.snapshot_id}
-                                                >
-                                                    {snapshot.snapshot_id} ·{' '}
-                                                    {formatDateLabel(snapshot.created_at)}
-                                                </option>
-                                            ))}
-                                        </Select>
-                                    </label>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="gap-2"
-                                        onClick={() => {
-                                            void latestSnapshotQuery.refetch()
-                                            void snapshotsQuery.refetch()
-                                            if (selectedSnapshotMode !== 'latest') {
-                                                void snapshotDetailQuery.refetch()
-                                            }
-                                        }}
+            {/* Snapshot Paneli */}
+            {activeMode === 'snapshot' && (
+                <div className="space-y-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/50 bg-[#080808] px-5 py-3.5">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            <span className="h-2 w-2 rounded-full bg-[#24a693] animate-pulse" />
+                            Piyasa Snapshot
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Select
+                                value={selectedSnapshotMode}
+                                onChange={(event) =>
+                                    setSelectedSnapshotMode(event.target.value)
+                                }
+                            >
+                                <option value="latest">Güncel snapshot</option>
+                                {historicalSnapshots.map((snapshot) => (
+                                    <option
+                                        key={snapshot.snapshot_id}
+                                        value={snapshot.snapshot_id}
                                     >
-                                        <RefreshCw className="h-4 w-4" />
-                                        Yenile
-                                    </Button>
+                                        {snapshot.snapshot_id} ·{' '}
+                                        {formatDateLabel(snapshot.created_at)}
+                                    </option>
+                                ))}
+                            </Select>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => {
+                                    void latestSnapshotQuery.refetch()
+                                    void snapshotsQuery.refetch()
+                                    if (selectedSnapshotMode !== 'latest') {
+                                        void snapshotDetailQuery.refetch()
+                                    }
+                                }}
+                            >
+                                <RefreshCw className="h-3.5 w-3.5" />
+                                Yenile
+                            </Button>
+                        </div>
+                    </div>
+
+                    {(latestSnapshotQuery.isLoading && selectedSnapshotMode === 'latest') ||
+                    (snapshotDetailQuery.isLoading && selectedSnapshotMode !== 'latest') ? (
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            {[...Array(4)].map((_, i) => (
+                                <Skeleton key={i} className="h-24 rounded-2xl" />
+                            ))}
+                        </div>
+                    ) : currentSnapshot ? (
+                        <SnapshotExplorerView
+                            key={`${selectedSnapshotMode}-${currentSnapshot.snapshot.snapshot_id}`}
+                            snapshot={currentSnapshot}
+                            snapshotMode={selectedSnapshotMode}
+                        />
+                    ) : latestSnapshotQuery.isError ||
+                      snapshotDetailQuery.isError ||
+                      snapshotsQuery.isError ? (
+                        <ErrorCard
+                            title="Snapshot verisi yüklenemedi"
+                            message={
+                                String(
+                                    latestSnapshotQuery.error ??
+                                        snapshotDetailQuery.error ??
+                                        snapshotsQuery.error
+                                ) || 'Bilinmeyen hata'
+                            }
+                        />
+                    ) : null}
+                </div>
+            )}
+
+            {/* Özel Analiz Paneli */}
+            {activeMode === 'custom' && (
+                <div className="space-y-5">
+                    <div className="overflow-hidden rounded-2xl border border-border/60 bg-[#080808]">
+                        <div className="border-b border-border/50 px-5 py-4">
+                            <div className="flex items-center gap-2.5">
+                                <div className="rounded-lg bg-[#2862ff]/10 p-1.5 text-[#2862ff]">
+                                    <GitBranch className="h-4 w-4" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-foreground">Özel Analiz</p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Seçtiğiniz hisseler için co-movement pipeline çalıştırın.
+                                    </p>
                                 </div>
                             </div>
-                        </CardHeader>
-                        <CardContent className="space-y-4 pt-6">
-                            {(latestSnapshotQuery.isLoading &&
-                                selectedSnapshotMode === 'latest') ||
-                            (snapshotDetailQuery.isLoading &&
-                                selectedSnapshotMode !== 'latest') ? (
-                                <div className="grid gap-4 lg:grid-cols-3">
-                                    <Skeleton className="h-28 rounded-2xl" />
-                                    <Skeleton className="h-28 rounded-2xl" />
-                                    <Skeleton className="h-28 rounded-2xl" />
-                                </div>
-                            ) : currentSnapshot ? (
-                                <SnapshotExplorerView
-                                    key={`${selectedSnapshotMode}-${currentSnapshot.snapshot.snapshot_id}`}
-                                    snapshot={currentSnapshot}
-                                    snapshotMode={selectedSnapshotMode}
-                                />
-                            ) : latestSnapshotQuery.isError ||
-                              snapshotDetailQuery.isError ||
-                              snapshotsQuery.isError ? (
-                                <ErrorCard
-                                    title="Snapshot verisi yüklenemedi"
-                                    message={
-                                        String(
-                                            latestSnapshotQuery.error ??
-                                                snapshotDetailQuery.error ??
-                                                snapshotsQuery.error
-                                        ) || 'Bilinmeyen hata'
-                                    }
-                                />
-                            ) : null}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                        </div>
 
-                <TabsContent value="custom" className="mt-6 space-y-6">
-                    <Card className="border-border/60 bg-card/80 shadow-none">
-                        <CardHeader className="border-b border-border/50">
-                            <CardTitle className="text-base">Özel Analiz</CardTitle>
-                            <CardDescription>
-                                Seçtiğiniz hisseler için co-movement çıktısını üretir.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-5 pt-6">
+                        <div className="space-y-5 px-5 py-5">
                             <CoMovementSymbolPicker
                                 label="Analiz hisseleri"
                                 helperText="Minimum 2 hisse seçin. Büyük sepetlerde sonuçlar graph ve tablolar üzerinden özetlenir."
@@ -1654,9 +1836,9 @@ export function CoMovementSection() {
                                 disabled={analyzeMutation.isPending}
                             />
 
-                            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-5">
+                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                                 <label className="flex flex-col gap-1.5">
-                                    <span className="text-xs text-muted-foreground">
+                                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
                                         Başlangıç
                                     </span>
                                     <Input
@@ -1666,10 +1848,13 @@ export function CoMovementSection() {
                                             setCustomStartDateOverride(event.target.value)
                                         }
                                         disabled={analyzeMutation.isPending}
+                                        className="h-9 text-sm"
                                     />
                                 </label>
                                 <label className="flex flex-col gap-1.5">
-                                    <span className="text-xs text-muted-foreground">Bitiş</span>
+                                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                                        Bitiş
+                                    </span>
                                     <Input
                                         type="date"
                                         value={customEndDate}
@@ -1677,10 +1862,13 @@ export function CoMovementSection() {
                                             setCustomEndDateOverride(event.target.value)
                                         }
                                         disabled={analyzeMutation.isPending}
+                                        className="h-9 text-sm"
                                     />
                                 </label>
                                 <label className="flex flex-col gap-1.5">
-                                    <span className="text-xs text-muted-foreground">top_k</span>
+                                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                                        Top K
+                                    </span>
                                     <Select
                                         value={String(customTopK)}
                                         onChange={(event) =>
@@ -1696,15 +1884,13 @@ export function CoMovementSection() {
                                     </Select>
                                 </label>
                                 <label className="flex flex-col gap-1.5">
-                                    <span className="text-xs text-muted-foreground">
-                                        Rolling window
+                                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                                        Rolling
                                     </span>
                                     <Select
                                         value={String(customRollingWindow)}
                                         onChange={(event) =>
-                                            setCustomRollingWindow(
-                                                Number(event.target.value)
-                                            )
+                                            setCustomRollingWindow(Number(event.target.value))
                                         }
                                         disabled={analyzeMutation.isPending}
                                     >
@@ -1715,65 +1901,74 @@ export function CoMovementSection() {
                                         ))}
                                     </Select>
                                 </label>
-                                <label className="flex flex-col gap-1.5">
-                                    <span className="text-xs text-muted-foreground">
-                                        Min similarity
-                                    </span>
-                                    <div className="space-y-2 rounded-2xl border border-border/50 bg-background/50 px-3 py-2.5">
-                                        <Input
-                                            type="range"
-                                            min="0.3"
-                                            max="0.95"
-                                            step="0.05"
-                                            value={customMinSimilarity}
-                                            onChange={(event) =>
-                                                setCustomMinSimilarity(
-                                                    Number(event.target.value)
-                                                )
-                                            }
-                                            disabled={analyzeMutation.isPending}
-                                            className="h-3 border-0 bg-transparent px-0"
-                                        />
-                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>0.30</span>
-                                            <span className="font-medium text-foreground">
-                                                {customMinSimilarity.toFixed(2)}
-                                            </span>
-                                            <span>0.95</span>
-                                        </div>
-                                    </div>
-                                </label>
                             </div>
 
-                            <div className="flex flex-wrap items-center justify-between gap-4">
-                                <div className="text-xs text-muted-foreground">
-                                    Varsayılan sepet: {DEFAULT_CUSTOM_SYMBOLS.join(', ')}
+                            <div className="space-y-2 rounded-2xl border border-border/50 bg-[#0a0a0a] px-4 py-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                                        Min Benzerlik
+                                    </span>
+                                    <span className="text-sm font-bold text-foreground">
+                                        {customMinSimilarity.toFixed(2)}
+                                    </span>
                                 </div>
-                                <Button
-                                    type="button"
-                                    onClick={() => void handleRunAnalysis()}
-                                    disabled={
-                                        analyzeMutation.isPending ||
-                                        customSymbols.length < 2 ||
-                                        !customStartDate ||
-                                        !customEndDate
+                                <Input
+                                    type="range"
+                                    min="0.3"
+                                    max="0.95"
+                                    step="0.05"
+                                    value={customMinSimilarity}
+                                    onChange={(event) =>
+                                        setCustomMinSimilarity(Number(event.target.value))
                                     }
-                                    className="gap-2"
-                                >
-                                    {analyzeMutation.isPending ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <BarChart3 className="h-4 w-4" />
-                                    )}
-                                    Analizi Çalıştır
-                                </Button>
+                                    disabled={analyzeMutation.isPending}
+                                    className="h-2 w-full cursor-pointer border-0 bg-transparent px-0 accent-[#2862ff]"
+                                />
+                                <div className="flex justify-between text-[10px] text-muted-foreground/50">
+                                    <span>0.30</span>
+                                    <span>0.95</span>
+                                </div>
                             </div>
-                        </CardContent>
-                    </Card>
+
+                            <button
+                                type="button"
+                                onClick={() => void handleRunAnalysis()}
+                                disabled={
+                                    analyzeMutation.isPending ||
+                                    customSymbols.length < 2 ||
+                                    !customStartDate ||
+                                    !customEndDate
+                                }
+                                className={cn(
+                                    'relative w-full overflow-hidden rounded-2xl px-6 py-3.5 text-sm font-semibold text-white transition-all',
+                                    'disabled:cursor-not-allowed disabled:opacity-50',
+                                    'bg-gradient-to-r from-[#2862ff] to-[#1a4fd9]',
+                                    'hover:from-[#3570ff] hover:to-[#2060e8]',
+                                    'active:scale-[0.99]',
+                                    analyzeMutation.isPending && 'animate-pulse-glow'
+                                )}
+                            >
+                                <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+                                <span className="relative flex items-center justify-center gap-2">
+                                    {analyzeMutation.isPending ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            Analiz Çalışıyor...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <BarChart3 className="h-4 w-4" />
+                                            Analizi Çalıştır
+                                        </>
+                                    )}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
 
                     {analyzeMutation.isError ? (
                         <ErrorCard
-                            title="Custom analysis başarısız oldu"
+                            title="Analiz başarısız oldu"
                             message={
                                 analyzeMutation.error instanceof Error
                                     ? analyzeMutation.error.message
@@ -1791,118 +1986,130 @@ export function CoMovementSection() {
                     ) : null}
 
                     {customResult ? (
-                        <>
-                            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-                                <div className="space-y-4">
-                                    {analysisSummaryCards(customResult)}
-                                    <div className="grid gap-4 lg:grid-cols-3">
-                                        <StatCard
-                                            label="Date Range"
-                                            value={`${formatDateLabel(customResult.date_range.start)} → ${formatDateLabel(customResult.date_range.end)}`}
-                                            hint={`Aligned ${formatDateLabel(customResult.date_range.aligned_start)} → ${formatDateLabel(customResult.date_range.aligned_end)}`}
-                                        />
-                                        <StatCard
-                                            label="Requested"
-                                            value={String(
-                                                customResult.requested_symbols.length
-                                            )}
-                                            hint={`${customResult.symbols.length} kullanılabilir hisse`}
-                                        />
-                                        <StatCard
-                                            label="Config"
-                                            value={`top_k ${customResult.config.top_k}`}
-                                            hint={`min sim ${formatNumber(customResult.config.min_similarity, 2)} · rolling ${customResult.config.rolling_window}`}
-                                        />
-                                    </div>
-                                </div>
-                                <ExplanationCard
-                                    title="Sonuç Yorumu"
-                                    explanation={analysisExplanation}
-                                    onGenerate={() =>
-                                        void analysisExplainMutation
-                                            .mutateAsync({
-                                                top_pairs: customResult.top_pairs,
-                                                communities: customResult.communities,
-                                                metrics: customResult.metrics,
-                                                language: 'tr',
-                                                symbols: customResult.symbols,
-                                                date_range: customResult.date_range,
-                                            })
-                                            .then(setAnalysisExplanation)
-                                    }
-                                    isLoading={analysisExplainMutation.isPending}
-                                    disabled={analysisExplainMutation.isPending}
+                        <div className="space-y-4">
+                            {analysisSummaryCards(customResult)}
+
+                            <div className="grid gap-3 md:grid-cols-3">
+                                <StatCard
+                                    label="Tarih Aralığı"
+                                    value={`${formatDateLabel(customResult.date_range.start)} → ${formatDateLabel(customResult.date_range.end)}`}
+                                    hint={`Hizalanmış: ${formatDateLabel(customResult.date_range.aligned_start)} → ${formatDateLabel(customResult.date_range.aligned_end)}`}
+                                />
+                                <StatCard
+                                    label="İstenen Hisse"
+                                    value={String(customResult.requested_symbols.length)}
+                                    hint={`${customResult.symbols.length} kullanılabilir hisse`}
+                                />
+                                <StatCard
+                                    label="Yapılandırma"
+                                    value={`top_k ${customResult.config.top_k}`}
+                                    hint={`min sim ${formatNumber(customResult.config.min_similarity, 2)} · rolling ${customResult.config.rolling_window}`}
                                 />
                             </div>
 
-                            <Tabs defaultValue="overview" className="space-y-5">
-                                <TabsList className="h-auto flex-wrap gap-2 rounded-lg bg-muted/40 p-1">
-                                    <TabsTrigger value="overview" className="rounded-md px-4 py-2">
-                                        Özet
-                                    </TabsTrigger>
-                                    <TabsTrigger value="matrices" className="rounded-md px-4 py-2">
-                                        Matrisler
-                                    </TabsTrigger>
-                                    <TabsTrigger value="details" className="rounded-md px-4 py-2">
-                                        Detaylar
-                                    </TabsTrigger>
-                                </TabsList>
-
-                                <TabsContent value="overview" className="space-y-4">
-                                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_360px]">
-                                        <CoMovementGraph
-                                            title="Analiz Grafiği"
-                                            description="Seçili hisseler için hybrid similarity ağı ve community renkleri."
-                                            nodes={customResult.graph.nodes}
-                                            edges={customResult.graph.edges}
-                                            selectedNodeId={effectiveSelectedAnalysisNodeId}
-                                            onSelectNode={setSelectedAnalysisNodeId}
-                                            height={500}
-                                        />
-                                        <NodeDetailCard
-                                            result={customResult}
-                                            selectedNodeId={effectiveSelectedAnalysisNodeId}
-                                            visibleNodes={customResult.graph.nodes}
-                                            visibleEdges={customResult.graph.edges}
-                                        />
+                            {/* Analiz grafiği */}
+                            <div className="overflow-hidden rounded-2xl border border-border/60 bg-[#080808]">
+                                <div className="flex items-center justify-between gap-4 border-b border-border/50 px-5 py-3.5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2862ff]/10 text-[#2862ff]">
+                                            <Network className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-foreground">Analiz Grafiği</p>
+                                            <p className="text-[11px] text-muted-foreground">
+                                                {customResult.graph.nodes.length} hisse · {customResult.graph.edges.length} bağlantı
+                                            </p>
+                                        </div>
                                     </div>
+                                </div>
+                                <div className="relative">
+                                    <CoMovementGraph
+                                        title=""
+                                        description=""
+                                        nodes={customResult.graph.nodes}
+                                        edges={customResult.graph.edges}
+                                        selectedNodeId={effectiveSelectedAnalysisNodeId}
+                                        onSelectNode={setSelectedAnalysisNodeId}
+                                        height={500}
+                                        className="border-0 bg-transparent shadow-none"
+                                    />
+                                    {effectiveSelectedAnalysisNodeId && (
+                                        <div className="animate-slide-in-right absolute right-0 top-0 h-full w-[300px] border-l border-border/50 bg-[#060606]/95 backdrop-blur-sm">
+                                            <NodeDetailCard
+                                                result={customResult}
+                                                selectedNodeId={effectiveSelectedAnalysisNodeId}
+                                                visibleNodes={customResult.graph.nodes}
+                                                visibleEdges={customResult.graph.edges}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex flex-wrap gap-4 border-t border-border/40 px-5 py-2.5 text-[10px] text-muted-foreground/50">
+                                    <span>Node rengi community kimliğini gösterir</span>
+                                    <span>Kenar kalınlığı hybrid similarity ağırlığını gösterir</span>
+                                </div>
+                            </div>
 
-                                    <div className="grid gap-4 xl:grid-cols-2">
-                                        <CommunitiesCard
-                                            communities={customResult.communities}
-                                            edges={customResult.graph.edges}
-                                        />
-                                        <PairsTable
-                                            title="En Güçlü Eşleşmeler"
-                                            description="Hybrid similarity skoruna göre sıralanan eşleşmeler."
-                                            pairs={customResult.top_pairs}
-                                            limit={12}
-                                        />
-                                    </div>
-                                </TabsContent>
+                            <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
+                                <CommunitiesCard
+                                    communities={customResult.communities}
+                                    edges={customResult.graph.edges}
+                                />
+                                <PairsTable
+                                    title="En Güçlü Eşleşmeler"
+                                    description="Hybrid similarity skoruna göre sıralanan eşleşmeler."
+                                    pairs={customResult.top_pairs}
+                                    limit={12}
+                                />
+                            </div>
 
-                                <TabsContent value="matrices" className="space-y-4">
+                            <div className="overflow-hidden rounded-2xl border border-border/60">
+                                <div className="px-5 py-4">
                                     <MatrixTabsPanel
                                         title="Matris Görünümleri"
                                         description={`Heatmap okunabilirliği için ${customMatrixSymbols.length} hisselik en güçlü ilişki sepeti gösteriliyor.`}
                                         symbols={customMatrixSymbols}
                                         matrices={customMatrixPanels}
                                     />
-                                </TabsContent>
+                                </div>
+                            </div>
 
-                                <TabsContent value="details" className="space-y-4">
+                            <div className="overflow-hidden rounded-2xl border border-border/60">
+                                <div className="border-b border-border/50 px-5 py-4">
+                                    <p className="text-sm font-semibold text-foreground">Detaylar</p>
+                                    <p className="text-[11px] text-muted-foreground">Pair sıralamaları · Rolling stability · Veri kalitesi</p>
+                                </div>
+                                <div className="space-y-4 px-5 py-5">
                                     <div className="grid gap-4 xl:grid-cols-2">
                                         <PairRankingsCard rankings={customResult.pair_rankings} />
                                         <RollingStabilityCard rows={customResult.rolling_stability} />
                                     </div>
-
                                     <QualityCard result={customResult} />
-                                </TabsContent>
-                            </Tabs>
-                        </>
+                                </div>
+                            </div>
+
+                            <ExplanationCard
+                                title="Sonuç Yorumu"
+                                explanation={analysisExplanation}
+                                onGenerate={() =>
+                                    void analysisExplainMutation
+                                        .mutateAsync({
+                                            top_pairs: customResult.top_pairs,
+                                            communities: customResult.communities,
+                                            metrics: customResult.metrics,
+                                            language: 'tr',
+                                            symbols: customResult.symbols,
+                                            date_range: customResult.date_range,
+                                        })
+                                        .then(setAnalysisExplanation)
+                                }
+                                isLoading={analysisExplainMutation.isPending}
+                                disabled={analysisExplainMutation.isPending}
+                            />
+                        </div>
                     ) : null}
-                </TabsContent>
-            </Tabs>
+                </div>
+            )}
         </section>
     )
 }

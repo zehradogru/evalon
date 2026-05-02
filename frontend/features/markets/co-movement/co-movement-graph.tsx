@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import type { ComponentType } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 import {
     communityColor,
     createPairKey,
@@ -28,6 +29,7 @@ interface CoMovementGraphProps {
     selectedNodeId?: string | null
     onSelectNode?: (nodeId: string | null) => void
     height?: number
+    className?: string
 }
 
 type GraphNode = CoMovementNode & {
@@ -52,6 +54,7 @@ export function CoMovementGraph({
     selectedNodeId = null,
     onSelectNode,
     height = 520,
+    className,
 }: CoMovementGraphProps) {
     const containerRef = useRef<HTMLDivElement | null>(null)
     const [dimensions, setDimensions] = useState({ width: 800, height })
@@ -158,7 +161,7 @@ export function CoMovementGraph({
     }, [nodes, edges])
 
     return (
-        <Card className="border-border/60 bg-card/80 shadow-none">
+        <Card className={cn("border-border/60 bg-card/80 shadow-none", className)}>
             <CardHeader className="border-b border-border/50">
                 <CardTitle className="text-base">{title}</CardTitle>
                 <CardDescription>{description}</CardDescription>
