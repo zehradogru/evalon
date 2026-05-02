@@ -12,6 +12,11 @@ import type {
 
 const BASE = '/api/co-movement'
 
+interface CoMovementExplainStreamHandlers {
+    onDone?: (payload: CoMovementExplainResponse) => void
+    onText?: (chunk: string, fullText: string) => void
+}
+
 async function readError(response: Response): Promise<string> {
     try {
         const payload = await response.json()
@@ -151,4 +156,113 @@ export async function explainCoMovement(
         response,
         'Co-movement explanation could not be generated.'
     )
+}
+
+export async function streamCoMovementExplanation(
+    payload: CoMovementExplainRequest,
+    handlers: CoMovementExplainStreamHandlers = {}
+): Promise<CoMovementExplainResponse> {
+    const response = await fetch(`${BASE}/explain/stream`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        cache: 'no-store',
+    })
+
+    if (!response.ok || !response.body) {
+        throw new Error(
+            (await readError(response)) || 'Co-movement explanation could not be generated.'
+        )
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let fullText = ''
+    let finalPayload: CoMovementExplainResponse | null = null
+
+    const consumeEvent = (event: string) => {
+        const raw = event
+            .split('\n')
+            .filter((line) => line.startsWith('data: '))
+            .map((line) => line.slice(6))
+            .join('\n')
+            .trim()
+
+        if (!raw || raw === '[DONE]') return
+
+        let parsed: unknown
+        try {
+            parsed = JSON.parse(raw)
+        } catch {
+            return
+        }
+
+        if (!parsed || typeof parsed !== 'object') return
+        const payloadChunk = parsed as Record<string, unknown>
+
+        if (typeof payloadChunk.text === 'string' && payloadChunk.text.length > 0) {
+            fullText += payloadChunk.text
+            handlers.onText?.(payloadChunk.text, fullText)
+        }
+
+        if (payloadChunk.done === true) {
+            finalPayload = {
+                summary:
+                    typeof payloadChunk.summary === 'string'
+                        ? payloadChunk.summary
+                        : fullText.trim(),
+                warnings: Array.isArray(payloadChunk.warnings)
+                    ? payloadChunk.warnings.filter(
+                          (warning): warning is string => typeof warning === 'string'
+                      )
+                    : [],
+                source:
+                    typeof payloadChunk.source === 'string'
+                        ? payloadChunk.source
+                        : 'stream',
+                model:
+                    typeof payloadChunk.model === 'string' || payloadChunk.model === null
+                        ? payloadChunk.model
+                        : null,
+            }
+        }
+    }
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            buffer += decoder.decode(value, { stream: true })
+            const events = buffer.split('\n\n')
+            buffer = events.pop() ?? ''
+
+            for (const event of events) {
+                consumeEvent(event)
+            }
+        }
+
+        if (buffer.trim()) {
+            consumeEvent(buffer)
+        }
+    } finally {
+        reader.releaseLock()
+    }
+
+    finalPayload ??= {
+        summary: fullText.trim(),
+        warnings: [],
+        source: 'stream',
+        model: null,
+    }
+
+    if (!finalPayload.summary) {
+        throw new Error('Co-movement explanation could not be generated.')
+    }
+
+    handlers.onDone?.(finalPayload)
+    return finalPayload
 }
