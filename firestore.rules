@@ -279,6 +279,14 @@ service cloud.firestore {
       match /notification_devices/{deviceId} {
         allow read, write: if isOwner(userId);
       }
+
+      match /coMovementAnalyses/{analysisId} {
+        allow read, write: if isOwner(userId);
+
+        match /matrices/{matrixName} {
+          allow read, write: if isOwner(userId);
+        }
+      }
     }
 
     // ─── Paper Trading Leaderboard ───

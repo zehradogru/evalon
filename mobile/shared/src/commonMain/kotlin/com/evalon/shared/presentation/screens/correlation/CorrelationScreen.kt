@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.evalon.shared.presentation.components.*
 import com.evalon.shared.presentation.ui.theme.*
+import com.evalon.shared.util.format
 
 @Composable
 fun CorrelationScreen(
@@ -113,7 +114,7 @@ private fun CorrelationRow(pair: CorrelationPair) {
 
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = String.format("%.2f", pair.correlation),
+                text = pair.correlation.format(2),
                 color = correlationColor,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp

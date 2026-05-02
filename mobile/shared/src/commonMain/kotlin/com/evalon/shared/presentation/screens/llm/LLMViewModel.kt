@@ -1,5 +1,6 @@
 package com.evalon.shared.presentation.screens.llm
 
+import com.evalon.shared.util.currentTimeMillis
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,11 +40,12 @@ class LLMViewModel {
         val text = _uiState.value.inputText.trim()
         if (text.isEmpty()) return
 
+        val sentAt = currentTimeMillis()
         val userMsg = ChatMessage(
-            id = "user_${System.currentTimeMillis()}",
+            id = "user_$sentAt",
             content = text,
             isUser = true,
-            timestamp = System.currentTimeMillis()
+            timestamp = sentAt
         )
 
         _uiState.value = _uiState.value.copy(
@@ -72,15 +74,10 @@ class LLMViewModel {
                 "Sorunuzu analiz ettim. Daha detaylı bilgi için spesifik bir hisse kodu veya strateji adı belirtebilirsiniz. Örneğin 'THYAO analiz et' veya 'strateji öner' diyebilirsiniz."
         }
         return ChatMessage(
-            id = "ai_${System.currentTimeMillis()}",
+            id = "ai_${currentTimeMillis()}",
             content = response,
             isUser = false,
-            timestamp = System.currentTimeMillis()
+            timestamp = currentTimeMillis()
         )
-    }
-
-    // Workaround for KMP - get current time millis
-    private object System {
-        fun currentTimeMillis(): Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
     }
 }

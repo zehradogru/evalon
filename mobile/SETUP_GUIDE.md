@@ -44,10 +44,16 @@ Android Studio, Kotlin Multiplatform Mobile (KMP) geliştirme için en iyi seçe
 ### 2. Komut Satırı (CLI) - Gelişmiş Kullanıcılar için
 ```bash
 # Gradle ile build
-./gradlew :androidApp:assembleDebug
+JAVA_HOME=$(/usr/libexec/java_home -v 21) ./gradlew :androidApp:assembleDebug
 
 # APK dosyası oluşturulur
-# shared/build/outputs/apk/debug/androidApp-debug.apk
+# androidApp/build/outputs/apk/debug/androidApp-debug.apk
+```
+
+`SDK location not found` hatası alırsanız proje kökünde `local.properties` dosyası oluşturup Android SDK yolunu tanımlayın:
+
+```properties
+sdk.dir=/Users/aliberkyesilduman/Library/Android/sdk
 ```
 
 ### 3. VS Code (Sınırlı Desteği)
@@ -57,7 +63,8 @@ Android Studio, Kotlin Multiplatform Mobile (KMP) geliştirme için en iyi seçe
 
 ## İlk Çalıştırma İçin Gereksinimler
 
-- **Java JDK 11 veya üzeri** (Android Studio ile birlikte gelir)
+- **Java JDK 17 veya 21** önerilir
+- **Not:** Bu projede Gradle, sistemde kurulu `JDK 25` ile sorun çıkarabiliyor. Android Studio içinde Gradle JDK olarak `17` veya `21` seçin.
 - **En az 8 GB RAM** (16 GB önerilir)
 - **En az 10 GB boş disk alanı** (SDK + Emulator için)
 - **İnternet bağlantısı** (ilk sync için)
@@ -78,6 +85,7 @@ Android Studio, Kotlin Multiplatform Mobile (KMP) geliştirme için en iyi seçe
 - macOS gereklidir
 - Xcode kurulu olmalı
 - iOS Simulator kullanılabilir
+- Firebase pod entegrasyonu nedeniyle iOS tarafını `iosApp/Evalon.xcworkspace` ile açın
 
 ## Hızlı Başlangıç
 

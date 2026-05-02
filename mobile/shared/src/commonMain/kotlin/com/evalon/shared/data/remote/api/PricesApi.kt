@@ -1,6 +1,7 @@
 package com.evalon.shared.data.remote.api
 
 import com.evalon.shared.data.remote.ApiConfig
+import com.evalon.shared.data.remote.dto.BatchPricesResponseDto
 import com.evalon.shared.data.remote.dto.PricesResponseDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -37,6 +38,20 @@ class PricesApi(private val client: HttpClient) {
             if (limit != null) {
                 parameter("limit", limit)
             }
+        }.body()
+    }
+
+    suspend fun getBatchPrices(
+        tickers: List<String>,
+        timeframe: String = "1d",
+        limit: Int = 2,
+        refresh: Boolean = false
+    ): BatchPricesResponseDto {
+        return client.get(ApiConfig.PRICES_BATCH) {
+            parameter("tickers", tickers.joinToString(","))
+            parameter("timeframe", timeframe)
+            parameter("limit", limit)
+            parameter("refresh", refresh)
         }.body()
     }
 }

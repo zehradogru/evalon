@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.evalon.shared.presentation.components.*
 import com.evalon.shared.presentation.ui.theme.*
+import com.evalon.shared.util.format
 
 @Composable
 fun ExchangeScreen(
@@ -68,7 +69,7 @@ fun ExchangeScreen(
                                 fontSize = 28.sp
                             )
                             Text(
-                                text = "${if (isPositive) "+" else ""}${String.format("%.2f", state.indexChange)}%",
+                                text = "${if (isPositive) "+" else ""}${state.indexChange.format(2)}%",
                                 color = EvalonTextPrimary.copy(alpha = 0.9f),
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 16.sp

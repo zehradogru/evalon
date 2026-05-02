@@ -1,0 +1,8 @@
+platform :ios, '16.0'
+
+target 'Evalon' do
+  use_frameworks!
+  pod 'FirebaseAuth'
+  pod 'FirebaseStorage'
+  pod 'GoogleSignIn', :git => 'https://github.com/google/GoogleSignIn-iOS.git', :tag => '8.0.0'
+end

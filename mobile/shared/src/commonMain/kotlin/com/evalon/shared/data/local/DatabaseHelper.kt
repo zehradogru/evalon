@@ -26,7 +26,7 @@ class DatabaseHelper(driverFactory: DatabaseDriverFactory) {
                 queries.insertOrReplaceMarketData(
                     symbol = symbol,
                     timestamp = c.time,
-                    open = c.open,
+                    open_ = c.open,
                     high = c.high,
                     low = c.low,
                     close = c.close,
@@ -40,7 +40,7 @@ class DatabaseHelper(driverFactory: DatabaseDriverFactory) {
         return queries.selectCachedCandles(symbol, limit).executeAsList().map { row ->
             StockCandle(
                 time = row.timestamp,
-                open = row.open,
+                open = row.open_,
                 high = row.high,
                 low = row.low,
                 close = row.close,
