@@ -1173,7 +1173,10 @@ def get_news(
 
     offset = (page - 1) * limit
 
-    where_clauses: List[str] = []
+    where_clauses: List[str] = [
+        "CONTENT IS NOT NULL",
+        "LENGTH(CONTENT) > 10"
+    ]
     bind_params: Dict[str, Any] = {}
 
     symbol_values: List[str] = []
@@ -1200,8 +1203,11 @@ def get_news(
         where_clauses.append(f"UPPER(SYMBOL) IN ({', '.join(placeholders)})")
 
     if sentiment:
+        upper_sent = sentiment.strip().upper()
+        if upper_sent == "NOTR":
+            upper_sent = "NÖTR"
         where_clauses.append("UPPER(SENTIMENT) = :sentiment")
-        bind_params["sentiment"] = sentiment.strip().upper()
+        bind_params["sentiment"] = upper_sent
 
     if q:
         where_clauses.append("(UPPER(TITLE) LIKE :q OR UPPER(SUMMARY) LIKE :q)")
