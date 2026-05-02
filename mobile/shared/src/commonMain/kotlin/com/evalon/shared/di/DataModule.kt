@@ -31,6 +31,7 @@ val dataModule = module {
     single { UserProfileApi(get()) }
     single { PricesApi(get()) }
     single { MarketsApi(get()) }
+    single { ProductFeatureApi(get()) }
     
     // Repositories
     single<com.evalon.shared.domain.repository.AuthRepository> { 

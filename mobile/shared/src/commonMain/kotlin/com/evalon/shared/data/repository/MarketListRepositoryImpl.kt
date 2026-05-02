@@ -4,6 +4,7 @@ import com.evalon.shared.data.remote.api.MarketsApi
 import com.evalon.shared.domain.model.MarketItem
 import com.evalon.shared.domain.repository.MarketListRepository
 import com.evalon.shared.domain.repository.MarketListResult
+import com.evalon.shared.util.currentTimeMillis
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -22,7 +23,7 @@ class MarketListRepositoryImpl(
     private val cacheTtlMs = 5 * 60 * 1000L  // 5 minutes
 
     override fun observeMarketList(exchange: String): Flow<MarketListResult> = flow {
-        val now = System.currentTimeMillis()
+        val now = currentTimeMillis()
         val cached = cache[exchange]
 
         // Emit stale cache immediately so UI is never blank
@@ -55,7 +56,9 @@ class MarketListRepositoryImpl(
             try {
                 val response = marketsApi.getMarketList(exchange)
 
-                if (response.warming || response.data.isEmpty()) {
+                val responseItems = if (response.items.isNotEmpty()) response.items else response.data
+
+                if (response.warming || responseItems.isEmpty()) {
                     attempt++
                     if (attempt >= maxAttempts) {
                         return MarketListResult(
@@ -63,25 +66,24 @@ class MarketListRepositoryImpl(
                             isWarming = true
                         )
                     }
-                    // Server is still warming — notify UI and retry
-                    val staleItems = cache[exchange]?.items ?: emptyList()
                     // Short delay before next poll
                     delay(3_000L)
                     continue
                 }
 
-                val items = response.data.map { dto ->
+                val items = responseItems.map { dto ->
+                    val symbol = dto.ticker.ifBlank { dto.symbol }
                     MarketItem(
-                        symbol = dto.symbol,
-                        name = dto.name,
-                        price = dto.price,
-                        changePercent = dto.changePercent,
-                        volume = dto.volume ?: ""
+                        symbol = symbol,
+                        name = dto.name.ifBlank { symbol },
+                        price = dto.price ?: 0.0,
+                        changePercent = dto.changePct ?: dto.changePercent ?: 0.0,
+                        volume = dto.volume ?: dto.vol?.toString() ?: ""
                     )
                 }
 
-                cache[exchange] = CacheEntry(items = items, fetchedAt = System.currentTimeMillis())
-                return MarketListResult(items = items)
+                cache[exchange] = CacheEntry(items = items, fetchedAt = currentTimeMillis())
+                return MarketListResult(items = items, isStale = response.stale || response.meta?.stale == true)
 
             } catch (e: Exception) {
                 val staleItems = cache[exchange]?.items ?: emptyList()
