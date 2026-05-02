@@ -1142,6 +1142,7 @@ class NewsItem(BaseModel):
     news_source: Optional[str] = None
     title: str
     summary: Optional[str] = None
+    content: Optional[str] = None
     sentiment: Optional[str] = None
     sentiment_score: Optional[float] = None
     news_url: Optional[str] = None
@@ -1188,7 +1189,7 @@ def get_news(
     where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 
     select_sql = f"""
-        SELECT ID, SYMBOL, NEWS_SOURCE, TITLE, SUMMARY,
+        SELECT ID, SYMBOL, NEWS_SOURCE, TITLE, SUMMARY, CONTENT,
                SENTIMENT, SENTIMENT_SCORE, NEWS_URL, AUTHOR, PUBLISHED_AT
         FROM BIST_NEWS
         {where_sql}
@@ -1236,11 +1237,12 @@ def get_news(
                 news_source=row[2],
                 title=row[3] or "",
                 summary=row[4],
-                sentiment=row[5],
-                sentiment_score=float(row[6]) if row[6] is not None else None,
-                news_url=row[7],
-                author=row[8],
-                published_at=row[9],
+                content=row[5] if hasattr(row, '__len__') and len(row) > 10 else None,
+                sentiment=row[6],
+                sentiment_score=float(row[7]) if row[7] is not None else None,
+                news_url=row[8],
+                author=row[9],
+                published_at=row[10],
             )
         )
 

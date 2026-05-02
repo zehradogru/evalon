@@ -4,6 +4,7 @@ export interface NewsItem {
   news_source: string | null
   title: string
   summary: string | null
+  content: string | null
   sentiment: string | null
   sentiment_score: number | null
   news_url: string | null

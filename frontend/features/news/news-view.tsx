@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -147,7 +147,7 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
     }
 
     return (
-        <div className="flex h-full bg-background overflow-hidden">
+        <div className="flex flex-1 min-h-[calc(100vh-100px)] w-full bg-background overflow-hidden">
             {/* Feed Column */}
             <div className={cn("flex flex-col border-r border-border bg-background transition-all duration-300", selectedNews ? "w-[450px]" : "w-full max-w-4xl mx-auto")}>
                 {/* Header */}
@@ -242,7 +242,6 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
                             )}
                         </div>
                     </div>
-                    <DashboardFooter />
                 </ScrollArea>
             </div>
 
@@ -316,15 +315,15 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
                                     </div>
                                 )}
 
-                                {/* Summary */}
-                                {item.summary ? (
+                                {/* Content / Summary */}
+                                {item.content || item.summary ? (
                                     <div className="border-l-4 border-primary pl-4 py-1">
                                         <p className="text-base leading-relaxed text-foreground/90 whitespace-pre-line">
-                                            {item.summary}
+                                            {item.content || item.summary}
                                         </p>
                                     </div>
                                 ) : (
-                                    <p className="text-sm text-muted-foreground italic">Özet mevcut değil.</p>
+                                    <p className="text-sm text-muted-foreground italic">İçerik veya özet mevcut değil.</p>
                                 )}
 
                                 {/* Market info grid */}
@@ -333,21 +332,25 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
                                         <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Hisse</div>
                                         <div className="font-bold">{item.symbol ?? '—'}</div>
                                     </div>
-                                    <div className="p-3 rounded-xl bg-secondary/50 border border-border/50">
-                                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Duygu</div>
-                                        <div className={cn('font-bold', sentimentColor.split(' ')[0])}>
-                                            {mapSentiment(item.sentiment ?? null)}
-                                            {scoreDisplay && <span className="text-xs font-normal text-muted-foreground ml-1">({scoreDisplay})</span>}
+                                    {item.sentiment && mapSentiment(item.sentiment) !== 'Bekleniyor' && (
+                                        <div className="p-3 rounded-xl bg-secondary/50 border border-border/50">
+                                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Duygu</div>
+                                            <div className={cn('font-bold', sentimentColor.split(' ')[0])}>
+                                                {mapSentiment(item.sentiment ?? null)}
+                                                {scoreDisplay && <span className="text-xs font-normal text-muted-foreground ml-1">({scoreDisplay})</span>}
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                     <div className="p-3 rounded-xl bg-secondary/50 border border-border/50">
                                         <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Kaynak</div>
                                         <div className="font-medium text-sm">{item.news_source ?? '—'}</div>
                                     </div>
-                                    <div className="p-3 rounded-xl bg-secondary/50 border border-border/50">
-                                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Yazar</div>
-                                        <div className="font-medium text-sm truncate">{item.author ?? '—'}</div>
-                                    </div>
+                                    {item.author && item.author !== 'Bilinmiyor' && (
+                                        <div className="p-3 rounded-xl bg-secondary/50 border border-border/50">
+                                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Yazar</div>
+                                            <div className="font-medium text-sm truncate">{item.author ?? '—'}</div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* External link button at bottom */}

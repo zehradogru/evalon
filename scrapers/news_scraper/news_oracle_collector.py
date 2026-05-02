@@ -295,67 +295,17 @@ def get_db_connection() -> Optional[oracledb.Connection]:
 
 
 def ensure_news_table(connection: oracledb.Connection) -> None:
-    cursor = connection.cursor()
-
-    ddl_table = """
-    BEGIN
-        EXECUTE IMMEDIATE '
-            CREATE TABLE BIST_NEWS_ARTICLES (
-                ID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                MARKET VARCHAR2(30) NOT NULL,
-                SYMBOL VARCHAR2(20) NOT NULL,
-                SOURCE_NAME VARCHAR2(100) NOT NULL,
-                TITLE VARCHAR2(1000) NOT NULL,
-                SUMMARY CLOB,
-                CONTENT CLOB,
-                URL VARCHAR2(2000),
-                AUTHOR VARCHAR2(200),
-                PUBLISHED_AT TIMESTAMP,
-                SCRAPED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                URL_HASH VARCHAR2(64) NOT NULL,
-                CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                CONSTRAINT UK_BIST_NEWS_URL_HASH UNIQUE (URL_HASH)
-            )
-        ';
-    EXCEPTION
-        WHEN OTHERS THEN
-            IF SQLCODE = -955 THEN NULL;
-            ELSE RAISE;
-            END IF;
-    END;
-    """
-
-    ddl_idx_symbol = """
-    BEGIN
-        EXECUTE IMMEDIATE 'CREATE INDEX IDX_BIST_NEWS_SYMBOL ON BIST_NEWS_ARTICLES(SYMBOL)';
-    EXCEPTION WHEN OTHERS THEN IF SQLCODE = -955 THEN NULL; ELSE RAISE; END IF;
-    END;
-    """
-
-    ddl_idx_date = """
-    BEGIN
-        EXECUTE IMMEDIATE 'CREATE INDEX IDX_BIST_NEWS_PUBLISHED_AT ON BIST_NEWS_ARTICLES(PUBLISHED_AT)';
-    EXCEPTION WHEN OTHERS THEN IF SQLCODE = -955 THEN NULL; ELSE RAISE; END IF;
-    END;
-    """
-
-    try:
-        cursor.execute(ddl_table)
-        cursor.execute(ddl_idx_symbol)
-        cursor.execute(ddl_idx_date)
-        connection.commit()
-        print("BIST_NEWS_ARTICLES tablo/index kontrolu tamamlandi.")
-    finally:
-        cursor.close()
+    # Table creation removed per instructions.
+    pass
 
 
 def insert_news_rows(connection: oracledb.Connection, rows: List[Dict]) -> Tuple[int, int]:
     """Insert rows; skips duplicate URL_HASH (ORA-00001)."""
     insert_sql = """
-        INSERT INTO BIST_NEWS_ARTICLES (
-            MARKET, SYMBOL, SOURCE_NAME, TITLE, SUMMARY, CONTENT, URL, AUTHOR, PUBLISHED_AT, SCRAPED_AT, URL_HASH
+        INSERT INTO BIST_NEWS (
+            MARKET, SYMBOL, NEWS_SOURCE, TITLE, SUMMARY, CONTENT, SENTIMENT, NEWS_URL, AUTHOR, PUBLISHED_AT, SCRAPED_AT, URL_HASH
         ) VALUES (
-            :market, :symbol, :source_name, :title, :summary, :content, :url, :author, :published_at, :scraped_at, :url_hash
+            :market, :symbol, :source_name, :title, :summary, :content, 'BEKLIYOR', :url, :author, :published_at, :scraped_at, :url_hash
         )
     """
 
@@ -441,14 +391,20 @@ def main() -> None:
     for key, val in stats.items():
         print(f"- {key}: {val}")
 
-    print("\n-- DB'ye kaydetme işlemi kullanıcı isteği üzerine tamamen devre dışı bırakıldı. --")
-    # if args.skip_db:
-    #     print("\n--skip-db aktif, DB yazma atlandi.")
-    #     return
-    #
-    # print("\nOracle DB'ye yaziliyor...")
-    # conn = get_db_connection()
-    # ... (DB kodlari iptal edildi)
+    if args.skip_db:
+        print("\n--skip-db aktif, DB yazma atlandi.")
+        return
+
+    print("\nOracle DB'ye yaziliyor...")
+    conn = get_db_connection()
+    if conn:
+        try:
+            inserted, duplicates = insert_news_rows(conn, rows)
+            print(f"DB Kaydi Tamamlandi: {inserted} yeni haber, {duplicates} tekrar eden atlandi.")
+        finally:
+            conn.close()
+    else:
+        print("DB baglantisi kurulamadi, kayit yapilamadi.")
 
     print("=" * 70)
     print(f"Bitis: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

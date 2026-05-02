@@ -1,26 +1,30 @@
-# Evalon Project
+<div align="center">
+  <h1>Evalon</h1>
+  <p><strong>BIST piyasaları için yapay zeka destekli, yeni nesil finansal veri analizi ve yatırım danışmanlığı platformu.</strong></p>
+  <p>
+    <a href="https://evalon.com.tr"><strong>🌐 evalon.com.tr Yayında!</strong></a>
+  </p>
+</div>
 
-Evalon, borsa verilerini analiz eden, teknik indikatörler sunan, strateji backtestleri yapan ve AI destekli yatırım danışmanlığı sağlayan bir platformdur.
+---
 
-## Proje Yapısı
+Evalon, borsa verilerini (BIST 100) analiz eden, teknik indikatörler sunan, sanal portföy (paper trading) imkanı veren ve yapay zeka destekli yatırım danışmanlığı sağlayan kapsamlı bir platformdur. Kullanıcılarına anlık hisse senedi verileri, duygu analizli şirket haberleri ve bilanço takvimleri sunarak bilinçli yatırım kararları almalarına yardımcı olur.
 
-- `frontend`: Next.js web uygulaması.
-- `backend`: FastAPI/Python backend (Cloud Run üzerinde çalışır).
-- `mobile`: Flutter/Dizayn aşamasındaki mobil uygulama.
-- `scrapers`: Haber ve fiyat toplama sistemleri.
+## 🚀 Proje Yapısı
 
-## Dokümantasyon ve Raporlama
+- `frontend`: Next.js ile geliştirilmiş, zengin etkileşimli ve modern web arayüzü.
+- `backend`: FastAPI ve Python tabanlı, yüksek performanslı mikroservis mimarisi (Google Cloud Run üzerinde barındırılmaktadır).
+- `mobile`: Flutter ile geliştirilen çapraz platform mobil uygulama (Geliştirme aşamasında).
+- `scrapers`: BIST şirket haberleri, finansal takvim ve fiyat verilerini toplayan otomatik web scraping ve API sistemleri.
 
-Yapılan tüm teknik değişiklikler ve entegrasyon raporları `docs/` klasörü altında tarih bazlı olarak saklanmaktadır.
+## 💻 Geliştirme Ortamı
 
-- **Entegrasyon Raporları:** [docs/api-integration/](file:///c:/Users/zehra/Masa%C3%BCst%C3%BC/evalonn/docs/api-integration/)
-- **Raporlama Kuralları:** [.github/REPORT_STRICT_GUIDELINES.md](file:///c:/Users/zehra/Masa%C3%BCst%C3%BC/evalonn/.github/REPORT_STRICT_GUIDELINES.md)
+Platformun frontend kısmını yerel ortamda çalıştırmak için:
 
-## Başlangıç
-
-Frontend'i çalıştırmak için:
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+
+Platformumuzun tüm özelliklerini incelemek ve ücretsiz denemek için: **[https://evalon.com.tr](https://evalon.com.tr)**
