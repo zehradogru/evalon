@@ -1177,7 +1177,7 @@ def get_news(
 
     where_clauses: List[str] = [
         "CONTENT IS NOT NULL",
-        "LENGTH(CONTENT) > 10"
+        "LENGTH(CONTENT) > 100"
     ]
     bind_params: Dict[str, Any] = {}
 
@@ -1261,20 +1261,26 @@ def get_news(
         else:
             raise HTTPException(status_code=500, detail=f"Haber verisi alınamadı: {first_err}")
 
+    def _lob(v):
+        """Oracle LOB objesini string'e çevirir, None'ı korur."""
+        if v is None:
+            return None
+        return v.read() if hasattr(v, 'read') else v
+
     items: List[NewsItem] = []
     for row in rows:
         items.append(
             NewsItem(
                 id=int(row[0]),
-                symbol=row[1],
-                news_source=row[2],
-                title=row[3] or "",
-                summary=row[4],
-                content=row[5] if hasattr(row, '__len__') and len(row) > 10 else None,
-                sentiment=row[6],
+                symbol=_lob(row[1]),
+                news_source=_lob(row[2]),
+                title=_lob(row[3]) or "",
+                summary=_lob(row[4]),
+                content=_lob(row[5]),
+                sentiment=_lob(row[6]),
                 sentiment_score=float(row[7]) if row[7] is not None else None,
-                news_url=row[8],
-                author=row[9],
+                news_url=_lob(row[8]),
+                author=_lob(row[9]),
                 published_at=row[10],
             )
         )

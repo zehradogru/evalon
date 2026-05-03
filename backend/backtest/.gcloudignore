@@ -5,6 +5,7 @@
 .env.*
 .pytest_cache
 .venv
+venv_win
 __pycache__
 *.pyc
 *.pyo

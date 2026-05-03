@@ -377,15 +377,28 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
                                 )}
 
                                 {/* Content / Summary */}
-                                {item.content || item.summary ? (
-                                    <div className="border-l-4 border-primary pl-4 py-1">
-                                        <p className="text-base leading-relaxed text-foreground/90 whitespace-pre-line">
-                                            {item.content || item.summary}
+                                {(() => {
+                                    // Detect fake content: scraper stored title text as content (< 150 chars or starts with title)
+                                    const rawContent = item.content?.trim() ?? '';
+                                    const titleNorm = item.title?.toLowerCase().replace(/\s+/g, ' ').trim() ?? '';
+                                    const contentNorm = rawContent.toLowerCase().replace(/\s+/g, ' ');
+                                    const isFakeContent =
+                                        rawContent.length < 150 ||
+                                        (titleNorm.length > 20 && contentNorm.startsWith(titleNorm.substring(0, 40)));
+                                    const displayContent = !isFakeContent ? rawContent : (item.summary?.trim() ?? null);
+
+                                    return displayContent ? (
+                                        <div className="border-l-4 border-primary pl-4 py-1">
+                                            <p className="text-base leading-relaxed text-foreground/90 whitespace-pre-line">
+                                                {displayContent}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground italic">
+                                            Haber içeriği mevcut değil. Detaylar için kaynağa git.
                                         </p>
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground italic">İçerik veya özet mevcut değil.</p>
-                                )}
+                                    );
+                                })()}
 
                                 {/* Market info grid */}
                                 <div className="grid grid-cols-2 gap-3 pt-2">
