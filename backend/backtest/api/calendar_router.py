@@ -20,24 +20,29 @@ class CalendarEventResponse(BaseModel):
     source: Optional[str] = None
     extra: Optional[str] = None
 
+def _resolve_wallet_dir() -> str:
+    """Resolve wallet dir: env var > local fallback."""
+    wallet_dir = (os.environ.get("ORACLE_WALLET_DIR") or "").strip()
+    if wallet_dir:
+        return wallet_dir
+    # Local dev fallback
+    local = r"C:\Users\zehra\Masaüstü\evalonn\scrapers\news_scraper\oracle_wallet"
+    if os.path.isdir(local):
+        return local
+    return ""
+
 def get_db_connection():
-    # Use the same logic as the scraper or existing backend variables
-    from dotenv import dotenv_values
-    env = dotenv_values('c:/Users/zehra/Masaüstü/evalonn/scrapers/news_scraper/.env')
     try:
-        user = env.get('ORACLE_DB_USER', 'ADMIN')
-        password = env.get('ORACLE_DB_PASSWORD')
-        dsn = env.get('ORACLE_DB_DSN')
-        wallet_dir = r"C:\Users\zehra\Masaüstü\evalonn\scrapers\news_scraper\oracle_wallet"
+        user = os.environ.get('ORACLE_DB_USER', 'ADMIN')
+        password = os.environ.get('ORACLE_DB_PASSWORD', '')
+        dsn = os.environ.get('ORACLE_DB_DSN', '')
+        wallet_dir = _resolve_wallet_dir()
+
+        kwargs = dict(user=user, password=password, dsn=dsn)
+        if wallet_dir:
+            kwargs.update(config_dir=wallet_dir, wallet_location=wallet_dir, wallet_password=password)
         
-        return oracledb.connect(
-            user=user,
-            password=password,
-            dsn=dsn,
-            config_dir=wallet_dir,
-            wallet_location=wallet_dir,
-            wallet_password=password
-        )
+        return oracledb.connect(**kwargs)
     except Exception as e:
         logger.error(f"DB Connection error in calendar: {e}")
         raise HTTPException(status_code=500, detail="Database connection error")
