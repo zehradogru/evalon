@@ -135,7 +135,8 @@ class IsYatirimScraper(BaseScraper):
             return None
 
     def _scrape_company_page(self, ticker: str) -> List[CalendarEvent]:
-        """Bir hissenin İş Yatırım şirket kartı sayfasını parse eder."""
+        """Bir hissenin İş Yatırım şirket kartı sayfasını parse eder.
+        Bilanço, Temettü ve Sermaye Artırımı tablolarını ayrı ayrı arar."""
         events: List[CalendarEvent] = []
         url = self.COMPANY_URL.format(ticker=ticker)
 
@@ -143,11 +144,12 @@ class IsYatirimScraper(BaseScraper):
             response = self._get(url)
             soup = BeautifulSoup(response.text, "lxml")
 
-            # Mali takvim / bilanço tarihi bilgisi içeren bölümleri ara
-            # Genelde "Mali Takvim", "Bilanço Tarihi" gibi başlıklar altında bulunur
             for table in soup.find_all("table"):
                 headers = [th.get_text(strip=True).lower() for th in table.find_all("th")]
-                if any(kw in " ".join(headers) for kw in ["tarih", "dönem", "bilanço"]):
+                headers_joined = " ".join(headers)
+
+                # --- Bilanço tablosu ---
+                if any(kw in headers_joined for kw in ["tarih", "dönem", "bilanço"]) and "temettü" not in headers_joined:
                     for row in table.find_all("tr")[1:]:
                         cells = [td.get_text(strip=True) for td in row.find_all("td")]
                         if len(cells) >= 2:
@@ -155,7 +157,75 @@ class IsYatirimScraper(BaseScraper):
                             if ev:
                                 events.append(ev)
 
-            # Ayrıca inline script içinde JSON verisi olabilir
+                # --- Temettü tablosu ---
+                # Başlıklar: Kod, Dağ. Tarihi, Temettü Verim, Hisse Başı TL, ...
+                elif "dağ. tarihi" in headers_joined or ("temettü" in headers_joined and "hisse" in headers_joined):
+                    date_idx = None
+                    amount_idx = None
+                    for i, h in enumerate(headers):
+                        if "tarihi" in h or "tarih" in h:
+                            date_idx = i
+                        if "hisse başı" in h:
+                            amount_idx = i
+
+                    if date_idx is not None:
+                        for row in table.find_all("tr")[1:]:
+                            cells = [td.get_text(strip=True) for td in row.find_all("td")]
+                            if len(cells) <= date_idx:
+                                continue
+                            if "kayıt bulunamadı" in " ".join(cells).lower():
+                                continue
+                            event_date = self._parse_date(cells[date_idx])
+                            if not event_date:
+                                continue
+                            amount = cells[amount_idx] if amount_idx and amount_idx < len(cells) else ""
+                            title = f"{ticker} Temettü Ödemesi"
+                            if amount:
+                                title += f" ({amount} TL/hisse)"
+                            events.append(CalendarEvent(
+                                ticker=ticker,
+                                event_date=event_date,
+                                event_type="TEMETTU",
+                                event_title=title[:255],
+                                importance=3,
+                                source=self.name,
+                            ))
+
+                # --- Sermaye Artırımı tablosu ---
+                # Başlıklar: Kod, BölünmeSonrasıSermaye, Tarih, BedelliOran, ... BedelsizIKOran, BedelsizTemettüOran ...
+                elif "bedelsiz" in headers_joined or ("sermaye" in headers_joined and "oran" in headers_joined):
+                    date_idx = None
+                    bedelsiz_idx = None
+                    for i, h in enumerate(headers):
+                        if h == "tarih":
+                            date_idx = i
+                        if "bedelsiz" in h and "ik" in h:
+                            bedelsiz_idx = i
+
+                    if date_idx is not None:
+                        for row in table.find_all("tr")[1:]:
+                            cells = [td.get_text(strip=True) for td in row.find_all("td")]
+                            if len(cells) <= date_idx:
+                                continue
+                            if "kayıt bulunamadı" in " ".join(cells).lower():
+                                continue
+                            event_date = self._parse_date(cells[date_idx])
+                            if not event_date:
+                                continue
+                            bedelsiz = cells[bedelsiz_idx] if bedelsiz_idx and bedelsiz_idx < len(cells) else ""
+                            title = f"{ticker} Sermaye Artırımı"
+                            if bedelsiz and bedelsiz != "0" and bedelsiz != "-":
+                                title += f" (Bedelsiz %{bedelsiz})"
+                            events.append(CalendarEvent(
+                                ticker=ticker,
+                                event_date=event_date,
+                                event_type="BEDELSIZ",
+                                event_title=title[:255],
+                                importance=2,
+                                source=self.name,
+                            ))
+
+            # Inline script JSON verisi
             for script in soup.find_all("script"):
                 text = script.get_text()
                 if "FinancialCalendar" in text or "bilancoTarih" in text:

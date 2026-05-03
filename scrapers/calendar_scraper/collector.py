@@ -93,6 +93,17 @@ def collect_all(
     all_events = _deduplicate(all_events)
     stats["toplam_benzersiz"] = len(all_events)
 
+    # Sadece bu haftanın başından (Pazartesi) itibaren olan etkinlikleri tut
+    from datetime import timedelta
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today - timedelta(days=today.weekday())  # Bu haftanın Pazartesi'si
+    before = len(all_events)
+    all_events = [ev for ev in all_events if ev.event_date >= week_start]
+    filtered = before - len(all_events)
+    if filtered:
+        print(f"[collector] {filtered} gecmis etkinlik filtrelendi (< {week_start.strftime('%Y-%m-%d')})")
+    stats["gecmis_filtrelenen"] = filtered
+
     print(f"\n[collector] Toplam benzersiz etkinlik: {len(all_events)}")
     return all_events, stats
 

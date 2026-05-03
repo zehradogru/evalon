@@ -219,7 +219,6 @@ export function CalendarView({ isWidget = false }: { isWidget?: boolean } = {}) 
   const now = useNow(30_000)
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedDay, setSelectedDay] = useState<Date>(today)
-  const [minImportance, setMinImportance] = useState<1 | 2 | 3>(2)
   const dayStripRef = useRef<HTMLDivElement>(null)
   const eventListRef = useRef<HTMLDivElement>(null)
 
@@ -231,7 +230,7 @@ export function CalendarView({ isWidget = false }: { isWidget?: boolean } = {}) 
 
   const weekDays = useMemo(() => getWeekDays(weekBase), [weekBase])
 
-  const { data, isLoading, isFetching, refetch } = useCalendar(FIXED_COUNTRIES, minImportance)
+  const { data, isLoading, isFetching, refetch } = useCalendar(FIXED_COUNTRIES, 1)
   const allEvents = useMemo(() => data?.events ?? [], [data?.events])
 
   const grouped = useMemo(() => groupByDay(allEvents), [allEvents])
@@ -357,30 +356,6 @@ export function CalendarView({ isWidget = false }: { isWidget?: boolean } = {}) 
         >
           <ChevronRight size={14} />
         </button>
-      </div>
-
-      {/* ── Importance filter ── */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b border-border shrink-0">
-        {([1, 2, 3] as const).map((lvl) => (
-          <button
-            key={lvl}
-            onClick={() => setMinImportance(lvl)}
-            title={lvl === 1 ? 'Tümü' : lvl === 2 ? 'Orta+' : 'Yüksek'}
-            className={cn(
-              'flex items-center justify-center h-6 w-6 rounded transition-colors',
-              minImportance === lvl ? 'bg-accent' : 'hover:bg-accent/50'
-            )}
-          >
-            <span className={cn(
-              'cal-imp-bars',
-              lvl === 3 ? 'cal-imp-high' : lvl === 2 ? 'cal-imp-med' : 'cal-imp-low'
-            )}>
-              <span className="cal-imp-bar b1" />
-              <span className="cal-imp-bar b2" />
-              <span className="cal-imp-bar b3" />
-            </span>
-          </button>
-        ))}
       </div>
 
       {/* ── Event list ── */}

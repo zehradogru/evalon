@@ -25,6 +25,7 @@ from api.modules.backtests.infrastructure.run_store import InMemoryRunStore
 from api.modules.backtests.presentation.router import create_backtest_router
 from api.modules.co_movement.presentation.router import create_co_movement_router
 from api.screener import create_screener_router, get_all_tickers
+from api.calendar_router import router as calendar_router
 from api.talib_indicators import (
     INDICATOR_CATALOG,
     TalibUnavailableError,
@@ -773,6 +774,7 @@ app.include_router(
     )
 )
 app.include_router(create_screener_router(price_client=client))
+app.include_router(calendar_router)
 
 
 @app.get("/")
