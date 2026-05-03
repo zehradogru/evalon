@@ -6,3 +6,6 @@ lxml>=4.9.0
 # Database
 python-dotenv>=1.0.0
 oracledb>=1.4.0
+
+# Lightweight helpers
+schedule>=1.2.0

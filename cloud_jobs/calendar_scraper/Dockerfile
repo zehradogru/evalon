@@ -2,7 +2,6 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Build dependencies for lxml
 RUN apt-get update && apt-get install -y \
     gcc \
     libxml2-dev \
@@ -10,9 +9,12 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
+ENV PYTHONUNBUFFERED=1
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY run_calendar_job.py .
+COPY scrapers ./scrapers
 
-CMD ["python", "main.py"]
+CMD ["python", "run_calendar_job.py"]

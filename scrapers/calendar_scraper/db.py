@@ -137,6 +137,39 @@ WHEN NOT MATCHED THEN
     VALUES (:id, :ticker, :event_date, :event_type, :event_title, :importance, :source, :extra, SYSTIMESTAMP, SYSTIMESTAMP)
 """
 
+LEGACY_UPDATE_SQL = """
+UPDATE BIST_CALENDAR
+SET
+    EVENT_TITLE = :event_title,
+    IMPORTANCE = :importance,
+    SOURCE = :source,
+    EXTRA = :extra
+WHERE
+    TICKER = :ticker
+    AND EVENT_DATE = :event_date
+    AND EVENT_TYPE = :event_type
+"""
+
+LEGACY_INSERT_SQL = """
+INSERT INTO BIST_CALENDAR (TICKER, EVENT_DATE, EVENT_TYPE, EVENT_TITLE, IMPORTANCE, SOURCE, EXTRA)
+VALUES (:ticker, :event_date, :event_type, :event_title, :importance, :source, :extra)
+"""
+
+
+def _table_columns(conn: oracledb.Connection) -> dict[str, str]:
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT COLUMN_NAME, DATA_TYPE
+            FROM USER_TAB_COLUMNS
+            WHERE TABLE_NAME = 'BIST_CALENDAR'
+            """
+        )
+        return {str(name).upper(): str(data_type).upper() for name, data_type in cursor.fetchall()}
+    finally:
+        cursor.close()
+
 
 def upsert_events(conn: oracledb.Connection, events: List[CalendarEvent]) -> Tuple[int, int]:
     """
@@ -146,21 +179,39 @@ def upsert_events(conn: oracledb.Connection, events: List[CalendarEvent]) -> Tup
     cursor = conn.cursor()
     upserted = 0
     errors = 0
+    columns = _table_columns(conn)
+    is_legacy_table = "UPDATED_AT" not in columns
 
     try:
         for ev in events:
             try:
                 row = ev.to_dict()
-                cursor.execute(MERGE_SQL, {
-                    "id":          row["id"],
-                    "ticker":      row["ticker"],
-                    "event_date":  row["event_date"],
-                    "event_type":  row["event_type"],
+                params = {
+                    "id": row["id"],
+                    "ticker": row["ticker"],
+                    "event_date": row["event_date"],
+                    "event_type": row["event_type"],
                     "event_title": row["event_title"],
-                    "importance":  row["importance"],
-                    "source":      row["source"],
-                    "extra":       row["extra"],
-                })
+                    "importance": row["importance"],
+                    "source": row["source"],
+                    "extra": row["extra"],
+                }
+
+                if is_legacy_table:
+                    legacy_params = {
+                        "ticker": row["ticker"],
+                        "event_date": row["event_date"],
+                        "event_type": row["event_type"],
+                        "event_title": row["event_title"],
+                        "importance": row["importance"],
+                        "source": row["source"],
+                        "extra": row["extra"],
+                    }
+                    cursor.execute(LEGACY_UPDATE_SQL, legacy_params)
+                    if cursor.rowcount == 0:
+                        cursor.execute(LEGACY_INSERT_SQL, legacy_params)
+                else:
+                    cursor.execute(MERGE_SQL, params)
                 upserted += 1
             except Exception as exc:
                 errors += 1

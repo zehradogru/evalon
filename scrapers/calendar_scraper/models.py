@@ -8,6 +8,7 @@ Tüm kazıyıcılar (scrapers) bu ortak veri yapısını kullanır.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Optional
@@ -28,9 +29,12 @@ class CalendarEvent:
 
     @property
     def event_id(self) -> str:
-        """Benzersiz ID üret: THYAO-BILANCO-20240515"""
-        date_str = self.event_date.strftime("%Y%m%d")
-        return f"{self.ticker}-{self.event_type}-{date_str}"
+        """Başlık hash'i de içeren daha güvenli benzersiz event ID üret."""
+        date_str = self.event_date.strftime("%Y%m%d%H%M")
+        title_hash = hashlib.md5(
+            self.event_title.strip().lower().encode("utf-8")
+        ).hexdigest()[:8]
+        return f"{self.ticker}-{self.event_type}-{date_str}-{title_hash}"
 
     def to_dict(self) -> dict:
         """Oracle insert için dict olarak döndür."""

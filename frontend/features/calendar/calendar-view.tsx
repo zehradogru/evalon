@@ -9,7 +9,7 @@ import { useCalendar, type CalendarEvent } from '@/hooks/use-calendar'
 // Constants
 // ---------------------------------------------------------------------------
 
-const FIXED_COUNTRIES = ['TR', 'US', 'EU']
+const FIXED_COUNTRIES = ['TR']
 
 const DAY_SHORT: Record<number, string> = {
   0: 'Paz', 1: 'Pzt', 2: 'Sal', 3: 'Çar', 4: 'Per', 5: 'Cum', 6: 'Cmt',
@@ -19,14 +19,10 @@ const DAY_SHORT: Record<number, string> = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getWeekDays(baseDate: Date): Date[] {
-  const monday = new Date(baseDate)
-  const day = monday.getDay()
-  const diff = day === 0 ? -6 : 1 - day
-  monday.setDate(monday.getDate() + diff)
+function getVisibleDays(centerDate: Date): Date[] {
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
+    const d = new Date(centerDate)
+    d.setDate(centerDate.getDate() + i - 3)
     return d
   })
 }
@@ -37,6 +33,19 @@ function isSameDay(a: Date, b: Date) {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   )
+}
+
+function startOfDay(date: Date): Date {
+  const next = new Date(date)
+  next.setHours(0, 0, 0, 0)
+  return next
+}
+
+function getDateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function formatWeekRange(days: Date[]): string {
@@ -68,7 +77,7 @@ function groupByDay(events: CalendarEvent[]): { date: Date; events: CalendarEven
   const map = new Map<string, { date: Date; events: CalendarEvent[] }>()
   for (const ev of events) {
     const d = new Date(ev.date)
-    const key = d.toISOString().slice(0, 10)
+    const key = getDateKey(d)
     if (!map.has(key)) map.set(key, { date: d, events: [] })
     map.get(key)!.events.push(ev)
   }
@@ -84,31 +93,16 @@ function ImportanceBars({ level }: { level: 1 | 2 | 3 }) {
     level === 3 ? 'cal-imp-bars cal-imp-high'
     : level === 2 ? 'cal-imp-bars cal-imp-med'
     : 'cal-imp-bars cal-imp-low'
+  const label =
+    level === 3 ? 'Yüksek önem'
+    : level === 2 ? 'Orta önem'
+    : 'Düşük önem'
   return (
-    <span className={cls}>
+    <span className={cls} title={label} aria-label={label}>
       <span className="cal-imp-bar b1" />
       <span className="cal-imp-bar b2" />
       <span className="cal-imp-bar b3" />
     </span>
-  )
-}
-
-function StatCell({ label, value, unit, variant }: {
-  label: string
-  value: string | null | undefined
-  unit?: string
-  variant?: 'beat' | 'miss' | 'match'
-}) {
-  const valClass =
-    variant === 'beat' ? 'cal-stat-value actual-beat'
-    : variant === 'miss' ? 'cal-stat-value actual-miss'
-    : variant === 'match' ? 'cal-stat-value actual-match'
-    : 'cal-stat-value'
-  return (
-    <div className="cal-stat">
-      <span className="cal-stat-label">{label}</span>
-      <span className={valClass}>{value ? `${value}${unit ?? ''}` : '—'}</span>
-    </div>
   )
 }
 
@@ -183,15 +177,6 @@ function EventRow({ event, isNext }: { event: CalendarEvent; isNext: boolean }) 
         ? 'cal-time medium'
         : 'cal-time low'
 
-  let actualVariant: 'beat' | 'miss' | 'match' | undefined
-  if (event.actual && event.forecast) {
-    const a = parseFloat(event.actual)
-    const f = parseFloat(event.forecast)
-    if (!Number.isNaN(a) && !Number.isNaN(f)) {
-      actualVariant = a > f ? 'beat' : a < f ? 'miss' : 'match'
-    }
-  }
-
   return (
     <div className={cn('cal-event-row flex items-center gap-2.5', isNext && 'is-next')}>
       <div className="flex flex-col items-end gap-0.5 shrink-0 w-10">
@@ -201,11 +186,6 @@ function EventRow({ event, isNext }: { event: CalendarEvent; isNext: boolean }) 
       <span className="cal-flag shrink-0 text-[11px] font-semibold text-muted-foreground w-7 text-center">{event.countryCode}</span>
       <ImportanceBars level={event.importance} />
       <span className={cn('cal-event-name flex-1 min-w-0 text-[13px] truncate', isPast && 'past')}>{event.event}</span>
-      <div className="hidden sm:flex items-center gap-4 shrink-0">
-        <StatCell label="Önceki" value={event.previous} unit={event.unit} />
-        <StatCell label="Tahmin" value={event.forecast} unit={event.unit} />
-        <StatCell label="Gerçek" value={event.actual} unit={event.unit} variant={actualVariant} />
-      </div>
     </div>
   )
 }
@@ -215,36 +195,39 @@ function EventRow({ event, isNext }: { event: CalendarEvent; isNext: boolean }) 
 // ---------------------------------------------------------------------------
 
 export function CalendarView({ isWidget = false }: { isWidget?: boolean } = {}) {
-  const today = useMemo(() => new Date(), [])
   const now = useNow(30_000)
+  const [initialToday] = useState(() => startOfDay(new Date()))
+  const today = useMemo(() => (now > 0 ? startOfDay(new Date(now)) : initialToday), [initialToday, now])
   const [weekOffset, setWeekOffset] = useState(0)
-  const [selectedDay, setSelectedDay] = useState<Date>(today)
+  const [selectedDay, setSelectedDay] = useState<Date>(() => startOfDay(new Date()))
+  const [listBottomSpacer, setListBottomSpacer] = useState(0)
   const dayStripRef = useRef<HTMLDivElement>(null)
   const eventListRef = useRef<HTMLDivElement>(null)
+  const daySectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const lastTodayRef = useRef(getDateKey(today))
+  const pendingScrollBehaviorRef = useRef<ScrollBehavior | null>('auto')
 
-  const weekBase = useMemo(() => {
+  const visibleBase = useMemo(() => {
     const d = new Date(today)
     d.setDate(today.getDate() + weekOffset * 7)
-    return d
+    return startOfDay(d)
   }, [today, weekOffset])
 
-  const weekDays = useMemo(() => getWeekDays(weekBase), [weekBase])
+  const weekDays = useMemo(() => getVisibleDays(visibleBase), [visibleBase])
 
   const { data, isLoading, isFetching, refetch } = useCalendar(FIXED_COUNTRIES, 1)
   const allEvents = useMemo(() => data?.events ?? [], [data?.events])
 
   const grouped = useMemo(() => groupByDay(allEvents), [allEvents])
+  const selectedDayKey = useMemo(() => getDateKey(selectedDay), [selectedDay])
 
-  // Filter events to the currently viewed week
+  // Filter events to the visible 7-day window centered on the selected period
   const weekGrouped = useMemo(() => {
     const start = weekDays[0]
     const end = new Date(weekDays[6])
     end.setHours(23, 59, 59, 999)
     return grouped.filter(({ date }) => date >= start && date <= end)
   }, [grouped, weekDays])
-
-  // ForexFactory only covers current week + next week (weekOffset 0 or 1)
-  const isOutOfRange = weekOffset < -1 || weekOffset > 1
 
   const nextEvent = useMemo(() => {
     if (now === 0) return null
@@ -262,17 +245,92 @@ export function CalendarView({ isWidget = false }: { isWidget?: boolean } = {}) 
       strip.scrollLeft = pill.offsetLeft + pill.offsetWidth - strip.clientWidth + 8
   }, [])
 
+  const scrollSelectedDayIntoView = useCallback((behavior: ScrollBehavior) => {
+    const list = eventListRef.current
+    const section = daySectionRefs.current[selectedDayKey]
+    if (!list || !section) return
+
+    const listRect = list.getBoundingClientRect()
+    const sectionRect = section.getBoundingClientRect()
+    const top = list.scrollTop + sectionRect.top - listRect.top - 8
+
+    list.scrollTo({
+      top: Math.max(top, 0),
+      behavior,
+    })
+  }, [selectedDayKey])
+
+  useEffect(() => {
+    setSelectedDay((current) => {
+      const lastTodayKey = lastTodayRef.current
+      const nextTodayKey = getDateKey(today)
+      if (lastTodayKey === nextTodayKey) return current
+
+      lastTodayRef.current = nextTodayKey
+      pendingScrollBehaviorRef.current = 'smooth'
+      return getDateKey(current) === lastTodayKey ? today : current
+    })
+  }, [today])
+
+  useEffect(() => {
+    const activeIndex = weekDays.findIndex((day) => isSameDay(day, selectedDay))
+    if (activeIndex >= 0) {
+      scrollDayIntoView(activeIndex)
+    }
+  }, [scrollDayIntoView, selectedDay, weekDays])
+
+  useEffect(() => {
+    const behavior = pendingScrollBehaviorRef.current
+    if (!behavior) return
+
+    const frame = window.requestAnimationFrame(() => {
+      const section = daySectionRefs.current[selectedDayKey]
+      if (!section) return
+
+      scrollSelectedDayIntoView(behavior)
+      pendingScrollBehaviorRef.current = null
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [scrollSelectedDayIntoView, selectedDayKey, weekGrouped])
+
+  useEffect(() => {
+    const list = eventListRef.current
+    if (!list) return
+
+    function updateSpacer() {
+      setListBottomSpacer(Math.max(list.clientHeight - 96, 0))
+    }
+
+    updateSpacer()
+
+    const resizeObserver = new ResizeObserver(updateSpacer)
+    resizeObserver.observe(list)
+    window.addEventListener('resize', updateSpacer)
+
+    return () => {
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', updateSpacer)
+    }
+  }, [])
+
   function prevWeek() {
-    const nb = new Date(weekBase); nb.setDate(weekBase.getDate() - 7)
+    const nb = new Date(visibleBase); nb.setDate(visibleBase.getDate() - 7)
+    pendingScrollBehaviorRef.current = 'smooth'
     setWeekOffset((o) => o - 1)
-    setSelectedDay(getWeekDays(nb)[0])
+    setSelectedDay(startOfDay(nb))
   }
   function nextWeek() {
-    const nb = new Date(weekBase); nb.setDate(weekBase.getDate() + 7)
+    const nb = new Date(visibleBase); nb.setDate(visibleBase.getDate() + 7)
+    pendingScrollBehaviorRef.current = 'smooth'
     setWeekOffset((o) => o + 1)
-    setSelectedDay(getWeekDays(nb)[0])
+    setSelectedDay(startOfDay(nb))
   }
-  function goToday() { setWeekOffset(0); setSelectedDay(today) }
+  function goToday() {
+    pendingScrollBehaviorRef.current = 'smooth'
+    setWeekOffset(0)
+    setSelectedDay(today)
+  }
 
   return (
     <div className={cn('flex flex-col min-h-0 h-full bg-background', isWidget && 'border-0')}>
@@ -335,9 +393,12 @@ export function CalendarView({ isWidget = false }: { isWidget?: boolean } = {}) 
             return (
               <button
                 key={i}
-                disabled={isWeekend}
-                onClick={() => { if (!isWeekend) { setSelectedDay(day); scrollDayIntoView(i) } }}
-                className={cn('cal-day-pill', isActive && 'active', isWeekend && 'opacity-30 cursor-not-allowed')}
+                onClick={() => {
+                  pendingScrollBehaviorRef.current = 'smooth'
+                  setSelectedDay(day)
+                  scrollDayIntoView(i)
+                }}
+                className={cn('cal-day-pill', isActive && 'active', isWeekend && !isActive && 'opacity-70')}
               >
                 <span className={cn(
                   'cal-day-pill-label',
@@ -359,33 +420,33 @@ export function CalendarView({ isWidget = false }: { isWidget?: boolean } = {}) 
       </div>
 
       {/* ── Event list ── */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
+      <div ref={eventListRef} className="flex-1 overflow-y-auto scrollbar-hide">
         {isLoading ? (
           <div className="flex flex-col gap-2 p-4">
             {Array.from({ length: 7 }).map((_, i) => (
               <div key={i} className="h-10 rounded-lg bg-accent/30 animate-pulse" />
             ))}
           </div>
-        ) : isOutOfRange ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
-            <Calendar size={32} className="opacity-20" />
-            <p className="text-sm">Bu hafta için veri yok</p>
-            <p className="text-xs opacity-60 text-center px-6">Veri kaynağı yalnızca bu hafta ve gelecek haftayı kapsar</p>
-          </div>
         ) : weekGrouped.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
             <Calendar size={32} className="opacity-20" />
-            <p className="text-sm">Bu hafta etkinlik bulunamadı</p>
+            <p className="text-sm">Bu aralıkta etkinlik bulunamadı</p>
           </div>
         ) : (
-          weekGrouped.map(({ date, events }) => (
-            <div key={date.toISOString().slice(0, 10)}>
-              <div className="cal-day-header">{formatDayHeader(date)}</div>
-              {events.map((ev) => (
-                <EventRow key={ev.id} event={ev} isNext={nextEvent?.id === ev.id} />
-              ))}
-            </div>
-          ))
+          <>
+            {weekGrouped.map(({ date, events }) => (
+              <div
+                key={getDateKey(date)}
+                ref={(node) => { daySectionRefs.current[getDateKey(date)] = node }}
+              >
+                <div className="cal-day-header">{formatDayHeader(date)}</div>
+                {events.map((ev) => (
+                  <EventRow key={ev.id} event={ev} isNext={nextEvent?.id === ev.id} />
+                ))}
+              </div>
+            ))}
+            <div aria-hidden="true" style={{ height: listBottomSpacer }} />
+          </>
         )}
       </div>
     </div>

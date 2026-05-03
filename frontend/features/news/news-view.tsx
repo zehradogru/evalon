@@ -378,13 +378,19 @@ export function NewsView({ isWidget = false }: NewsViewProps) {
 
                                 {/* Content / Summary */}
                                 {(() => {
-                                    // Detect fake content: scraper stored title text as content (< 150 chars or starts with title)
+                                    // Hide only near-empty content that is basically the title repeated.
                                     const rawContent = item.content?.trim() ?? '';
-                                    const titleNorm = item.title?.toLowerCase().replace(/\s+/g, ' ').trim() ?? '';
-                                    const contentNorm = rawContent.toLowerCase().replace(/\s+/g, ' ');
+                                    const normalizeText = (value: string) =>
+                                        value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+                                    const titleNorm = normalizeText(item.title ?? '');
+                                    const contentNorm = normalizeText(rawContent);
+                                    const extraWords = contentNorm.startsWith(titleNorm)
+                                        ? contentNorm.slice(titleNorm.length).trim().split(/\s+/).filter(Boolean).length
+                                        : Number.MAX_SAFE_INTEGER;
                                     const isFakeContent =
-                                        rawContent.length < 150 ||
-                                        (titleNorm.length > 20 && contentNorm.startsWith(titleNorm.substring(0, 40)));
+                                        !contentNorm ||
+                                        contentNorm === titleNorm ||
+                                        (titleNorm.length > 20 && contentNorm.startsWith(titleNorm) && extraWords < 6);
                                     const displayContent = !isFakeContent ? rawContent : (item.summary?.trim() ?? null);
 
                                     return displayContent ? (

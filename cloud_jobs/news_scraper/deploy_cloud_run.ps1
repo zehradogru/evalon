@@ -10,8 +10,8 @@ gcloud run jobs deploy $JOB_NAME `
   --command "python" `
   --args "daily_bist_news_job.py" `
   --region $REGION `
-  --memory 1024Mi `
-  --task-timeout 30m `
+  --memory 4096Mi `
+  --task-timeout 45m `
   --quiet
 
 Write-Host "⏰ 2. Cloud Scheduler ile günlük tetikleyici (Cron) ayarlanıyor..." -ForegroundColor Cyan

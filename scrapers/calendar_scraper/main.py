@@ -22,7 +22,7 @@ from config import BIST_TICKERS
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="BIST Finansal Takvim Kaziyicisi - Bilanco, Temettu, Genel Kurul",
+        description="BIST Takvim Kaziyicisi - varsayilan olarak genel BIST/makro takvimi toplar",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
@@ -31,7 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
         nargs="+",
         default=None,
         choices=["isyatirim", "kap", "macro_tr"],
-        help="Sadece belirli kaynaklari kullan (varsayilan: hepsi)",
+        help="Sadece belirli kaynaklari kullan (varsayilan: macro_tr)",
     )
     parser.add_argument(
         "--tickers",

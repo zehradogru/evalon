@@ -10,6 +10,11 @@ lxml_html_clean>=0.1.1
 newspaper3k>=0.2.8
 gnews>=0.3.6
 googlenewsdecoder>=0.1.1
+trafilatura>=1.6.0
+
+# Sentiment model
+transformers>=4.30.0
+google-cloud-storage>=2.10.0
 
 # Optional / Database
 python-dotenv>=1.0.0

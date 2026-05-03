@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT_DIR))
 from gnews import GNews
 import newspaper
 from googlenewsdecoder.new_decoderv1 import decode_google_news_url
+from sentiment_inference import predict_sentiment_for_ticker, warm_up
 
 HISTORY_FILE = ROOT_DIR / "scraper-data" / "scrape_history.json"  
 
@@ -101,18 +102,37 @@ def scrape_market(market: str, symbols: list, history: set, limit: int=100, slee
                     
                     if hasattr(article, 'text') and article.text:
                         article_content = strip_html(article.text)
+
+                    # trafilatura: newspaper3k boş döndüyse daha iyi içerik çekicisi dene
+                    if not article_content:
+                        try:
+                            import trafilatura
+                            fetched = trafilatura.fetch_url(actual_url)
+                            if fetched:
+                                article_content = trafilatura.extract(fetched) or ""
+                        except Exception as te:
+                            print(f"         [Trafilatura] İçerik çekme başarısız: {te}")
                         
                 except Exception as e:
                     print(f"         [Uyarı] Makale metni okunamadı: {e}")
                 
+                summary_text = strip_html(item.get("description", ""))
+                # Sembolle ilgili cümleler üzerinden ticker-aware sentiment tahmin et
+                sentiment_label, _ = predict_sentiment_for_ticker(
+                    symbol=symbol,
+                    title=title,
+                    summary=summary_text,
+                    content=article_content,
+                )
+
                 d = {
                     "market": market.upper(),
                     "symbol": symbol,
                     "source": item.get('publisher', {}).get('title', 'Google News'),
                     "title": title,
-                    "summary": strip_html(item.get("description", "")),
+                    "summary": summary_text,
                     "content": article_content,
-                    "sentiment": "BEKLIYOR",  # Sentiment simdilik beklemede!
+                    "sentiment": sentiment_label,
                     "url": url,
                     "author": "Bilinmiyor",
                     "published_at": format_date(item.get("published date")),
@@ -178,7 +198,12 @@ def main():
     print("="*60)
 
     history = load_history()
-    
+
+    # Sentiment modelini scraping başlamadan ısıt (ilk haberde gecikme olmasın)
+    print("Sentiment modeli yükleniyor...")
+    warm_up()
+    print("Sentiment modeli hazır. Haber taraması başlıyor...")
+
     for market, syms in markets.items():
         print(f"\n>>>> {market.upper()} PİYASASI ÇEKİMİ BAŞLIYOR <<<<")
         

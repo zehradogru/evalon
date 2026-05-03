@@ -129,7 +129,13 @@ def run_job():
             # os.remove(latest_csv) 
         else:
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Yeni CSV dosyasi bulunamadi!")
-            
+
+        # 3. BEKLIYOR etiketli haberleri sentiment modeliyle etiketle
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Sentiment etiketleme basliyor...")
+        from sentiment_inference import label_pending_in_oracle
+        label_pending_in_oracle()
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Sentiment etiketleme tamamlandi.")
+
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Job Completed successfully.")
     except subprocess.CalledProcessError as e:
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Scraping esnasinda hata: {e}")

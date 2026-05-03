@@ -5,11 +5,13 @@ import io
 import json
 import logging
 import os
+import re
 import tempfile
 import time
 import urllib.request
 import zipfile
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -25,7 +27,7 @@ from api.modules.backtests.infrastructure.run_store import InMemoryRunStore
 from api.modules.backtests.presentation.router import create_backtest_router
 from api.modules.co_movement.presentation.router import create_co_movement_router
 from api.screener import create_screener_router, get_all_tickers
-from api.calendar_router import router as calendar_router
+from api.calendar_router import create_calendar_router
 from api.talib_indicators import (
     INDICATOR_CATALOG,
     TalibUnavailableError,
@@ -44,6 +46,71 @@ LOCAL_DEV_ORIGINS = [
     "http://localhost:3001",
     "http://127.0.0.1:3001",
 ]
+
+
+@lru_cache(maxsize=1)
+def _known_news_tickers() -> Tuple[str, ...]:
+    tickers = {item["ticker"].upper() for item in get_all_tickers() if item.get("ticker")}
+    return tuple(sorted(tickers, key=len, reverse=True))
+
+
+@lru_cache(maxsize=1)
+def _known_news_ticker_regex() -> Optional[re.Pattern[str]]:
+    tickers = _known_news_tickers()
+    if not tickers:
+        return None
+    alternation = "|".join(re.escape(ticker) for ticker in tickers)
+    return re.compile(rf"(^|[^A-Z0-9#])#?({alternation})(?=[^A-Z0-9]|$)")
+
+
+def _extract_news_tickers(text: str) -> set[str]:
+    regex = _known_news_ticker_regex()
+    if not regex or not text:
+        return set()
+
+    matches: set[str] = set()
+    normalized_text = text.upper()
+    for match in regex.finditer(normalized_text):
+        matches.add(match.group(2))
+        if len(matches) > 1:
+            break
+    return matches
+
+
+def _normalize_news_text(text: Optional[str]) -> str:
+    if not text:
+        return ""
+    normalized = re.sub(r"[^\w\s#]", " ", text.upper(), flags=re.UNICODE)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _content_has_enough_extra_words(title: Optional[str], content: Optional[str], min_extra_words: int = 6) -> bool:
+    normalized_title = _normalize_news_text(title)
+    normalized_content = _normalize_news_text(content)
+    if not normalized_content:
+        return False
+    if not normalized_title:
+        return len(normalized_content.split()) >= min_extra_words
+    if normalized_content == normalized_title:
+        return False
+    if normalized_content.startswith(normalized_title):
+        remainder = normalized_content[len(normalized_title):].strip()
+        return len(remainder.split()) >= min_extra_words
+    return True
+
+
+def _should_include_news_item(symbol: Optional[str], title: Optional[str], summary: Optional[str], content: Optional[str]) -> bool:
+    raw_content = (content or "").strip()
+    if not _content_has_enough_extra_words(title, raw_content):
+        return False
+
+    text = " ".join(part for part in [title or "", summary or "", raw_content] if part).strip()
+    matched_tickers = _extract_news_tickers(text)
+    if not matched_tickers:
+        return True
+
+    normalized_symbol = (symbol or "").strip().upper()
+    return len(matched_tickers) == 1 and normalized_symbol in matched_tickers
 
 
 def _bool_env(name: str) -> bool:
@@ -774,7 +841,7 @@ app.include_router(
     )
 )
 app.include_router(create_screener_router(price_client=client))
-app.include_router(calendar_router)
+app.include_router(create_calendar_router(db_client=client))
 
 
 @app.get("/")
@@ -1175,10 +1242,7 @@ def get_news(
 
     offset = (page - 1) * limit
 
-    where_clauses: List[str] = [
-        "CONTENT IS NOT NULL",
-        "LENGTH(CONTENT) > 100"
-    ]
+    where_clauses: List[str] = ["CONTENT IS NOT NULL"]
     bind_params: Dict[str, Any] = {}
 
     symbol_values: List[str] = []
@@ -1227,22 +1291,77 @@ def get_news(
         FROM BIST_NEWS
         {where_sql}
         ORDER BY PUBLISHED_AT DESC NULLS LAST
-        OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
     """
-    bind_select = {**bind_params, "offset": offset, "limit": limit}
 
-    def _run_news_query() -> tuple:
+    def _run_news_query(batch_offset: int, batch_limit: int) -> tuple:
         conn = client._connect()
         try:
             with conn.cursor() as cur:
-                cur.execute(select_sql, bind_select)
+                cur.execute(
+                    f"{select_sql}\nOFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY",
+                    {**bind_params, "offset": batch_offset, "limit": batch_limit},
+                )
                 rows = cur.fetchall()
             return rows
         finally:
             conn.close()
 
+    def _lob(v):
+        """Oracle LOB objesini string'e Ã§evirir, None'Ä± korur."""
+        if v is None:
+            return None
+        return v.read() if hasattr(v, "read") else v
+
+    def _build_news_item(row: tuple) -> Optional[NewsItem]:
+        symbol_value = _lob(row[1])
+        title_value = _lob(row[3]) or ""
+        summary_value = _lob(row[4])
+        content_value = _lob(row[5])
+
+        if not _should_include_news_item(symbol_value, title_value, summary_value, content_value):
+            return None
+
+        return NewsItem(
+            id=int(row[0]),
+            symbol=symbol_value,
+            news_source=_lob(row[2]),
+            title=title_value,
+            summary=summary_value,
+            content=content_value,
+            sentiment=_lob(row[6]),
+            sentiment_score=float(row[7]) if row[7] is not None else None,
+            news_url=_lob(row[8]),
+            author=_lob(row[9]),
+            published_at=row[10],
+        )
+
+    def _collect_filtered_items() -> List[NewsItem]:
+        filtered_items: List[NewsItem] = []
+        batch_size = max(limit * 5, 100)
+        scan_target = offset + limit
+        batch_offset = 0
+
+        while len(filtered_items) < scan_target:
+            rows = list(_run_news_query(batch_offset, batch_size))
+            if not rows:
+                break
+
+            for row in rows:
+                item = _build_news_item(row)
+                if item is None:
+                    continue
+                filtered_items.append(item)
+                if len(filtered_items) >= scan_target:
+                    break
+
+            if len(rows) < batch_size:
+                break
+            batch_offset += batch_size
+
+        return filtered_items
+
     try:
-        rows = _run_news_query()
+        filtered_items = _collect_filtered_items()
     except Exception as first_err:
         # Broken pipe / stale connection — reset pool and retry once
         import errno
@@ -1255,7 +1374,7 @@ def get_news(
             except Exception:
                 pass
             try:
-                rows = _run_news_query()
+                filtered_items = _collect_filtered_items()
             except Exception as retry_err:
                 raise HTTPException(status_code=500, detail=f"Haber verisi alınamadı: {retry_err}")
         else:
@@ -1265,26 +1384,57 @@ def get_news(
         """Oracle LOB objesini string'e çevirir, None'ı korur."""
         if v is None:
             return None
-        return v.read() if hasattr(v, 'read') else v
+        return v.read() if hasattr(v, "read") else v
 
-    items: List[NewsItem] = []
-    for row in rows:
-        items.append(
-            NewsItem(
-                id=int(row[0]),
-                symbol=_lob(row[1]),
-                news_source=_lob(row[2]),
-                title=_lob(row[3]) or "",
-                summary=_lob(row[4]),
-                content=_lob(row[5]),
-                sentiment=_lob(row[6]),
-                sentiment_score=float(row[7]) if row[7] is not None else None,
-                news_url=_lob(row[8]),
-                author=_lob(row[9]),
-                published_at=row[10],
-            )
+    def _build_news_item(row: tuple) -> Optional[NewsItem]:
+        symbol_value = _lob(row[1])
+        title_value = _lob(row[3]) or ""
+        summary_value = _lob(row[4])
+        content_value = _lob(row[5])
+
+        if not _should_include_news_item(symbol_value, title_value, summary_value, content_value):
+            return None
+
+        return NewsItem(
+            id=int(row[0]),
+            symbol=symbol_value,
+            news_source=_lob(row[2]),
+            title=title_value,
+            summary=summary_value,
+            content=content_value,
+            sentiment=_lob(row[6]),
+            sentiment_score=float(row[7]) if row[7] is not None else None,
+            news_url=_lob(row[8]),
+            author=_lob(row[9]),
+            published_at=row[10],
         )
 
+    def _collect_filtered_items() -> List[NewsItem]:
+        filtered_items: List[NewsItem] = []
+        batch_size = max(limit * 5, 100)
+        scan_target = offset + limit
+        batch_offset = 0
+
+        while len(filtered_items) < scan_target:
+            rows = list(_run_news_query(batch_offset, batch_size))
+            if not rows:
+                break
+
+            for row in rows:
+                item = _build_news_item(row)
+                if item is None:
+                    continue
+                filtered_items.append(item)
+                if len(filtered_items) >= scan_target:
+                    break
+
+            if len(rows) < batch_size:
+                break
+            batch_offset += batch_size
+
+        return filtered_items
+
+    items = filtered_items[offset: offset + limit]
     return NewsResponse(items=items, total=len(items), page=page, limit=limit)
 
 
