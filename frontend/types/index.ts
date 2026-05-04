@@ -873,6 +873,39 @@ export interface CoMovementMatrixResponse {
     matrix: CoMovementMatrixDictionary
 }
 
+export interface CoMovementInsightContext {
+    scope?: {
+        type?: string
+        label?: string
+        description?: string
+        symbol_count?: number
+        pair_count?: number
+    }
+    date_range?: Partial<CoMovementDateRange>
+    config?: Partial<CoMovementConfig>
+    rankings?: Partial<CoMovementPairRankings>
+    rolling_stability?: CoMovementRollingStabilityRow[]
+    data_quality?: {
+        row_count: number
+        average_missing_ratio?: number
+        max_missing_ratio?: number
+        worst_missing: CoMovementDataQualityRow[]
+    }
+    excluded_symbols?: {
+        count: number
+        samples: CoMovementExcludedSymbol[]
+    }
+    communities?: {
+        largest?: CoMovementCommunity | null
+        densest: CoMovementCommunity[]
+    }
+    graph?: {
+        node_count?: number
+        edge_count?: number
+    }
+    notes?: string[]
+}
+
 export interface CoMovementExplainRequest {
     top_pairs: CoMovementPair[]
     communities: CoMovementCommunity[]
@@ -880,6 +913,7 @@ export interface CoMovementExplainRequest {
     language: string
     symbols?: string[]
     date_range?: Partial<CoMovementDateRange>
+    insight_context?: CoMovementInsightContext
 }
 
 export interface CoMovementExplainResponse {

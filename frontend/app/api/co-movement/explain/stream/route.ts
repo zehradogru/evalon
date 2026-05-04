@@ -1,6 +1,12 @@
 import { NextRequest } from 'next/server'
 import { fetchEvalonJson, readProxyPayload } from '@/lib/server/evalon-proxy'
 import { loadCoMovementFallback } from '@/lib/server/co-movement-local-loader'
+import type {
+    CoMovementCommunity,
+    CoMovementDateRange,
+    CoMovementMetrics,
+    CoMovementPair,
+} from '@/types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -10,6 +16,16 @@ const GEMINI_MODEL =
     process.env.CO_MOVEMENT_EXPLAIN_MODEL ??
     process.env.AI_SUMMARY_MODEL ??
     'gemini-2.5-flash'
+
+interface ExplainStreamBody {
+    top_pairs?: unknown[]
+    communities?: unknown[]
+    metrics?: unknown
+    language?: string
+    symbols?: string[]
+    date_range?: unknown
+    insight_context?: unknown
+}
 
 function isCompleteSummary(summary: unknown): summary is string {
     if (typeof summary !== 'string') return false
@@ -21,14 +37,7 @@ function isCompleteSummary(summary: unknown): summary is string {
     return /[.!?…]$/.test(trimmed)
 }
 
-function buildPrompt(body: {
-    top_pairs?: unknown[]
-    communities?: unknown[]
-    metrics?: unknown
-    language?: string
-    symbols?: string[]
-    date_range?: unknown
-}): string {
+function buildPrompt(body: ExplainStreamBody): string {
     const lang = body.language?.toLowerCase().startsWith('tr') ? 'Turkish' : (body.language ?? 'Turkish')
     const communities = (body.communities ?? []) as Array<{ size?: number }>
     const topCommunities = [...communities]
@@ -36,8 +45,10 @@ function buildPrompt(body: {
         .slice(0, 5)
     return [
         `You are a financial data analysis assistant. Write in ${lang}.`,
-        'Write a concise 4-6 sentence summary of the co-movement analysis results below.',
-        'Focus on the strongest pairs, largest communities, modularity score, and what this reveals about market structure.',
+        'Write a richer but concise co-movement interpretation using short Turkish section labels.',
+        'Use only the provided computed metrics. Do not invent news, fundamentals, prices, forecasts, or trading signals.',
+        'Cover: scope, strongest hybrid/Pearson/DTW relationships, community structure, rolling stability, data quality, and caveats.',
+        'Prefer concrete ticker pairs and metric values when available.',
         'Do not give investment advice.',
         '',
         `Symbol count: ${body.symbols?.length ?? 0}`,
@@ -45,11 +56,32 @@ function buildPrompt(body: {
         `Top pairs (hybrid similarity): ${JSON.stringify((body.top_pairs ?? []).slice(0, 8))}`,
         `Largest communities: ${JSON.stringify(topCommunities)}`,
         `Metrics: ${JSON.stringify(body.metrics ?? {})}`,
+        `Insight context: ${JSON.stringify(body.insight_context ?? {})}`,
     ].join('\n')
 }
 
+function getLocalFallbackInput(body: ExplainStreamBody) {
+    return {
+        top_pairs: Array.isArray(body.top_pairs)
+            ? (body.top_pairs as CoMovementPair[])
+            : [],
+        communities: Array.isArray(body.communities)
+            ? (body.communities as CoMovementCommunity[])
+            : [],
+        metrics:
+            body.metrics && typeof body.metrics === 'object'
+                ? (body.metrics as Partial<CoMovementMetrics>)
+                : {},
+        symbols: Array.isArray(body.symbols) ? body.symbols : [],
+        date_range:
+            body.date_range && typeof body.date_range === 'object'
+                ? (body.date_range as Partial<CoMovementDateRange>)
+                : {},
+    }
+}
+
 export async function POST(request: NextRequest) {
-    const body = await request.json()
+    const body = (await request.json()) as ExplainStreamBody
     const encoder = new TextEncoder()
     const localFallback = await loadCoMovementFallback()
 
@@ -74,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     function fallbackExplanation() {
         return localFallback
-            ? localFallback.getLocalExplanation(body)
+            ? localFallback.getLocalExplanation(getLocalFallbackInput(body))
             : {
                   summary: 'Yorum servisi şu anda kullanılamıyor.',
                   warnings: [] as string[],

@@ -1,14 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import {
-    Activity,
     AlertCircle,
     BarChart3,
     ChevronDown,
     FolderOpen,
     GitBranch,
-    Layers,
     List,
     Loader2,
     Network,
@@ -17,7 +15,6 @@ import {
     Save,
     Search,
     Sparkles,
-    TrendingUp,
     Trash2,
     X,
 } from 'lucide-react'
@@ -68,6 +65,7 @@ import type {
     CoMovementCommunity,
     CoMovementExplainRequest,
     CoMovementExplainResponse,
+    CoMovementInsightContext,
     CoMovementMatrixDictionary,
     CoMovementMatrixName,
     CoMovementPair,
@@ -257,6 +255,108 @@ function buildScopedPairRankings(
     }
 }
 
+function filterRollingRowsInsideSymbols(
+    rows: CoMovementRollingStabilityRow[],
+    symbols: string[],
+    limit = 12
+) {
+    const symbolSet = new Set(symbols)
+    return rows
+        .filter((row) => symbolSet.has(row.source) && symbolSet.has(row.target))
+        .slice(0, limit)
+}
+
+function buildQualitySummary(rows: CoMovementResult['data_quality']) {
+    if (rows.length === 0) {
+        return {
+            row_count: 0,
+            worst_missing: [],
+        }
+    }
+
+    const totalMissing = rows.reduce((total, row) => total + row.missing_ratio, 0)
+    const maxMissing = Math.max(...rows.map((row) => row.missing_ratio))
+
+    return {
+        row_count: rows.length,
+        average_missing_ratio: Number((totalMissing / rows.length).toFixed(6)),
+        max_missing_ratio: Number(maxMissing.toFixed(6)),
+        worst_missing: topMissingRows(rows, 8),
+    }
+}
+
+function buildInsightContext(
+    result: CoMovementResult,
+    scope: ExplainScope,
+    symbols: string[],
+    topPairs: CoMovementPair[],
+    communities: CoMovementCommunity[]
+): CoMovementInsightContext {
+    const symbolSet = new Set(symbols)
+    const scopedRankings = buildScopedPairRankings(result.pair_rankings, scope)
+    const scopedQualityRows =
+        scope.type === 'market'
+            ? result.data_quality
+            : result.data_quality.filter((row) => symbolSet.has(row.symbol))
+    const scopedExcludedRows =
+        scope.type === 'market'
+            ? result.excluded_symbols
+            : result.excluded_symbols.filter((row) => symbolSet.has(row.symbol))
+    const scopedRollingRows =
+        scope.type === 'market'
+            ? result.rolling_stability.slice(0, 12)
+            : filterRollingRowsInsideSymbols(result.rolling_stability, symbols, 12)
+    const densestCommunities = [...communities]
+        .sort(
+            (left, right) =>
+                right.avg_similarity - left.avg_similarity ||
+                right.size - left.size ||
+                left.community_id - right.community_id
+        )
+        .slice(0, 5)
+
+    return {
+        scope: {
+            type: scope.type,
+            label: scope.label,
+            description: scope.description,
+            symbol_count: symbols.length,
+            pair_count: topPairs.length,
+        },
+        date_range: result.date_range,
+        config: result.config,
+        rankings: {
+            hybrid: scopedRankings.hybrid.slice(0, 8),
+            pearson: scopedRankings.pearson.slice(0, 8),
+            dtw: scopedRankings.dtw.slice(0, 8),
+        },
+        rolling_stability: scopedRollingRows,
+        data_quality: buildQualitySummary(scopedQualityRows),
+        excluded_symbols: {
+            count: scopedExcludedRows.length,
+            samples: scopedExcludedRows.slice(0, 8),
+        },
+        communities: {
+            largest:
+                [...communities].sort(
+                    (left, right) =>
+                        right.size - left.size ||
+                        right.avg_similarity - left.avg_similarity ||
+                        left.community_id - right.community_id
+                )[0] ?? null,
+            densest: densestCommunities,
+        },
+        graph: {
+            node_count: result.metrics.node_count,
+            edge_count: result.metrics.edge_count,
+        },
+        notes: [
+            'Yorum yalnızca hesaplanmış co-movement metriklerine dayanır.',
+            'Pair rankingleri hybrid, Pearson ve DTW metriklerinde ayrı sıralanır.',
+        ],
+    }
+}
+
 function filterCommunitiesBySymbols(
     communities: CoMovementCommunity[],
     symbols: string[],
@@ -384,83 +484,8 @@ function buildScopedExplainPayload(
         language: 'tr',
         symbols,
         date_range: result.date_range,
+        insight_context: buildInsightContext(result, scope, symbols, topPairs, communities),
     }
-}
-
-type MetricTone = 'default' | 'success' | 'warning'
-
-function MetricStrip({
-    items,
-}: {
-    items: Array<{
-        label: string
-        value: string
-        hint?: string
-        tone?: MetricTone
-        icon?: React.ReactNode
-    }>
-}) {
-    const toneClasses: Record<
-        MetricTone,
-        { accent: string; value: string; icon: string }
-    > = {
-        default: {
-            accent: 'bg-primary',
-            value: 'text-foreground',
-            icon: 'bg-primary/10 text-primary',
-        },
-        success: {
-            accent: 'bg-emerald-400',
-            value: 'text-emerald-300',
-            icon: 'bg-emerald-500/10 text-emerald-300',
-        },
-        warning: {
-            accent: 'bg-amber-400',
-            value: 'text-amber-200',
-            icon: 'bg-amber-500/10 text-amber-200',
-        },
-    }
-
-    return (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-border/45 bg-[#080808] px-5 py-3.5">
-            {items.map((item, index) => {
-                const tone = toneClasses[item.tone ?? 'default']
-
-                return (
-                    <div
-                        key={`${item.label}-${index}`}
-                        className={cn(
-                            'flex min-w-[132px] flex-1 items-center gap-2.5',
-                            index > 0 && 'border-l border-border/35 pl-5'
-                        )}
-                    >
-                        {item.icon ? (
-                            <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg', tone.icon)}>
-                                {item.icon}
-                            </span>
-                        ) : (
-                            <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', tone.accent)} />
-                        )}
-                        <div className="min-w-0">
-                            <div className="flex items-baseline gap-2">
-                                <span className={cn('text-lg font-semibold tracking-tight tabular-nums', tone.value)}>
-                                    {item.value}
-                                </span>
-                                <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                                    {item.label}
-                                </span>
-                            </div>
-                            {item.hint ? (
-                                <p className="truncate text-[10px] text-muted-foreground/70">
-                                    {item.hint}
-                                </p>
-                            ) : null}
-                        </div>
-                    </div>
-                )
-            })}
-        </div>
-    )
 }
 
 function AnalysisReadinessStrip({
@@ -800,7 +825,7 @@ function ExplanationCard({
                         <div>
                             <p className="text-sm font-semibold text-foreground">{title}</p>
                             <p className="text-[11px] text-muted-foreground">
-                                Hesaplanan metriklerin seçili kapsam için kısa yorumunu üretir.
+                                Hesaplanan metriklerin seçili kapsam için detaylı yorumunu üretir.
                             </p>
                         </div>
                     </div>
@@ -1338,21 +1363,95 @@ function MatrixTabsPanel({
     )
 }
 
+type PairMetricKey = 'hybrid' | 'pearson' | 'dtw'
+
+const PAIR_METRIC_COPY: Record<
+    PairMetricKey,
+    {
+        label: string
+        shortLabel: string
+        description: string
+        emptyText: string
+    }
+> = {
+    hybrid: {
+        label: 'Hybrid',
+        shortLabel: 'Hybrid',
+        description: 'Pearson ve DTW similarity birlikte yüksek olan çiftleri gösterir.',
+        emptyText: 'Hybrid skor taşıyan pair verisi bulunamadı.',
+    },
+    pearson: {
+        label: 'Pearson',
+        shortLabel: 'Pearson',
+        description: 'Getiri serileri aynı yönde hareket eden çiftleri gösterir.',
+        emptyText: 'Pearson skor taşıyan pair verisi bulunamadı.',
+    },
+    dtw: {
+        label: 'DTW',
+        shortLabel: 'DTW',
+        description: 'Fiyat yolu ve şekli birbirine benzeyen çiftleri gösterir.',
+        emptyText: 'DTW skor taşıyan pair verisi bulunamadı.',
+    },
+}
+
+function pairMetricValue(pair: CoMovementPair, metric: PairMetricKey): number | null {
+    const value =
+        metric === 'hybrid'
+            ? pair.hybrid_similarity
+            : metric === 'pearson'
+              ? pair.pearson
+              : pair.dtw_similarity
+
+    return typeof value === 'number' && !Number.isNaN(value) ? value : null
+}
+
+function pairSupportScores(pair: CoMovementPair, metric: PairMetricKey) {
+    return [
+        {
+            key: 'hybrid',
+            label: 'H',
+            value: metric === 'hybrid' ? null : pair.hybrid_similarity,
+        },
+        {
+            key: 'pearson',
+            label: 'P',
+            value: metric === 'pearson' ? null : pair.pearson,
+        },
+        {
+            key: 'dtw',
+            label: 'D',
+            value: metric === 'dtw' ? null : pair.dtw_similarity,
+        },
+    ].filter(
+        (item): item is { key: string; label: string; value: number } =>
+            typeof item.value === 'number' && !Number.isNaN(item.value)
+    )
+}
+
 function PairsTable({
     title,
     description,
     pairs,
+    metric = 'hybrid',
     limit = 20,
     bare = false,
 }: {
-    title: string
-    description: string
+    title?: string
+    description?: string
     pairs: CoMovementPair[]
+    metric?: PairMetricKey
     limit?: number
     bare?: boolean
 }) {
-    const rows = pairs.slice(0, limit)
-    const maxHybrid = Math.max(...rows.map((p) => p.hybrid_similarity ?? 0), 1)
+    const rows = pairs
+        .map((pair) => ({
+            pair,
+            score: pairMetricValue(pair, metric),
+        }))
+        .filter((row): row is { pair: CoMovementPair; score: number } => row.score !== null)
+        .slice(0, limit)
+    const maxScore = Math.max(...rows.map((row) => Math.max(row.score, 0)), 1)
+    const metricCopy = PAIR_METRIC_COPY[metric]
 
     return (
         <div
@@ -1370,50 +1469,59 @@ function PairsTable({
             <div className="divide-y divide-border/20">
                 {rows.length === 0 ? (
                     <p className="py-8 text-center text-sm text-muted-foreground">
-                        Pair verisi bulunamadı.
+                        {metricCopy.emptyText}
                     </p>
                 ) : (
-                    rows.map((pair, index) => (
-                        <div
-                            key={`${pair.source}-${pair.target}`}
-                            className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.02]"
-                        >
-                            <span className="w-5 shrink-0 text-right font-mono text-[10px] text-muted-foreground/30">
-                                {index + 1}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-sm font-bold tracking-tight text-foreground">
-                                        {pair.source}
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground/30">·</span>
-                                    <span className="text-sm font-bold tracking-tight text-foreground">
-                                        {pair.target}
-                                    </span>
-                                </div>
-                                <div className="mt-1.5 h-[2px] w-full overflow-hidden rounded-full bg-border/20">
-                                    <div
-                                        className="cmo-progress-bar h-full rounded-full"
-                                        style={{
-                                            width: `${((pair.hybrid_similarity ?? 0) / maxHybrid) * 100}%`,
-                                        }}
-                                    />
-                                </div>
-                                <div className="mt-1 text-[10px] text-muted-foreground/40">
-                                    P {formatNumber(pair.pearson, 3)} · D{' '}
-                                    {formatNumber(pair.dtw_similarity, 3)}
-                                </div>
-                            </div>
-                            <div className="shrink-0 text-right">
-                                <span className="text-base font-bold tabular-nums text-cyan-300">
-                                    {formatNumber(pair.hybrid_similarity, 3)}
+                    rows.map(({ pair, score }, index) => {
+                        const supportScores = pairSupportScores(pair, metric)
+
+                        return (
+                            <div
+                                key={`${pair.source}-${pair.target}`}
+                                className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.02]"
+                            >
+                                <span className="w-5 shrink-0 text-right font-mono text-[10px] text-muted-foreground/30">
+                                    {index + 1}
                                 </span>
-                                <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40">
-                                    hybrid
-                                </p>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-sm font-bold tracking-tight text-foreground">
+                                            {pair.source}
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground/30">·</span>
+                                        <span className="text-sm font-bold tracking-tight text-foreground">
+                                            {pair.target}
+                                        </span>
+                                    </div>
+                                    <div className="mt-1.5 h-[2px] w-full overflow-hidden rounded-full bg-border/20">
+                                        <div
+                                            className="cmo-progress-bar h-full rounded-full"
+                                            style={{
+                                                width: `${(Math.max(score, 0) / maxScore) * 100}%`,
+                                            }}
+                                        />
+                                    </div>
+                                    {supportScores.length > 0 ? (
+                                        <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] text-muted-foreground/45">
+                                            {supportScores.map((item) => (
+                                                <span key={item.key}>
+                                                    {item.label} {formatNumber(item.value, 3)}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </div>
+                                <div className="shrink-0 text-right">
+                                    <span className="text-base font-bold tabular-nums text-cyan-300">
+                                        {formatNumber(score, 3)}
+                                    </span>
+                                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40">
+                                        {metricCopy.shortLabel}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                    ))
+                        )
+                    })
                 )}
             </div>
         </div>
@@ -1428,6 +1536,7 @@ function PairRankingsCard({
     bare?: boolean
 }) {
     const [activeRankTab, setActiveRankTab] = useState<'hybrid' | 'pearson' | 'dtw'>('hybrid')
+    const activeMetric = PAIR_METRIC_COPY[activeRankTab]
 
     return (
         <div
@@ -1443,9 +1552,9 @@ function PairRankingsCard({
                 )}
             >
                 <div>
-                    <p className="text-sm font-semibold text-foreground">Pair Sıralamaları</p>
+                    <p className="text-sm font-semibold text-foreground">Metrik Liderleri</p>
                     <p className="text-[11px] text-muted-foreground">
-                        Farklı skor kümelerine göre öne çıkan çiftler
+                        Her tab kendi metriğine göre bağımsız lider çiftleri sıralar.
                     </p>
                 </div>
                 <div className="flex items-center gap-1 rounded-xl bg-[#111111] p-1">
@@ -1461,15 +1570,20 @@ function PairRankingsCard({
                                     : 'text-muted-foreground hover:text-foreground/70'
                             )}
                         >
-                            {key}
+                            {PAIR_METRIC_COPY[key].label}
                         </button>
                     ))}
                 </div>
             </div>
+            <div className={cn('border-b border-border/30 px-5 py-3', bare && 'px-0')}>
+                <p className="text-[11px] text-muted-foreground">
+                    <span className="font-medium text-foreground">{activeMetric.label}:</span>{' '}
+                    {activeMetric.description}
+                </p>
+            </div>
             <PairsTable
-                title=""
-                description=""
                 pairs={rankings[activeRankTab]}
+                metric={activeRankTab}
                 limit={12}
                 bare
             />
@@ -1664,23 +1778,47 @@ function DetailsWorkspace({
     defaultTab?: 'pairs' | 'heatmap' | 'rolling' | 'quality'
     scopeLabel?: string
 }) {
+    const [isDetailsOpen, setIsDetailsOpen] = useState(true)
+    const detailsContentId = useId()
+
     return (
         <div className="overflow-hidden rounded-[1.75rem] border border-border/50 bg-[#080808]">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/45 px-5 py-4">
-                <div>
-                    <p className="text-sm font-semibold text-foreground">Detaylar</p>
-                    <p className="text-[11px] text-muted-foreground">
+            <button
+                type="button"
+                onClick={() => setIsDetailsOpen((open) => !open)}
+                aria-expanded={isDetailsOpen}
+                aria-controls={detailsContentId}
+                aria-label={isDetailsOpen ? 'Detaylar panelini kapat' : 'Detaylar panelini aç'}
+                className="flex w-full flex-wrap items-center justify-between gap-3 border-b border-border/45 px-5 py-4 text-left transition-colors hover:bg-white/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/30"
+            >
+                <span>
+                    <span className="block text-sm font-semibold text-foreground">Detaylar</span>
+                    <span className="block text-[11px] text-muted-foreground">
                         {scopeLabel
                             ? `${scopeLabel} odağına göre pair, heatmap, rolling stability ve veri kalitesi.`
                             : 'Pair, heatmap, rolling stability ve veri kalitesi tek çalışma alanında.'}
-                    </p>
-                </div>
-                <span className="rounded-full border border-border/40 px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
-                    {scopeLabel ?? 'Talep üzerine'}
+                    </span>
                 </span>
-            </div>
+                <span className="flex items-center gap-2">
+                    <span className="rounded-full border border-border/40 px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
+                        {scopeLabel ?? 'Talep üzerine'}
+                    </span>
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl text-muted-foreground">
+                        <ChevronDown
+                            className={cn(
+                                'h-4 w-4 transition-transform',
+                                isDetailsOpen && 'rotate-180'
+                            )}
+                        />
+                    </span>
+                </span>
+            </button>
 
-            <Tabs defaultValue={defaultTab} className="p-5">
+            <Tabs
+                id={detailsContentId}
+                defaultValue={defaultTab}
+                className={cn('p-5', !isDetailsOpen && 'hidden')}
+            >
                 <TabsList className="flex h-auto flex-wrap gap-1.5 rounded-2xl bg-[#111111] p-1.5">
                     {[
                         { value: 'pairs', label: 'Pairler' },
@@ -1699,25 +1837,26 @@ function DetailsWorkspace({
                 </TabsList>
 
                 <TabsContent value="pairs" className="mt-5">
-                    <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                        <div>
-                            <div className="mb-3 border-b border-border/45 pb-3.5">
-                                <p className="text-sm font-semibold text-foreground">
-                                    En Güçlü Eşleşmeler
-                                </p>
-                                <p className="text-[11px] text-muted-foreground">
-                                    Hybrid similarity skoruna göre sıralanan ilişkiler.
-                                </p>
+                    <div className="space-y-5">
+                        <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                            <div>
+                                <div className="mb-3 border-b border-border/45 pb-3.5">
+                                    <p className="text-sm font-semibold text-foreground">
+                                        Graph Eşleşmeleri
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Graph ve toplulukları besleyen hybrid-konsensüs eşleşmeler.
+                                    </p>
+                                </div>
+                                <PairsTable
+                                    pairs={topPairs}
+                                    metric="hybrid"
+                                    limit={15}
+                                    bare
+                                />
                             </div>
-                            <PairsTable
-                                title=""
-                                description=""
-                                pairs={topPairs}
-                                limit={15}
-                                bare
-                            />
+                            <PairRankingsCard rankings={pairRankings} bare />
                         </div>
-                        <PairRankingsCard rankings={pairRankings} bare />
                     </div>
                 </TabsContent>
 
@@ -1913,76 +2052,6 @@ function NodeDetailCard({
                 )}
             </div>
         </div>
-    )
-}
-
-function snapshotSummaryStrip(snapshot: CoMovementSnapshotSummary) {
-    return (
-        <MetricStrip
-            items={[
-                {
-                    label: 'Hisse',
-                    value: String(snapshot.metrics.node_count),
-                    hint: `İstenen ${snapshot.requested_symbols.length} sembolden kullanılabilenler`,
-                    icon: <Activity className="h-4 w-4" />,
-                },
-                {
-                    label: 'Topluluk',
-                    value: String(snapshot.metrics.community_count),
-                    hint: `${snapshot.metrics.edge_count} bağlantı ile`,
-                    icon: <Layers className="h-4 w-4" />,
-                },
-                {
-                    label: 'Modularity',
-                    value: formatNumber(snapshot.metrics.modularity, 3),
-                    hint: snapshot.metrics.louvain_method,
-                    tone: 'success',
-                    icon: <TrendingUp className="h-4 w-4" />,
-                },
-                {
-                    label: 'Rolling Window',
-                    value: String(snapshot.metrics.rolling_window_count),
-                    hint: `${snapshot.date_range.rows ?? 0} hizalanmış günlük satır`,
-                    tone: 'warning',
-                    icon: <RefreshCw className="h-4 w-4" />,
-                },
-            ]}
-        />
-    )
-}
-
-function analysisSummaryStrip(result: CoMovementAnalyzeResponse) {
-    return (
-        <MetricStrip
-            items={[
-                {
-                    label: 'Hybrid Pair',
-                    value: String(result.top_pairs.length),
-                    hint: `Pair count ${result.metrics.pair_count}`,
-                    icon: <Activity className="h-4 w-4" />,
-                },
-                {
-                    label: 'Topluluk',
-                    value: String(result.metrics.community_count),
-                    hint: `${result.metrics.edge_count} bağlantı`,
-                    icon: <Layers className="h-4 w-4" />,
-                },
-                {
-                    label: 'Modularity',
-                    value: formatNumber(result.metrics.modularity, 3),
-                    hint: result.metrics.louvain_method,
-                    tone: 'success',
-                    icon: <TrendingUp className="h-4 w-4" />,
-                },
-                {
-                    label: 'Dışlanan',
-                    value: String(result.excluded_symbols.length),
-                    hint: `Rolling window ${result.metrics.rolling_window_count}`,
-                    tone: 'warning',
-                    icon: <RefreshCw className="h-4 w-4" />,
-                },
-            ]}
-        />
     )
 }
 
@@ -2319,42 +2388,6 @@ function SnapshotExplorerView({
 
     return (
         <div className="space-y-4">
-            {/* A: Ana metrik kartlar */}
-            {snapshotSummaryStrip(snapshot)}
-
-            {/* A2: Kompakt analiz detay satırı */}
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-border/50 bg-[#080808] px-5 py-3.5 text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                    <span className="text-muted-foreground/50">Dönem</span>
-                    <span className="font-medium text-foreground">
-                        {formatDateLabel(snapshot.date_range.start)} – {formatDateLabel(snapshot.date_range.end)}
-                    </span>
-                    {snapshot.date_range.rows ? (
-                        <span className="text-muted-foreground/40">({snapshot.date_range.rows} işlem günü)</span>
-                    ) : null}
-                </span>
-                <span className="h-3 w-px bg-border/40" />
-                <span className="flex items-center gap-1.5">
-                    <span className="text-muted-foreground/50">Oluşturulma</span>
-                    <span className="font-medium text-foreground">
-                        {formatDateLabel(snapshot.snapshot.created_at)}
-                    </span>
-                </span>
-                <span className="h-3 w-px bg-border/40" />
-                <span className="flex items-center gap-1.5">
-                    <span className="text-muted-foreground/50">top_k</span>
-                    <span className="font-medium text-foreground">{snapshot.config.top_k}</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                    <span className="text-muted-foreground/50">min benzerlik</span>
-                    <span className="font-medium text-foreground">{formatNumber(snapshot.config.min_similarity, 2)}</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                    <span className="text-muted-foreground/50">rolling</span>
-                    <span className="font-medium text-foreground">{snapshot.config.rolling_window} gün</span>
-                </span>
-            </div>
-
             {/* B: Ağ grafiği + topluluk / hisse detay kenar paneli */}
             <div className="overflow-hidden rounded-2xl border border-border/60 bg-[#080808]">
                 <div className="flex flex-col gap-3 border-b border-border/50 px-5 py-3.5 lg:flex-row lg:items-center lg:justify-between">
@@ -2729,7 +2762,7 @@ function SnapshotExplorerView({
 
             {/* F: Yorum */}
                 <ExplanationCard
-                    title="Özet Yorum"
+                    title="Detaylı Yorum"
                     explanation={isSnapshotExplanationCurrent ? snapshotExplanation : null}
                     error={isSnapshotExplanationCurrent ? snapshotExplainError : null}
                     liveSummary={isSnapshotExplanationCurrent ? snapshotExplainDraft : ''}
@@ -3094,58 +3127,189 @@ export function CoMovementSection() {
         error: null,
     }))
 
+    const headerStats =
+        activeMode === 'custom' && customResult
+            ? [
+                  { label: 'Hybrid Pair', value: String(customResult.top_pairs.length) },
+                  { label: 'Bağlantı', value: String(customResult.metrics.edge_count) },
+                  { label: 'Topluluk', value: String(customResult.metrics.community_count) },
+                  {
+                      label: 'Modularity',
+                      value: formatNumber(customResult.metrics.modularity, 3),
+                  },
+                  { label: 'Dışlanan', value: String(customResult.excluded_symbols.length) },
+              ]
+            : activeMode === 'snapshot' && currentSnapshot
+              ? [
+                    { label: 'Hisse', value: String(currentSnapshot.metrics.node_count) },
+                    { label: 'Bağlantı', value: String(currentSnapshot.metrics.edge_count) },
+                    { label: 'Topluluk', value: String(currentSnapshot.metrics.community_count) },
+                    {
+                        label: 'Modularity',
+                        value: formatNumber(currentSnapshot.metrics.modularity, 3),
+                    },
+                    { label: 'Window', value: String(currentSnapshot.metrics.rolling_window_count) },
+                ]
+              : []
+
+    const headerMetaItems =
+        activeMode === 'custom' && customResult
+            ? [
+                  {
+                      label: 'Sonuç',
+                      value: loadedSavedAnalysis
+                          ? `Kayıtlı · ${loadedSavedAnalysis.title}`
+                          : 'Özel analiz',
+                  },
+                  ...(loadedSavedAnalysis
+                      ? [
+                            {
+                                label: 'Kayıt',
+                                value: formatDateLabel(loadedSavedAnalysis.updatedAt),
+                            },
+                        ]
+                      : []),
+                  {
+                      label: 'Dönem',
+                      value: `${formatDateLabel(customResult.date_range.start)} – ${formatDateLabel(customResult.date_range.end)}${
+                          customResult.date_range.rows
+                              ? ` (${customResult.date_range.rows} işlem günü)`
+                              : ''
+                      }`,
+                  },
+                  {
+                      label: 'Kullanılan',
+                      value: `${customResult.symbols.length} / ${customResult.requested_symbols.length} hisse`,
+                  },
+                  { label: 'top_k', value: String(customResult.config.top_k) },
+                  {
+                      label: 'min',
+                      value: formatNumber(customResult.config.min_similarity, 2),
+                  },
+                  { label: 'rolling', value: `${customResult.config.rolling_window} gün` },
+              ]
+            : activeMode === 'snapshot' && currentSnapshot
+              ? [
+                    {
+                        label: 'Dönem',
+                        value: `${formatDateLabel(currentSnapshot.date_range.start)} – ${formatDateLabel(currentSnapshot.date_range.end)}${
+                            currentSnapshot.date_range.rows
+                                ? ` (${currentSnapshot.date_range.rows} işlem günü)`
+                                : ''
+                        }`,
+                    },
+                    {
+                        label: 'Oluşturulma',
+                        value: formatDateLabel(currentSnapshot.snapshot.created_at),
+                    },
+                    { label: 'top_k', value: String(currentSnapshot.config.top_k) },
+                    {
+                        label: 'min',
+                        value: formatNumber(currentSnapshot.config.min_similarity, 2),
+                    },
+                    { label: 'rolling', value: `${currentSnapshot.config.rolling_window} gün` },
+                ]
+              : []
+
     return (
         <section className="space-y-6">
-            {/* Hero Header */}
-            <div className="relative overflow-hidden rounded-3xl border border-border/50 bg-[#030303] px-6 py-5">
-                <div className="pointer-events-none absolute inset-0 cmo-hero-glow" />
-                <div className="relative flex flex-wrap items-center justify-between gap-4">
-                    <h1 className="bg-gradient-to-r from-foreground via-cyan-100 to-cyan-400 bg-clip-text text-3xl font-semibold tracking-[-0.04em] text-transparent sm:text-4xl">
-                        Co_movement
-                    </h1>
-                    {currentSnapshot && (
-                        <div className="flex flex-wrap gap-2">
-                            {[
-                                { label: 'Hisse', value: currentSnapshot.metrics.node_count },
-                                { label: 'Bağlantı', value: currentSnapshot.metrics.edge_count },
-                                { label: 'Grup', value: currentSnapshot.metrics.community_count },
-                            ].map(({ label, value }) => (
-                                <div
-                                    key={label}
-                                    className="rounded-full border border-border/45 bg-[#0f0f0f]/80 px-3 py-1.5 text-center"
-                                >
-                                    <span className="text-sm font-semibold text-foreground">{value}</span>
-                                    <span className="ml-1.5 text-[9px] uppercase tracking-widest text-muted-foreground">
-                                        {label}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    </div>
+            <h1 className="bg-gradient-to-r from-foreground via-cyan-100 to-cyan-400 bg-clip-text text-3xl font-semibold tracking-[-0.04em] text-transparent sm:text-4xl">
+                Co_movement
+            </h1>
+
+            <div className="flex flex-col gap-3 rounded-2xl border border-border/50 bg-[#080808] px-3 py-3 lg:flex-row lg:items-center">
+                <div className="flex shrink-0 gap-1 rounded-xl bg-[#111111] p-1">
+                    {[
+                        { value: 'snapshot' as const, label: 'Piyasa Görünümü', icon: <BarChart3 className="h-4 w-4" /> },
+                        { value: 'custom' as const, label: 'Özel Analiz', icon: <GitBranch className="h-4 w-4" /> },
+                    ].map((tab) => (
+                        <button
+                            key={tab.value}
+                            type="button"
+                            onClick={() => setActiveMode(tab.value)}
+                            className={cn(
+                                'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-all sm:flex-none',
+                                activeMode === tab.value
+                                    ? 'bg-[#1e1e1e] text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground/70'
+                            )}
+                        >
+                            {tab.icon}
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
 
-            {/* Mode Toggle */}
-            <div className="flex gap-2 rounded-2xl border border-border/50 bg-[#080808] p-1.5">
-                {[
-                    { value: 'snapshot' as const, label: 'Piyasa Görünümü', icon: <BarChart3 className="h-4 w-4" /> },
-                    { value: 'custom' as const, label: 'Özel Analiz', icon: <GitBranch className="h-4 w-4" /> },
-                ].map((tab) => (
-                    <button
-                        key={tab.value}
-                        type="button"
-                        onClick={() => setActiveMode(tab.value)}
-                        className={cn(
-                            'flex flex-1 items-center justify-center gap-2.5 rounded-xl px-4 py-3 text-sm font-medium transition-all',
-                            activeMode === tab.value
-                                ? 'bg-[#1e1e1e] text-foreground shadow-md'
-                                : 'text-muted-foreground hover:text-foreground/70'
-                        )}
-                    >
-                        {tab.icon}
-                        {tab.label}
-                    </button>
-                ))}
+                {headerStats.length > 0 ? (
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]">
+                        {headerStats.map((item) => (
+                            <span
+                                key={item.label}
+                                className="inline-flex items-baseline gap-1.5 whitespace-nowrap"
+                            >
+                                <span className="text-sm font-semibold tabular-nums text-foreground">
+                                    {item.value}
+                                </span>
+                                <span className="uppercase tracking-widest text-muted-foreground/60">
+                                    {item.label}
+                                </span>
+                            </span>
+                        ))}
+                    </div>
+                ) : null}
+
+                {headerMetaItems.length > 0 ? (
+                    <div className="flex min-w-0 flex-[1.4] flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border/40 pt-2 text-[11px] text-muted-foreground lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
+                        {headerMetaItems.map((item) => (
+                            <span
+                                key={item.label}
+                                className="inline-flex min-w-0 items-center gap-1.5"
+                            >
+                                <span className="shrink-0 text-muted-foreground/50">
+                                    {item.label}
+                                </span>
+                                <span className="max-w-[220px] truncate font-medium text-foreground sm:max-w-[280px]">
+                                    {item.value}
+                                </span>
+                            </span>
+                        ))}
+                    </div>
+                ) : null}
+
+                {activeMode === 'custom' && customResult ? (
+                    <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border/40 pt-2 lg:border-t-0 lg:pt-0">
+                        {loadedSavedAnalysis ? (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleStartFreshCustomAnalysis}
+                                className="h-8 text-muted-foreground hover:text-foreground"
+                            >
+                                Yeni analiz
+                            </Button>
+                        ) : null}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleSaveCurrentAnalysis()}
+                            disabled={
+                                !isAuthenticated ||
+                                saveAnalysisMutation.isPending ||
+                                openSavedAnalysisMutation.isPending
+                            }
+                            className="h-8 gap-2"
+                        >
+                            {saveAnalysisMutation.isPending ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                                <Save className="h-3.5 w-3.5" />
+                            )}
+                            {saveAnalysisMutation.isPending ? 'Kaydediliyor' : 'Analizi Kaydet'}
+                        </Button>
+                    </div>
+                ) : null}
             </div>
 
             {/* Snapshot Paneli */}
@@ -3421,96 +3585,6 @@ export function CoMovementSection() {
 
                     {customResult ? (
                         <div className="space-y-4">
-                            {analysisSummaryStrip(customResult)}
-
-                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/50 bg-[#080808] px-5 py-3.5">
-                                <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-muted-foreground">
-                                    <span className="flex items-center gap-2">
-                                        <span
-                                            className={cn(
-                                                'h-1.5 w-1.5 rounded-full',
-                                                loadedSavedAnalysisId ? 'bg-emerald-400' : 'bg-primary'
-                                            )}
-                                        />
-                                        <span className="text-sm font-semibold text-foreground">
-                                            {loadedSavedAnalysis
-                                                ? `Kayıtlı analiz · ${loadedSavedAnalysis.title}`
-                                                : 'Özel analiz sonucu'}
-                                        </span>
-                                    </span>
-                                    <span className="hidden h-3 w-px bg-border/40 sm:inline-block" />
-                                    {loadedSavedAnalysis ? (
-                                        <>
-                                            <span className="flex items-center gap-1.5">
-                                                <span className="text-muted-foreground/50">Kayıt</span>
-                                                <span className="font-medium text-foreground">
-                                                    {formatDateLabel(loadedSavedAnalysis.updatedAt)}
-                                                </span>
-                                            </span>
-                                            <span className="hidden h-3 w-px bg-border/40 sm:inline-block" />
-                                        </>
-                                    ) : null}
-                                    <span className="flex items-center gap-1.5">
-                                        <span className="text-muted-foreground/50">Dönem</span>
-                                        <span className="font-medium text-foreground">
-                                            {formatDateLabel(customResult.date_range.start)} – {formatDateLabel(customResult.date_range.end)}
-                                        </span>
-                                        {customResult.date_range.rows ? (
-                                            <span className="text-muted-foreground/40">({customResult.date_range.rows} işlem günü)</span>
-                                        ) : null}
-                                    </span>
-                                    <span className="hidden h-3 w-px bg-border/40 sm:inline-block" />
-                                    <span className="flex items-center gap-1.5">
-                                        <span className="text-muted-foreground/50">Kullanılan</span>
-                                        <span className="font-medium text-foreground">{customResult.symbols.length} / {customResult.requested_symbols.length} hisse</span>
-                                    </span>
-                                    <span className="flex items-center gap-1.5">
-                                        <span className="text-muted-foreground/50">top_k</span>
-                                        <span className="font-medium text-foreground">{customResult.config.top_k}</span>
-                                    </span>
-                                    <span className="flex items-center gap-1.5">
-                                        <span className="text-muted-foreground/50">min benzerlik</span>
-                                        <span className="font-medium text-foreground">{formatNumber(customResult.config.min_similarity, 2)}</span>
-                                    </span>
-                                    <span className="flex items-center gap-1.5">
-                                        <span className="text-muted-foreground/50">rolling</span>
-                                        <span className="font-medium text-foreground">{customResult.config.rolling_window} gün</span>
-                                    </span>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {loadedSavedAnalysis ? (
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={handleStartFreshCustomAnalysis}
-                                            className="text-muted-foreground hover:text-foreground"
-                                        >
-                                            Yeni analiz
-                                        </Button>
-                                    ) : null}
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => void handleSaveCurrentAnalysis()}
-                                        disabled={
-                                            !isAuthenticated ||
-                                            saveAnalysisMutation.isPending ||
-                                            openSavedAnalysisMutation.isPending
-                                        }
-                                        className="gap-2"
-                                    >
-                                        {saveAnalysisMutation.isPending ? (
-                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                        ) : (
-                                            <Save className="h-3.5 w-3.5" />
-                                        )}
-                                        {saveAnalysisMutation.isPending ? 'Kaydediliyor' : 'Analizi Kaydet'}
-                                    </Button>
-                                </div>
-                            </div>
-
                             {/* Analiz grafiği + topluluk kenar paneli */}
                             <div className="overflow-hidden rounded-2xl border border-border/60 bg-[#080808]">
                                 <div className="flex flex-col gap-3 border-b border-border/50 px-5 py-3.5 lg:flex-row lg:items-center lg:justify-between">
@@ -3727,7 +3801,7 @@ export function CoMovementSection() {
                             />
 
                             <ExplanationCard
-                                title="Sonuç Yorumu"
+                                title="Detaylı Sonuç Yorumu"
                                 explanation={isAnalysisExplanationCurrent ? analysisExplanation : null}
                                 error={isAnalysisExplanationCurrent ? analysisExplainError : null}
                                 liveSummary={isAnalysisExplanationCurrent ? analysisExplainDraft : ''}
