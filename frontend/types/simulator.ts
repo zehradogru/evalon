@@ -31,8 +31,8 @@ export interface SimSnapshot {
 }
 
 export interface SimulatorConfig {
-    startDate: string
-    endDate: string
+    startAt: string
+    endAt: string
     initialBalance: number
 }
 
@@ -44,9 +44,9 @@ export interface SimulatorState {
     config: SimulatorConfig
 
     // Game state
-    currentDate: string
-    currentDayIndex: number
-    totalDays: number
+    currentTime: string
+    currentStepIndex: number
+    totalSteps: number
     balance: number
     positions: Record<string, SimPosition>
     tradeHistory: SimTrade[]
@@ -67,7 +67,7 @@ export interface SimulatorState {
 export interface SimulatorActions {
     // Lifecycle
     startSimulation: (config: SimulatorConfig) => void
-    advanceDay: (days: number) => void
+    advanceTime: (minutes: number) => void
     endSimulation: () => void
     resetSimulation: () => void
 
@@ -113,6 +113,6 @@ export function getTotalPnLPercent(state: SimulatorState): number {
 }
 
 export function getProgressPercent(state: SimulatorState): number {
-    if (state.totalDays <= 0) return 0
-    return Math.min(100, (state.currentDayIndex / state.totalDays) * 100)
+    if (state.totalSteps <= 0) return 0
+    return Math.min(100, (state.currentStepIndex / state.totalSteps) * 100)
 }

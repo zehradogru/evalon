@@ -36,12 +36,23 @@ export async function fetchPrices({
     timeframe,
     limit = 100,
     start,
+    end,
 }: FetchPricesParams): Promise<PriceResponse> {
     const params = start
         ? { start, fetchLimit: limit }
         : getRecentFetchParams(timeframe, limit)
 
-    const url = `/api/prices?ticker=${ticker}&timeframe=${timeframe}&limit=${params.fetchLimit}&start=${params.start}`
+    const query = new URLSearchParams({
+        ticker,
+        timeframe,
+        limit: String(params.fetchLimit),
+        start: params.start,
+    })
+    if (end) {
+        query.set('end', end)
+    }
+
+    const url = `/api/prices?${query.toString()}`
     const response = await fetch(url)
 
     if (!response.ok) {

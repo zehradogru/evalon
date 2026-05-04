@@ -27,7 +27,7 @@ export function SimulatorOrderPanel({
     position,
     onSelectTicker,
 }: SimulatorOrderPanelProps) {
-    const { buyStock, sellStock, currentDate } = useSimulatorStore()
+    const { buyStock, sellStock, currentTime } = useSimulatorStore()
 
     const [side, setSide] = useState<'buy' | 'sell'>('buy')
     const [sharesInput, setSharesInput] = useState('')
@@ -40,7 +40,7 @@ export function SimulatorOrderPanel({
     const maxSellShares = position?.shares || 0
 
     const canSubmit =
-        ticker &&
+        Boolean(ticker) &&
         currentPrice > 0 &&
         shares > 0 &&
         (side === 'buy' ? total <= balance : shares <= maxSellShares)
@@ -55,14 +55,14 @@ export function SimulatorOrderPanel({
                 return
             }
             buyStock(ticker, tickerName, shares, currentPrice)
-            setSuccess(`${shares} adet ${ticker} alındı`)
+            setSuccess(`${shares} adet ${ticker} alindi`)
         } else {
             if (shares > maxSellShares) {
                 setError('Yeterli hisse yok')
                 return
             }
             sellStock(ticker, shares, currentPrice)
-            setSuccess(`${shares} adet ${ticker} satıldı`)
+            setSuccess(`${shares} adet ${ticker} satildi`)
         }
 
         setSharesInput('')
@@ -81,24 +81,21 @@ export function SimulatorOrderPanel({
         <div className="rounded-xl border border-border bg-card/60 backdrop-blur-sm p-4 space-y-4 lg:sticky lg:top-4">
             <h3 className="text-xs font-semibold text-foreground flex items-center gap-2">
                 <ShoppingCart size={14} className="text-cyan-400" />
-                Emir Girişi
+                Emir Girisi
             </h3>
 
-            {/* No ticker selected */}
             {!ticker && (
                 <button
                     onClick={onSelectTicker}
                     className="w-full py-6 rounded-lg border border-dashed border-border hover:border-cyan-500/30 flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                     <Search size={20} />
-                    <span className="text-xs">Hisse seç</span>
+                    <span className="text-xs">Hisse sec</span>
                 </button>
             )}
 
-            {/* Ticker selected */}
             {ticker && (
                 <>
-                    {/* Ticker Info */}
                     <div className="p-3 rounded-lg bg-secondary/10">
                         <div className="flex items-center justify-between">
                             <div>
@@ -110,17 +107,18 @@ export function SimulatorOrderPanel({
                                     ₺{currentPrice > 0 ? formatCurrency(currentPrice) : '—'}
                                 </p>
                                 <p className="text-[10px] text-muted-foreground">
-                                    {new Date(currentDate).toLocaleDateString('tr-TR', {
+                                    {new Date(currentTime).toLocaleString('tr-TR', {
                                         day: 'numeric',
                                         month: 'short',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
                                     })}{' '}
-                                    kapanış
+                                    mum kapanisi
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Buy / Sell toggle */}
                     <div className="grid grid-cols-2 gap-1 p-1 bg-secondary/10 rounded-lg">
                         <button
                             onClick={() => {
@@ -156,11 +154,8 @@ export function SimulatorOrderPanel({
                         </button>
                     </div>
 
-                    {/* Shares input */}
                     <div className="space-y-1.5">
-                        <label className="text-[10px] text-muted-foreground font-medium">
-                            Adet
-                        </label>
+                        <label className="text-[10px] text-muted-foreground font-medium">Adet</label>
                         <input
                             type="number"
                             value={sharesInput}
@@ -173,28 +168,26 @@ export function SimulatorOrderPanel({
                             placeholder="0"
                             className="w-full bg-secondary/30 rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         />
-                        {/* Quick fill buttons */}
                         <div className="flex gap-1">
-                            {[0.25, 0.5, 0.75, 1.0].map((pct) => (
+                            {[0.25, 0.5, 0.75, 1].map((pct) => (
                                 <button
                                     key={pct}
                                     onClick={() => handleQuickFill(pct)}
                                     className="flex-1 py-1 rounded-md bg-secondary/20 text-[10px] text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
                                 >
-                                    {pct === 1 ? 'Tümü' : `%${pct * 100}`}
+                                    {pct === 1 ? 'Tumu' : `%${pct * 100}`}
                                 </button>
                             ))}
                         </div>
                         <p className="text-[10px] text-muted-foreground">
                             {side === 'buy'
                                 ? `Maks: ${maxBuyShares} adet`
-                                : `Portföyde: ${maxSellShares} adet`}
+                                : `Portfoyde: ${maxSellShares} adet`}
                         </p>
                     </div>
 
-                    {/* Order summary */}
                     {shares > 0 && currentPrice > 0 && (
-                        <div className="rounded-lg bg-secondary/10 p-3 space-y-1.5 animate-in fade-in duration-150">
+                        <div className="rounded-lg bg-secondary/10 p-3 space-y-1.5">
                             <div className="flex justify-between text-[10px] text-muted-foreground">
                                 <span>Fiyat</span>
                                 <span>₺{formatCurrency(currentPrice)}</span>
@@ -213,21 +206,18 @@ export function SimulatorOrderPanel({
                         </div>
                     )}
 
-                    {/* Error */}
                     {error && (
                         <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">
                             {error}
                         </p>
                     )}
 
-                    {/* Success */}
                     {success && (
-                        <p className="text-xs text-emerald-400 bg-emerald-500/10 rounded-lg px-3 py-2 animate-in fade-in">
-                            ✓ {success}
+                        <p className="text-xs text-emerald-400 bg-emerald-500/10 rounded-lg px-3 py-2">
+                            {success}
                         </p>
                     )}
 
-                    {/* Submit */}
                     <button
                         onClick={handleSubmit}
                         disabled={!canSubmit}
@@ -242,7 +232,6 @@ export function SimulatorOrderPanel({
                         {side === 'buy' ? `${ticker} Al` : `${ticker} Sat`}
                     </button>
 
-                    {/* Position info (if exists) */}
                     {position && (
                         <div className="rounded-lg border border-border p-3 space-y-1">
                             <p className="text-[10px] text-muted-foreground font-medium">
@@ -250,30 +239,22 @@ export function SimulatorOrderPanel({
                             </p>
                             <div className="flex justify-between text-xs">
                                 <span className="text-muted-foreground">Adet</span>
-                                <span className="text-foreground font-semibold">
-                                    {position.shares}
-                                </span>
+                                <span className="text-foreground font-semibold">{position.shares}</span>
                             </div>
                             <div className="flex justify-between text-xs">
                                 <span className="text-muted-foreground">Ort. Maliyet</span>
-                                <span className="text-foreground">
-                                    ₺{formatCurrency(position.avgCost)}
-                                </span>
+                                <span className="text-foreground">₺{formatCurrency(position.avgCost)}</span>
                             </div>
                             <div className="flex justify-between text-xs">
-                                <span className="text-muted-foreground">Güncel Fiyat</span>
-                                <span className="text-foreground">
-                                    ₺{formatCurrency(position.currentPrice)}
-                                </span>
+                                <span className="text-muted-foreground">Guncel Fiyat</span>
+                                <span className="text-foreground">₺{formatCurrency(position.currentPrice)}</span>
                             </div>
                             {(() => {
                                 const pnl =
                                     (position.currentPrice - position.avgCost) * position.shares
                                 const pnlPct =
                                     position.avgCost > 0
-                                        ? ((position.currentPrice - position.avgCost) /
-                                              position.avgCost) *
-                                          100
+                                        ? ((position.currentPrice - position.avgCost) / position.avgCost) * 100
                                         : 0
                                 return (
                                     <div className="flex justify-between text-xs pt-1 border-t border-border">
@@ -281,13 +262,10 @@ export function SimulatorOrderPanel({
                                         <span
                                             className={cn(
                                                 'font-semibold',
-                                                pnl >= 0
-                                                    ? 'text-emerald-400'
-                                                    : 'text-red-400'
+                                                pnl >= 0 ? 'text-emerald-400' : 'text-red-400'
                                             )}
                                         >
-                                            {pnl >= 0 ? '+' : ''}₺{formatCurrency(pnl)} (
-                                            {pnlPct.toFixed(2)}%)
+                                            {pnl >= 0 ? '+' : ''}₺{formatCurrency(pnl)} ({pnlPct.toFixed(2)}%)
                                         </span>
                                     </div>
                                 )

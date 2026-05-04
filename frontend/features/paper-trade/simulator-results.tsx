@@ -25,7 +25,6 @@ import {
     BarChart3,
     Clock,
     Wallet,
-    ArrowRight,
     RotateCcw,
     Sparkles,
     DollarSign,
@@ -42,7 +41,7 @@ function formatCurrency(val: number): string {
 
 export function SimulatorResults({ onPlayAgain }: SimulatorResultsProps) {
     const store = useSimulatorStore()
-    const { config, tradeHistory, portfolioSnapshots, positions, balance, peakValue } = store
+    const { config, tradeHistory, portfolioSnapshots, positions } = store
 
     const portfolioValue = getPortfolioValue(store)
     const totalPnL = getTotalPnL(store)
@@ -86,8 +85,8 @@ export function SimulatorResults({ onPlayAgain }: SimulatorResultsProps) {
         }
 
         // Days
-        const startTime = new Date(config.startDate).getTime()
-        const endTime = new Date(config.endDate).getTime()
+        const startTime = new Date(config.startAt).getTime()
+        const endTime = new Date(config.endAt).getTime()
         const totalDays = Math.round((endTime - startTime) / (1000 * 60 * 60 * 24))
 
         return {
@@ -131,13 +130,13 @@ export function SimulatorResults({ onPlayAgain }: SimulatorResultsProps) {
                 </div>
                 <h1 className="text-xl font-bold text-foreground mb-1">Simülasyon Tamamlandı</h1>
                 <p className="text-sm text-muted-foreground">
-                    {new Date(config.startDate).toLocaleDateString('tr-TR', {
+                    {new Date(config.startAt).toLocaleDateString('tr-TR', {
                         day: 'numeric',
                         month: 'long',
                         year: 'numeric',
                     })}{' '}
                     →{' '}
-                    {new Date(config.endDate).toLocaleDateString('tr-TR', {
+                    {new Date(config.endAt).toLocaleDateString('tr-TR', {
                         day: 'numeric',
                         month: 'long',
                         year: 'numeric',
