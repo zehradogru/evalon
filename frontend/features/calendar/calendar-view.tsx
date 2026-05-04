@@ -297,15 +297,16 @@ export function CalendarView({ isWidget = false }: { isWidget?: boolean } = {}) 
   useEffect(() => {
     const list = eventListRef.current
     if (!list) return
+    const listElement = list
 
     function updateSpacer() {
-      setListBottomSpacer(Math.max(list.clientHeight - 96, 0))
+      setListBottomSpacer(Math.max(listElement.clientHeight - 96, 0))
     }
 
     updateSpacer()
 
     const resizeObserver = new ResizeObserver(updateSpacer)
-    resizeObserver.observe(list)
+    resizeObserver.observe(listElement)
     window.addEventListener('resize', updateSpacer)
 
     return () => {
