@@ -15,6 +15,7 @@ import {
     Pencil,
     RefreshCw,
     Save,
+    Search,
     Sparkles,
     TrendingUp,
     Trash2,
@@ -142,6 +143,7 @@ type ExplainScope =
     | { type: 'community'; label: string; description: string; community: CoMovementCommunity }
     | { type: 'pair'; label: string; description: string; pair: CoMovementPair }
     | { type: 'symbols'; label: string; description: string; symbols: string[] }
+type GraphSearchNode = CoMovementResult['graph']['nodes'][number]
 
 function filterGraphBySymbols(result: CoMovementResult, symbols: string[]) {
     const symbolSet = new Set(symbols)
@@ -552,6 +554,120 @@ function GraphFocusBar({
                 >
                     Tüm piyasaya dön
                 </Button>
+            ) : null}
+        </div>
+    )
+}
+
+function GraphNodeSearch({
+    nodes,
+    value,
+    onValueChange,
+    onSelectNode,
+    placeholder = "Graph'ta hisse ara...",
+}: {
+    nodes: GraphSearchNode[]
+    value: string
+    onValueChange: (value: string) => void
+    onSelectNode: (nodeId: string | null) => void
+    placeholder?: string
+}) {
+    const [isOpen, setIsOpen] = useState(false)
+    const trimmedValue = value.trim()
+    const normalizedValue = trimmedValue.toUpperCase()
+    const matches = useMemo(() => {
+        if (!normalizedValue) return []
+
+        return nodes
+            .filter((node) => {
+                const searchable = `${node.id} ${node.label}`.toUpperCase()
+                return searchable.includes(normalizedValue)
+            })
+            .slice(0, 8)
+    }, [nodes, normalizedValue])
+
+    const selectNode = (node: GraphSearchNode) => {
+        onValueChange(node.id)
+        onSelectNode(node.id)
+        setIsOpen(false)
+    }
+
+    const clearSearch = () => {
+        onValueChange('')
+        onSelectNode(null)
+        setIsOpen(false)
+    }
+
+    return (
+        <div className="relative w-full sm:w-64 xl:w-72">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+                value={value}
+                onChange={(event) => {
+                    onValueChange(event.target.value)
+                    setIsOpen(true)
+                }}
+                onFocus={() => setIsOpen(true)}
+                onBlur={() => {
+                    window.setTimeout(() => setIsOpen(false), 120)
+                }}
+                onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault()
+                        if (matches[0]) {
+                            selectNode(matches[0])
+                        }
+                    } else if (event.key === 'Escape') {
+                        setIsOpen(false)
+                    }
+                }}
+                disabled={nodes.length === 0}
+                placeholder={placeholder}
+                aria-label={placeholder}
+                className="h-8 rounded-xl border-border/50 bg-[#111111] pl-8 pr-8 text-xs"
+            />
+            {trimmedValue ? (
+                <button
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={clearSearch}
+                    className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                    aria-label="Graph aramasını temizle"
+                >
+                    <X className="h-3 w-3" />
+                </button>
+            ) : null}
+            {isOpen && trimmedValue ? (
+                <div className="absolute right-0 z-30 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-border/70 bg-[#0b0b0b] shadow-xl">
+                    {matches.length === 0 ? (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                            Görünen graph içinde eşleşme yok.
+                        </div>
+                    ) : (
+                        matches.map((node) => (
+                            <button
+                                key={node.id}
+                                type="button"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => selectNode(node)}
+                                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/40"
+                            >
+                                <span className="flex min-w-0 items-center gap-2">
+                                    <span
+                                        className="h-2 w-2 shrink-0 rounded-full"
+                                        style={{ backgroundColor: communityColor(node.community_id) }}
+                                    />
+                                    <span className="truncate font-medium text-foreground">
+                                        {node.id}
+                                    </span>
+                                </span>
+                                <span className="truncate text-[11px] text-muted-foreground">
+                                    {node.label}
+                                </span>
+                            </button>
+                        ))
+                    )}
+                </div>
             ) : null}
         </div>
     )
@@ -1627,19 +1743,24 @@ function NodeDetailCard({
     visibleNodes,
     visibleEdges,
     onClose,
+    onSelectCommunity,
 }: {
     result: CoMovementResult
     selectedNodeId: string | null
     visibleNodes?: CoMovementResult['graph']['nodes']
     visibleEdges?: CoMovementResult['graph']['edges']
     onClose?: () => void
+    onSelectCommunity?: (communityId: number) => void
 }) {
     const nodes = visibleNodes ?? result.graph.nodes
     const edges = visibleEdges ?? result.graph.edges
     const node = nodes.find((item) => item.id === selectedNodeId) ?? null
-    const community = result.communities.find(
-        (item) => item.community_id === node?.community_id
+    const nodeCommunities = result.communities.filter((item) =>
+        selectedNodeId ? item.stocks.includes(selectedNodeId) : false
     )
+    const community =
+        nodeCommunities[0] ??
+        result.communities.find((item) => item.community_id === node?.community_id)
     const connections = edges
         .filter(
             (edge) =>
@@ -1687,7 +1808,7 @@ function NodeDetailCard({
                             }}
                         >
                             <div className="flex items-start justify-between gap-2">
-                                <div>
+                                <div className="min-w-0 flex-1">
                                     <p
                                         className="text-lg font-bold tracking-tight"
                                         style={{ color: nodeColor }}
@@ -1698,6 +1819,40 @@ function NodeDetailCard({
                                         Grup {node.community_id ?? '—'}
                                         {community ? ` · ${community.size} hisse` : ''}
                                     </p>
+                                    {nodeCommunities.length > 0 ? (
+                                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                            {nodeCommunities.map((item) => {
+                                                const color = communityColor(item.community_id)
+                                                return (
+                                                    <button
+                                                        key={item.community_id}
+                                                        type="button"
+                                                        onClick={() => onSelectCommunity?.(item.community_id)}
+                                                        disabled={!onSelectCommunity}
+                                                        className="inline-flex min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-medium transition-colors hover:bg-background/30 disabled:cursor-default"
+                                                        style={{
+                                                            borderColor: `${color}35`,
+                                                            backgroundColor: `${color}10`,
+                                                            color,
+                                                        }}
+                                                        aria-label={`G${item.community_id} grubunu göster`}
+                                                    >
+                                                        <span
+                                                            className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                                            style={{ backgroundColor: color }}
+                                                        />
+                                                        <span>Grubu göster</span>
+                                                        <span className="font-semibold">
+                                                            G{item.community_id}
+                                                        </span>
+                                                        <span className="text-muted-foreground">
+                                                            {item.size}
+                                                        </span>
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+                                    ) : null}
                                 </div>
                                 <span
                                     className="mt-1.5 h-3 w-3 rounded-full ring-2 ring-inset ring-white/20"
@@ -1864,6 +2019,7 @@ function SnapshotExplorerView({
     const [showAdvancedSnapshotMatrices, setShowAdvancedSnapshotMatrices] =
         useState(false)
     const [selectedSnapshotNodeId, setSelectedSnapshotNodeId] = useState<string | null>(null)
+    const [snapshotGraphSearch, setSnapshotGraphSearch] = useState('')
     const [snapshotExplanation, setSnapshotExplanation] =
         useState<CoMovementExplainResponse | null>(null)
     const [snapshotExplainDraft, setSnapshotExplainDraft] = useState('')
@@ -1956,6 +2112,21 @@ function SnapshotExplorerView({
     )
         ? selectedSnapshotNodeId
         : defaultSnapshotNodeId
+
+    const selectSnapshotGraphNode = (nodeId: string | null) => {
+        setSelectedSnapshotNodeId(nodeId)
+        setSnapshotGraphSearch(nodeId ?? '')
+    }
+
+    const resetSnapshotGraphSelection = () => {
+        setSelectedSnapshotNodeId(null)
+        setSnapshotGraphSearch('')
+    }
+
+    const handleSnapshotRefresh = () => {
+        resetSnapshotGraphSelection()
+        onRefresh?.()
+    }
 
     const snapshotPearsonMatrix = useLatestCoMovementMatrix(
         'pearson',
@@ -2186,7 +2357,7 @@ function SnapshotExplorerView({
 
             {/* B: Ağ grafiği + topluluk / hisse detay kenar paneli */}
             <div className="overflow-hidden rounded-2xl border border-border/60 bg-[#080808]">
-                <div className="flex items-center justify-between gap-4 border-b border-border/50 px-5 py-3.5">
+                <div className="flex flex-col gap-3 border-b border-border/50 px-5 py-3.5 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2862ff]/10 text-[#2862ff]">
                             <Network className="h-4 w-4" />
@@ -2198,47 +2369,54 @@ function SnapshotExplorerView({
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1 rounded-xl bg-[#111111] p-1">
-                            {(['market', 'focus'] as const).map((scope) => (
-                                <button
-                                    key={scope}
+                    <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:w-auto">
+                        <GraphNodeSearch
+                            nodes={snapshotGraphData.nodes}
+                            value={snapshotGraphSearch}
+                            onValueChange={setSnapshotGraphSearch}
+                            onSelectNode={selectSnapshotGraphNode}
+                            placeholder="Snapshot graph'ta hisse ara..."
+                        />
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 rounded-xl bg-[#111111] p-1">
+                                {(['market', 'focus'] as const).map((scope) => (
+                                    <button
+                                        key={scope}
+                                        type="button"
+                                        onClick={() => {
+                                            setSnapshotGraphScope(scope)
+                                            resetSnapshotGraphSelection()
+                                        }}
+                                        className={cn(
+                                            'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
+                                            snapshotGraphScope === scope
+                                                ? 'bg-[#1e1e1e] text-foreground shadow-sm'
+                                                : 'text-muted-foreground hover:text-foreground/70'
+                                        )}
+                                    >
+                                        {scope === 'market' ? 'Tüm Piyasa' : 'Odaklı'}
+                                    </button>
+                                ))}
+                            </div>
+                            {onRefresh ? (
+                                <Button
                                     type="button"
-                                    onClick={() => {
-                                        setSnapshotGraphScope(scope)
-                                        if (scope === 'market') {
-                                            setSelectedSnapshotNodeId(null)
-                                        }
-                                    }}
-                                    className={cn(
-                                        'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
-                                        snapshotGraphScope === scope
-                                            ? 'bg-[#1e1e1e] text-foreground shadow-sm'
-                                            : 'text-muted-foreground hover:text-foreground/70'
-                                    )}
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 w-8 rounded-xl p-0"
+                                    onClick={handleSnapshotRefresh}
+                                    disabled={isRefreshing}
+                                    aria-label="Snapshot yenile"
                                 >
-                                    {scope === 'market' ? 'Tüm Piyasa' : 'Odaklı'}
-                                </button>
-                            ))}
+                                    <RefreshCw
+                                        className={cn(
+                                            'h-3.5 w-3.5',
+                                            isRefreshing && 'animate-spin'
+                                        )}
+                                    />
+                                </Button>
+                            ) : null}
                         </div>
-                        {onRefresh ? (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-8 w-8 rounded-xl p-0"
-                                onClick={onRefresh}
-                                disabled={isRefreshing}
-                                aria-label="Snapshot yenile"
-                            >
-                                <RefreshCw
-                                    className={cn(
-                                        'h-3.5 w-3.5',
-                                        isRefreshing && 'animate-spin'
-                                    )}
-                                />
-                            </Button>
-                        ) : null}
                     </div>
                 </div>
 
@@ -2248,7 +2426,7 @@ function SnapshotExplorerView({
                     isFocused={snapshotGraphScope === 'focus' || Boolean(selectedSnapshotNodeId)}
                     onReset={() => {
                         setSnapshotGraphScope('market')
-                        setSelectedSnapshotNodeId(null)
+                        resetSnapshotGraphSelection()
                     }}
                 />
 
@@ -2261,7 +2439,7 @@ function SnapshotExplorerView({
                             nodes={snapshotGraphData.nodes}
                             edges={snapshotGraphData.edges}
                             selectedNodeId={effectiveSelectedSnapshotNodeId}
-                            onSelectNode={setSelectedSnapshotNodeId}
+                            onSelectNode={selectSnapshotGraphNode}
                             height={550}
                             bare
                         />
@@ -2275,7 +2453,12 @@ function SnapshotExplorerView({
                                 selectedNodeId={selectedSnapshotNodeId}
                                 visibleNodes={snapshotGraphData.nodes}
                                 visibleEdges={snapshotGraphData.edges}
-                                onClose={() => setSelectedSnapshotNodeId(null)}
+                                onClose={() => selectSnapshotGraphNode(null)}
+                                onSelectCommunity={(communityId) => {
+                                    setSnapshotGraphScope('focus')
+                                    setSnapshotFocusMode('community')
+                                    setSelectedCommunityId(communityId)
+                                }}
                             />
                         ) : (
                             <>
@@ -2312,7 +2495,7 @@ function SnapshotExplorerView({
                                                                 setSnapshotGraphScope('focus')
                                                                 setSnapshotFocusMode('community')
                                                                 setSelectedCommunityId(community.community_id)
-                                                                setSelectedSnapshotNodeId(null)
+                                                                resetSnapshotGraphSelection()
                                                             }}
                                                             className="relative w-full overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-all"
                                                             style={{
@@ -2406,7 +2589,7 @@ function SnapshotExplorerView({
                                         onClick={() => {
                                             setSnapshotFocusMode(mode)
                                             setSnapshotGraphScope('focus')
-                                            setSelectedSnapshotNodeId(null)
+                                            resetSnapshotGraphSelection()
                                         }}
                                         disabled={snapshotMode !== 'latest'}
                                         className={cn(
@@ -2435,7 +2618,7 @@ function SnapshotExplorerView({
                                         setSnapshotFocusMode('community')
                                         setSnapshotGraphScope('focus')
                                         setSelectedCommunityId(Number(event.target.value))
-                                        setSelectedSnapshotNodeId(null)
+                                        resetSnapshotGraphSelection()
                                     }}
                                     disabled={snapshotMode !== 'latest'}
                                 >
@@ -2462,7 +2645,7 @@ function SnapshotExplorerView({
                                         setSnapshotFocusMode('pair')
                                         setSnapshotGraphScope('focus')
                                         setSelectedPairKey(event.target.value)
-                                        setSelectedSnapshotNodeId(null)
+                                        resetSnapshotGraphSelection()
                                     }}
                                     disabled={snapshotMode !== 'latest'}
                                 >
@@ -2487,7 +2670,7 @@ function SnapshotExplorerView({
                                     setSnapshotFocusMode('manual')
                                     setSnapshotGraphScope('focus')
                                     setManualSnapshotSymbols(symbols)
-                                    setSelectedSnapshotNodeId(null)
+                                    resetSnapshotGraphSelection()
                                 }}
                                 maxSymbols={12}
                                 disabled={snapshotMode !== 'latest'}
@@ -2571,6 +2754,7 @@ export function CoMovementSection() {
     const deleteSavedAnalysisMutation = useDeleteSavedCoMovementAnalysis(currentUserId)
     const renameSavedAnalysisMutation = useRenameSavedCoMovementAnalysis(currentUserId)
     const [selectedAnalysisNodeId, setSelectedAnalysisNodeId] = useState<string | null>(null)
+    const [customGraphSearch, setCustomGraphSearch] = useState('')
     const [analysisExplanation, setAnalysisExplanation] = useState<CoMovementExplainResponse | null>(null)
     const [analysisExplainDraft, setAnalysisExplainDraft] = useState('')
     const [analysisExplainError, setAnalysisExplainError] = useState<string | null>(null)
@@ -2584,6 +2768,16 @@ export function CoMovementSection() {
             ) ?? null,
         [loadedSavedAnalysisId, savedAnalysesQuery.data]
     )
+
+    const selectCustomGraphNode = (nodeId: string | null) => {
+        setSelectedAnalysisNodeId(nodeId)
+        setCustomGraphSearch(nodeId ?? '')
+    }
+
+    const resetCustomGraphSelection = () => {
+        setSelectedAnalysisNodeId(null)
+        setCustomGraphSearch('')
+    }
 
     const currentSnapshot = latestSnapshotQuery.data ?? null
 
@@ -2677,7 +2871,7 @@ export function CoMovementSection() {
         const response = await analyzeMutation.mutateAsync(customAnalyzeRequest)
 
         setCustomResult(response)
-        setSelectedAnalysisNodeId(null)
+        resetCustomGraphSelection()
         setSelectedCustomCommunityId(null)
         setCustomGraphScope('market')
         setLoadedSavedAnalysisId(null)
@@ -2831,6 +3025,7 @@ export function CoMovementSection() {
         setAnalysisExplainDraft(saved.explanation?.summary ?? '')
         setAnalysisExplainError(null)
         applySavedExplanationScope(saved.explanationScope)
+        setCustomGraphSearch('')
     }
 
     const handleRenameSavedAnalysis = async (analysisId: string, title: string) => {
@@ -2851,7 +3046,7 @@ export function CoMovementSection() {
         setAnalysisExplainDraft('')
         setAnalysisExplainError(null)
         setAnalysisExplanationScopeKey('')
-        setSelectedAnalysisNodeId(null)
+        resetCustomGraphSelection()
         setSelectedCustomCommunityId(null)
         setCustomGraphScope('market')
     }
@@ -3318,7 +3513,7 @@ export function CoMovementSection() {
 
                             {/* Analiz grafiği + topluluk kenar paneli */}
                             <div className="overflow-hidden rounded-2xl border border-border/60 bg-[#080808]">
-                                <div className="flex items-center justify-between gap-4 border-b border-border/50 px-5 py-3.5">
+                                <div className="flex flex-col gap-3 border-b border-border/50 px-5 py-3.5 lg:flex-row lg:items-center lg:justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2862ff]/10 text-[#2862ff]">
                                             <Network className="h-4 w-4" />
@@ -3330,33 +3525,42 @@ export function CoMovementSection() {
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-1 rounded-xl bg-[#111111] p-1">
-                                        {(['market', 'focus'] as const).map((scope) => (
-                                            <button
-                                                key={scope}
-                                                type="button"
-                                                onClick={() => {
-                                                    setCustomGraphScope(scope)
-                                                    setSelectedAnalysisNodeId(null)
-                                                    if (
-                                                        scope === 'focus' &&
-                                                        selectedCustomCommunityId === null
-                                                    ) {
-                                                        setSelectedCustomCommunityId(
-                                                            customResult.communities[0]?.community_id ?? null
-                                                        )
-                                                    }
-                                                }}
-                                                className={cn(
-                                                    'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
-                                                    customGraphScope === scope
-                                                        ? 'bg-[#1e1e1e] text-foreground shadow-sm'
-                                                        : 'text-muted-foreground hover:text-foreground/70'
-                                                )}
-                                            >
-                                                {scope === 'market' ? 'Tüm' : 'Odaklı'}
-                                            </button>
-                                        ))}
+                                    <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:w-auto">
+                                        <GraphNodeSearch
+                                            nodes={customGraphData.nodes}
+                                            value={customGraphSearch}
+                                            onValueChange={setCustomGraphSearch}
+                                            onSelectNode={selectCustomGraphNode}
+                                            placeholder="Analiz graph'ında hisse ara..."
+                                        />
+                                        <div className="flex items-center gap-1 rounded-xl bg-[#111111] p-1">
+                                            {(['market', 'focus'] as const).map((scope) => (
+                                                <button
+                                                    key={scope}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setCustomGraphScope(scope)
+                                                        resetCustomGraphSelection()
+                                                        if (
+                                                            scope === 'focus' &&
+                                                            selectedCustomCommunityId === null
+                                                        ) {
+                                                            setSelectedCustomCommunityId(
+                                                                customResult.communities[0]?.community_id ?? null
+                                                            )
+                                                        }
+                                                    }}
+                                                    className={cn(
+                                                        'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
+                                                        customGraphScope === scope
+                                                            ? 'bg-[#1e1e1e] text-foreground shadow-sm'
+                                                            : 'text-muted-foreground hover:text-foreground/70'
+                                                    )}
+                                                >
+                                                    {scope === 'market' ? 'Tüm' : 'Odaklı'}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -3366,7 +3570,7 @@ export function CoMovementSection() {
                                     isFocused={customGraphScope === 'focus' || Boolean(selectedAnalysisNodeId)}
                                     onReset={() => {
                                         setCustomGraphScope('market')
-                                        setSelectedAnalysisNodeId(null)
+                                        resetCustomGraphSelection()
                                     }}
                                 />
 
@@ -3378,7 +3582,7 @@ export function CoMovementSection() {
                                             nodes={customGraphData.nodes}
                                             edges={customGraphData.edges}
                                             selectedNodeId={effectiveSelectedAnalysisNodeId}
-                                            onSelectNode={setSelectedAnalysisNodeId}
+                                            onSelectNode={selectCustomGraphNode}
                                             height={500}
                                             bare
                                         />
@@ -3391,7 +3595,11 @@ export function CoMovementSection() {
                                                 selectedNodeId={selectedAnalysisNodeId}
                                                 visibleNodes={customGraphData.nodes}
                                                 visibleEdges={customGraphData.edges}
-                                                onClose={() => setSelectedAnalysisNodeId(null)}
+                                                onClose={() => selectCustomGraphNode(null)}
+                                                onSelectCommunity={(communityId) => {
+                                                    setCustomGraphScope('focus')
+                                                    setSelectedCustomCommunityId(communityId)
+                                                }}
                                             />
                                         ) : (
                                             <>
@@ -3427,7 +3635,7 @@ export function CoMovementSection() {
                                                                             onClick={() => {
                                                                                 setCustomGraphScope('focus')
                                                                                 setSelectedCustomCommunityId(community.community_id)
-                                                                                setSelectedAnalysisNodeId(null)
+                                                                                resetCustomGraphSelection()
                                                                             }}
                                                                             className="relative w-full overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-all"
                                                                             style={{
