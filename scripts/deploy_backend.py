@@ -5,9 +5,11 @@ sonra Cloud Run'ı yeni image ile güncelle.
 import subprocess
 import sys
 import json
+import shlex
 from datetime import datetime
 from google.oauth2 import service_account
-import google.auth.transport.requests
+
+GCLOUD = r'C:\Users\zehra\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd'
 
 KEY_FILE = r'C:\Users\zehra\Masaüstü\evalonn\backend\evalon-490523-cb27db47fd0a.json'
 PROJECT_ID = 'evalon-490523'
@@ -21,46 +23,22 @@ credentials = service_account.Credentials.from_service_account_file(
     KEY_FILE, scopes=['https://www.googleapis.com/auth/cloud-platform']
 )
 
-# Get access token for Docker auth
-request = google.auth.transport.requests.Request()
-credentials.refresh(request)
-token = credentials.token
-
-print('[1] Authenticating Docker with Artifact Registry...')
-auth_result = subprocess.run(
-    ['docker', 'login', '-u', 'oauth2accesstoken', '--password-stdin',
-     f'{REGION}-docker.pkg.dev'],
-    input=token.encode(),
-    capture_output=True
-)
-if auth_result.returncode != 0:
-    print('FAIL:', auth_result.stderr.decode())
-    sys.exit(1)
-print('[OK] Docker auth')
-
-print(f'[2] Building image: {IMAGE}...')
+print(f'[1] Building & pushing image via Cloud Build: {IMAGE}...')
 build_result = subprocess.run(
-    ['docker', 'build', '--no-cache', '-t', IMAGE, '.'],
+    [GCLOUD, 'builds', 'submit',
+     '--tag', IMAGE,
+     '--project', PROJECT_ID,
+     '.'],
     cwd=r'C:\Users\zehra\Masaüstü\evalonn\backend\backtest',
-    capture_output=False  # show live output
 )
 if build_result.returncode != 0:
-    print('FAIL: docker build')
+    print('FAIL: gcloud builds submit')
     sys.exit(1)
-print('[OK] Build')
-
-print(f'[3] Pushing {IMAGE}...')
-push_result = subprocess.run(
-    ['docker', 'push', IMAGE],
-    capture_output=False
-)
-if push_result.returncode != 0:
-    print('FAIL: docker push')
-    sys.exit(1)
-print('[OK] Push')
+print('[OK] Build & Push')
 
 print('[4] Deploying to Cloud Run...')
 from google.cloud import run_v2
+from google.cloud.run_v2.types import VpcAccess
 
 run_credentials = service_account.Credentials.from_service_account_file(
     KEY_FILE, scopes=['https://www.googleapis.com/auth/cloud-platform']
@@ -74,19 +52,29 @@ for container in service.template.containers:
     container.image = IMAGE
     print(f'  Image set to: {IMAGE}')
 
+    # REDIS_URL sırrını ekle/güncelle
+    from google.cloud.run_v2.types import EnvVar, EnvVarSource, SecretKeySelector
+    redis_env = EnvVar(
+        name='REDIS_URL',
+        value_source=EnvVarSource(
+            secret_key_ref=SecretKeySelector(
+                secret=f'projects/{PROJECT_ID}/secrets/REDIS_URL',
+                version='latest',
+            )
+        ),
+    )
+    # Mevcut REDIS_URL env var'ını kaldır (adına göre), sonra yenisini ekle
+    container.env[:] = [ev for ev in container.env if ev.name != 'REDIS_URL']
+    container.env.append(redis_env)
+    print('  REDIS_URL secret bağlandı.')
+
+# Serverless VPC Access connector ekle (Memorystore erişimi için zorunlu)
+vpc_connector = f'projects/{PROJECT_ID}/locations/{REGION}/connectors/evalon-vpc-connector'
+service.template.vpc_access.connector = vpc_connector
+service.template.vpc_access.egress = VpcAccess.VpcEgress.ALL_TRAFFIC
+print(f'  VPC connector: {vpc_connector}')
+
 operation = client.update_service(service=service)
 result = operation.result(timeout=180)
-print(f'[OK] Deployed: {result.uri}')
+print('[OK] Deployed: ' + result.uri)
 
-# --- Cleanup local Docker images (keep only latest tag) ---
-print('[5] Cleaning up local Docker images...')
-subprocess.run(['docker', 'image', 'prune', '-f'], capture_output=True)
-ls_result = subprocess.run(
-    ['docker', 'images', IMAGE_BASE, '--format', '{{.Tag}}\t{{.ID}}'],
-    capture_output=True, text=True
-)
-for line in ls_result.stdout.strip().splitlines():
-    parts = line.split('\t')
-    if len(parts) == 2 and parts[0] != TAG and parts[0] != '<none>':
-        subprocess.run(['docker', 'rmi', f'{IMAGE_BASE}:{parts[0]}'], capture_output=True)
-print('[OK] Cleanup done')

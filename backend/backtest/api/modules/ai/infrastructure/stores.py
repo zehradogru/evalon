@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import json
+import logging
 from copy import deepcopy
 from pathlib import Path
 from threading import Lock
-from typing import Dict, List,  Union, Optional, Any
+from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
 
 from api.modules.ai.domain.models import AiAssetRecord, AiSessionRecord, utc_epoch_seconds
+
+logger = logging.getLogger(__name__)
+
+_SESSION_TTL = 18000  # 5 saat
 
 
 class InMemoryAiSessionStore:
@@ -33,6 +38,96 @@ class InMemoryAiSessionStore:
         with self._lock:
             record = self._records.get(session_id)
             return record.model_copy(deep=True) if record is not None else None
+
+
+class RedisAiSessionStore:
+    """
+    AiSessionRecord'ları Redis'te saklayan store.
+    InMemoryAiSessionStore ile aynı arayüzü sunar; bağlantı hatalarında
+    sessizce None döner.
+    """
+
+    def __init__(self, redis: Any) -> None:
+        self._redis = redis
+
+    @staticmethod
+    def _key(session_id: str) -> str:
+        return f"ai:session:{session_id}"
+
+    @staticmethod
+    def _serialize(session: AiSessionRecord) -> str:
+        return session.model_dump_json()
+
+    @staticmethod
+    def _deserialize(raw: str) -> AiSessionRecord:
+        return AiSessionRecord.model_validate_json(raw)
+
+    def _run_async(self, coro: Any) -> Any:
+        import asyncio
+
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            import concurrent.futures
+
+            future = asyncio.run_coroutine_threadsafe(coro, loop)
+            return future.result(timeout=5)
+        return loop.run_until_complete(coro)
+
+    def create(self, user_id: str, title: Optional[str] = None) -> AiSessionRecord:
+        session = AiSessionRecord(
+            session_id=f"aisess_{uuid4().hex}",
+            user_id=user_id,
+            title=title,
+        )
+        try:
+            self._run_async(
+                self._redis.set(self._key(session.session_id), self._serialize(session), ex=_SESSION_TTL)
+            )
+        except Exception as exc:
+            logger.warning("RedisAiSessionStore.create hatası (%s): %s", session.session_id, exc)
+        return session
+
+    def save(self, session: AiSessionRecord) -> None:
+        try:
+            self._run_async(
+                self._redis.set(self._key(session.session_id), self._serialize(session), ex=_SESSION_TTL)
+            )
+        except Exception as exc:
+            logger.warning("RedisAiSessionStore.save hatası (%s): %s", session.session_id, exc)
+
+    def get(self, session_id: str) -> Optional[AiSessionRecord]:
+        try:
+            raw = self._run_async(self._redis.get(self._key(session_id)))
+            if raw is None:
+                return None
+            return self._deserialize(raw)
+        except Exception as exc:
+            logger.warning("RedisAiSessionStore.get hatası (%s): %s", session_id, exc)
+            return None
+
+
+def create_ai_session_store(redis: Any = None) -> Union[RedisAiSessionStore, InMemoryAiSessionStore]:
+    """Redis varsa RedisAiSessionStore, yoksa InMemoryAiSessionStore döner."""
+    if redis is not None:
+        logger.info("AiSessionStore: Redis kullanılıyor.")
+        return RedisAiSessionStore(redis)
+    logger.info("AiSessionStore: InMemory kullanılıyor.")
+    return InMemoryAiSessionStore()
+
+
+class AiSessionStoreProxy:
+    """
+    İnce proxy — startup'ta backing store'u Redis ile değiştirmeye izin verir.
+    """
+
+    def __init__(self) -> None:
+        self._store: Any = InMemoryAiSessionStore()
+
+    def _set_store(self, store: Any) -> None:
+        self._store = store
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._store, name)
 
 
 class JsonFileAiAssetStore:

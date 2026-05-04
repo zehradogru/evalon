@@ -20,6 +20,7 @@ from api.modules.ai.infrastructure.llm.gemini_gateway import GeminiLlmGateway
 from api.modules.ai.infrastructure.stores import InMemoryAiSessionStore, JsonFileAiAssetStore
 from api.modules.ai.infrastructure.tool_gateway import AiToolGateway
 from api.modules.backtests.infrastructure.run_store import InMemoryRunStore
+from typing import Union
 
 
 class CreateAiSessionRequest(BaseModel):
@@ -44,11 +45,13 @@ def create_ai_router(
     *,
     client: BistPricesClient,
     test_loader: Any,
-    run_store: InMemoryRunStore,
+    run_store: Any,
     asset_store_path: Union[str, Path],
+    session_store: Any = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/v1", tags=["ai"])
-    session_store = InMemoryAiSessionStore()
+    if session_store is None:
+        session_store = InMemoryAiSessionStore()
     asset_store = JsonFileAiAssetStore(asset_store_path)
     tool_gateway = AiToolGateway(
         client=client,

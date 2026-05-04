@@ -23,8 +23,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from api.modules.ai.presentation.router import create_ai_router
-from api.modules.backtests.infrastructure.run_store import InMemoryRunStore
+from api.modules.backtests.infrastructure.run_store import InMemoryRunStore, create_run_store, RunStoreProxy
+from api.modules.ai.infrastructure.stores import create_ai_session_store, AiSessionStoreProxy
 from api.modules.backtests.presentation.router import create_backtest_router
+from api.infrastructure.redis_client import init_redis, close_redis, get_redis, is_redis_connected
 from api.modules.co_movement.presentation.router import create_co_movement_router
 from api.screener import create_screener_router, get_all_tickers
 from api.calendar_router import create_calendar_router
@@ -238,13 +240,21 @@ def _resolve_co_movement_store_path() -> Path:
 
 
 client = _build_client()
-backtest_run_store = InMemoryRunStore()
+backtest_run_store = RunStoreProxy()
+_ai_session_store = AiSessionStoreProxy()
 app = FastAPI(title="BIST Prices API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
     **_cors_options(),
 )
+
+
+@app.on_event("startup")
+async def _startup() -> None:
+    redis = await init_redis()
+    backtest_run_store._set_store(create_run_store(redis))
+    _ai_session_store._set_store(create_ai_session_store(redis))
 
 
 class Bar(BaseModel):
@@ -347,6 +357,52 @@ class MarketOverviewResponse(BaseModel):
 _BATCH_CACHE_TTL_SECONDS = 5 * 60
 _BATCH_STALE_TTL_SECONDS = 30 * 60
 _batch_price_cache: Dict[str, Tuple[float, BatchPricesResponse]] = {}
+
+
+def _batch_redis_get(cache_key: str) -> Optional[BatchPricesResponse]:
+    """Redis'ten batch price cache'ini senkron okur."""
+    import asyncio
+
+    redis = get_redis()
+    if redis is None:
+        return None
+    try:
+        full_key = f"batch:prices:{cache_key}"
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            import concurrent.futures
+
+            raw = asyncio.run_coroutine_threadsafe(redis.get(full_key), loop).result(timeout=3)
+        else:
+            raw = loop.run_until_complete(redis.get(full_key))
+        if raw is None:
+            return None
+        return BatchPricesResponse.model_validate_json(raw)
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Batch Redis GET hatası: %s", exc)
+        return None
+
+
+def _batch_redis_set(cache_key: str, response: BatchPricesResponse, ttl: int) -> None:
+    """Redis'e batch price cache'ini senkron yazar."""
+    import asyncio
+
+    redis = get_redis()
+    if redis is None:
+        return
+    try:
+        full_key = f"batch:prices:{cache_key}"
+        raw = response.model_dump_json()
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            import concurrent.futures
+
+            asyncio.run_coroutine_threadsafe(redis.set(full_key, raw, ex=ttl), loop).result(timeout=3)
+        else:
+            loop.run_until_complete(redis.set(full_key, raw, ex=ttl))
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Batch Redis SET hatası: %s", exc)
+
 
 _TICKER_NAMES: Dict[str, str] = {
     "THYAO": "Turkish Airlines",
@@ -510,6 +566,13 @@ def _build_prices_batch(
         if age_seconds < _BATCH_CACHE_TTL_SECONDS:
             return _copy_batch_response(cached[1], cached=True, stale=False, source="cache")
 
+    # In-memory cache miss — Redis'e bak (multi-instance paylaşımı)
+    if not refresh and not cached:
+        redis_resp = _batch_redis_get(cache_key)
+        if redis_resp is not None:
+            _batch_price_cache[cache_key] = (now, redis_resp)
+            return _copy_batch_response(redis_resp, cached=True, stale=False, source="redis-cache")
+
     results: List[BatchTickerResult] = []
     failed_tickers: List[str] = []
 
@@ -548,6 +611,7 @@ def _build_prices_batch(
 
     if successful:
         _batch_price_cache[cache_key] = (now, live_response)
+        _batch_redis_set(cache_key, live_response, _BATCH_CACHE_TTL_SECONDS)
 
     if cached and live_response.successCount < cached[1].successCount:
         age_seconds = now - cached[0]
@@ -832,6 +896,7 @@ app.include_router(
         test_loader=_load_test_ohlcv,
         run_store=backtest_run_store,
         asset_store_path=_resolve_ai_asset_store_path(),
+        session_store=_ai_session_store,
     )
 )
 app.include_router(
@@ -859,8 +924,8 @@ def index() -> Dict[str, Any]:
 
 
 @app.get("/health")
-def health() -> Dict[str, str]:
-    return {"status": "ok"}
+def health() -> Dict[str, Any]:
+    return {"status": "ok", "redis_connected": is_redis_connected()}
 
 
 @app.get("/v1/prices", response_model=PricesResponse)
@@ -1439,8 +1504,9 @@ def get_news(
 
 
 @app.on_event("shutdown")
-def _shutdown() -> None:
+async def _shutdown() -> None:
     try:
         client.close_pool()
     except Exception:
         pass
+    await close_redis()
