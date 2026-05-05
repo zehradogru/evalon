@@ -12,6 +12,7 @@ const USER_SCOPED_QUERY_KEYS = new Set([
     'dashboard-watchlist',
     'user-alerts',
     'alert-rules',
+    'news-alert-rules',
     'notifications',
     'notifications-unread-count',
     'notification-devices',

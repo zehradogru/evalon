@@ -1,8 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { Card } from '@/components/ui/card'
-import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Bell, Moon, Sun, Globe } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -55,21 +55,6 @@ function SettingsForm({
     initialPreferences.currency
   )
   const [theme, setTheme] = useState<AppTheme>(initialPreferences.theme)
-  const [pushEnabled, setPushEnabled] = useState(
-    initialPreferences.notifications.pushEnabled
-  )
-  const [priceAlerts, setPriceAlerts] = useState(
-    initialPreferences.notifications.priceAlerts
-  )
-  const [indicatorAlerts, setIndicatorAlerts] = useState(
-    initialPreferences.notifications.indicatorAlerts
-  )
-  const [newsAlerts, setNewsAlerts] = useState(
-    initialPreferences.notifications.newsAlerts
-  )
-  const [newsDigest, setNewsDigest] = useState(
-    initialPreferences.notifications.newsDigest
-  )
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -89,30 +74,20 @@ function SettingsForm({
   const hasChanges =
     language !== savedPreferences.language ||
     currency !== savedPreferences.currency ||
-    theme !== savedPreferences.theme ||
-    pushEnabled !== savedPreferences.notifications.pushEnabled ||
-    priceAlerts !== savedPreferences.notifications.priceAlerts ||
-    indicatorAlerts !== savedPreferences.notifications.indicatorAlerts ||
-    newsAlerts !== savedPreferences.notifications.newsAlerts ||
-    newsDigest !== savedPreferences.notifications.newsDigest
+    theme !== savedPreferences.theme
 
   const handleSaveSettings = async () => {
     setFeedback(null)
     const nextPreferences: UserPreferences = {
+      ...savedPreferences,
       language,
       currency,
       theme,
-      notifications: {
-        pushEnabled,
-        priceAlerts,
-        indicatorAlerts,
-        newsAlerts,
-        newsDigest,
-      },
     }
 
     try {
-      await updatePreferencesMutation.mutateAsync(nextPreferences)
+      await updatePreferencesMutation.mutateAsync({ language, currency, theme })
+
       setSavedPreferences(nextPreferences)
       setFeedback({
         type: 'success',
@@ -225,81 +200,20 @@ function SettingsForm({
             <Bell size={20} /> Notifications
           </h3>
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Push Notifications</Label>
-                {!isWidget && (
-                  <div className="text-muted-foreground text-sm">
-                    Allow browser push delivery for notification rules
-                  </div>
-                )}
-              </div>
-              <Switch
-                checked={pushEnabled}
-                onCheckedChange={setPushEnabled}
-                disabled={controlsDisabled}
-              />
+            <div className="text-muted-foreground text-sm">
+              Notification controls now live in the notification workspace so
+              inbox, rules, preferences, and device push state stay together.
             </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Price Alerts</Label>
-                {!isWidget && (
-                  <div className="text-muted-foreground text-sm">
-                    Receive notifications for price targets
-                  </div>
-                )}
-              </div>
-              <Switch
-                checked={priceAlerts}
-                onCheckedChange={setPriceAlerts}
-                disabled={controlsDisabled}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Indicator Alerts</Label>
-                {!isWidget && (
-                  <div className="text-muted-foreground text-sm">
-                    Include indicator and crossover rule notifications
-                  </div>
-                )}
-              </div>
-              <Switch
-                checked={indicatorAlerts}
-                onCheckedChange={setIndicatorAlerts}
-                disabled={controlsDisabled}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Watchlist News Alerts</Label>
-                {!isWidget && (
-                  <div className="text-muted-foreground text-sm">
-                    Deliver grouped watchlist news notifications to inbox and
-                    browser push
-                  </div>
-                )}
-              </div>
-              <Switch
-                checked={newsAlerts}
-                onCheckedChange={setNewsAlerts}
-                disabled={controlsDisabled}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>News Digest</Label>
-                {!isWidget && (
-                  <div className="text-muted-foreground text-sm">
-                    Daily summary of market news
-                  </div>
-                )}
-              </div>
-              <Switch
-                checked={newsDigest}
-                onCheckedChange={setNewsDigest}
-                disabled={controlsDisabled}
-              />
+            <div className="grid gap-2 sm:grid-cols-3">
+              <Button asChild variant="outline" className="h-11">
+                <Link href="/notifications?tab=preferences">Preferences</Link>
+              </Button>
+              <Button asChild variant="outline" className="h-11">
+                <Link href="/notifications?tab=rules">Rules</Link>
+              </Button>
+              <Button asChild variant="outline" className="h-11">
+                <Link href="/notifications?tab=devices">Devices</Link>
+              </Button>
             </div>
           </div>
         </Card>

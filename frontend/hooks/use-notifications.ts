@@ -63,7 +63,8 @@ export function useUnreadNotificationsCount() {
 
 function patchNotificationReadState(
     data: NotificationInfiniteData | undefined,
-    notificationId?: string
+    notificationId?: string,
+    removeReadItems = false
 ) {
     if (!data) return data
 
@@ -71,19 +72,33 @@ function patchNotificationReadState(
         ...data,
         pages: data.pages.map((page) => ({
             ...page,
-            items: page.items.map((item) => {
-                if (notificationId && item.id !== notificationId) {
-                    return item
-                }
+            items: page.items
+                .map((item) => {
+                    if (notificationId && item.id !== notificationId) {
+                        return item
+                    }
 
-                return {
-                    ...item,
-                    isRead: true,
-                    readAt: item.readAt ?? new Date().toISOString(),
-                }
-            }),
+                    return {
+                        ...item,
+                        isRead: true,
+                        readAt: item.readAt ?? new Date().toISOString(),
+                    }
+                })
+                .filter((item) => !(removeReadItems && item.isRead)),
         })),
     }
+}
+
+function isNotificationsQueryForUser(queryKey: readonly unknown[], userId: string) {
+    return queryKey[0] === NOTIFICATIONS_QUERY_KEY && queryKey[1] === userId
+}
+
+function isUnreadNotificationsQuery(queryKey: readonly unknown[], userId: string) {
+    return isNotificationsQueryForUser(queryKey, userId) && queryKey[2] === 'unread'
+}
+
+function isAllNotificationsQuery(queryKey: readonly unknown[], userId: string) {
+    return isNotificationsQueryForUser(queryKey, userId) && queryKey[2] !== 'unread'
 }
 
 export function useMarkNotificationAsRead() {
@@ -97,7 +112,18 @@ export function useMarkNotificationAsRead() {
             if (!userId) return
 
             queryClient.setQueriesData(
-                { queryKey: [NOTIFICATIONS_QUERY_KEY, userId] },
+                {
+                    predicate: (query) =>
+                        isUnreadNotificationsQuery(query.queryKey, userId),
+                },
+                (data: NotificationInfiniteData | undefined) =>
+                    patchNotificationReadState(data, notificationId, true)
+            )
+            queryClient.setQueriesData(
+                {
+                    predicate: (query) =>
+                        isAllNotificationsQuery(query.queryKey, userId),
+                },
                 (data: NotificationInfiniteData | undefined) =>
                     patchNotificationReadState(data, notificationId)
             )
@@ -118,7 +144,18 @@ export function useMarkAllNotificationsAsRead() {
             if (!userId) return
 
             queryClient.setQueriesData(
-                { queryKey: [NOTIFICATIONS_QUERY_KEY, userId] },
+                {
+                    predicate: (query) =>
+                        isUnreadNotificationsQuery(query.queryKey, userId),
+                },
+                (data: NotificationInfiniteData | undefined) =>
+                    patchNotificationReadState(data, undefined, true)
+            )
+            queryClient.setQueriesData(
+                {
+                    predicate: (query) =>
+                        isAllNotificationsQuery(query.queryKey, userId),
+                },
                 (data: NotificationInfiniteData | undefined) =>
                     patchNotificationReadState(data)
             )

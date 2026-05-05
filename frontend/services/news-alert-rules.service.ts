@@ -20,6 +20,11 @@ import type {
 
 const WATCHLIST_NEWS_BURST_WINDOW_MINUTES = 10 as const
 const WATCHLIST_NEWS_RULE_LIMIT = 1
+const DEFAULT_WATCHLIST_NEWS_SENTIMENTS: NewsAlertSentiment[] = [
+    'OLUMLU',
+    'OLUMSUZ',
+    'NOTR',
+]
 const NEWS_ALERT_SENTIMENT_VALUES = new Set<NewsAlertSentiment>([
     'OLUMLU',
     'OLUMSUZ',
@@ -155,6 +160,25 @@ function toStoredRule(rule: WatchlistNewsAlertRule) {
     }
 }
 
+function buildDefaultRule(
+    ruleId: string,
+    status: AlertRuleStatus,
+    createdAt: string
+): WatchlistNewsAlertRule {
+    return {
+        id: ruleId,
+        status,
+        scopeType: 'watchlist',
+        sentiments: [...DEFAULT_WATCHLIST_NEWS_SENTIMENTS],
+        burstWindowMinutes: WATCHLIST_NEWS_BURST_WINDOW_MINUTES,
+        lastCheckedAt: null,
+        lastTriggeredAt: null,
+        lastEvaluatedAt: null,
+        createdAt,
+        updatedAt: createdAt,
+    }
+}
+
 export const newsAlertRulesService = {
     async getRules(): Promise<WatchlistNewsAlertRule[]> {
         const firebaseUser = ensureCurrentUser()
@@ -197,6 +221,43 @@ export const newsAlertRulesService = {
 
         await setDoc(ruleRef, toStoredRule(nextRule))
         return [nextRule]
+    },
+
+    async setDefaultRuleStatus(
+        enabled: boolean
+    ): Promise<WatchlistNewsAlertRule[]> {
+        const firebaseUser = ensureCurrentUser()
+        const currentRules = await this.getRules()
+        const status: AlertRuleStatus = enabled ? 'active' : 'paused'
+        const existingRule = currentRules[0]
+
+        if (!existingRule) {
+            const now = new Date().toISOString()
+            const ruleRef = doc(userNewsAlertRulesCollection(firebaseUser.uid))
+            const nextRule = buildDefaultRule(ruleRef.id, status, now)
+
+            await setDoc(ruleRef, toStoredRule(nextRule))
+            return [nextRule]
+        }
+
+        const updatedAt = new Date().toISOString()
+        const nextRule: WatchlistNewsAlertRule = {
+            ...existingRule,
+            status,
+            updatedAt,
+        }
+
+        await setDoc(
+            userNewsAlertRuleDoc(firebaseUser.uid, existingRule.id),
+            { status, updatedAt },
+            { merge: true }
+        )
+
+        return sortRules(
+            currentRules.map((rule) =>
+                rule.id === existingRule.id ? nextRule : rule
+            )
+        )
     },
 
     async updateRule(

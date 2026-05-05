@@ -47,6 +47,18 @@ export function useCreateNewsAlertRule() {
     })
 }
 
+export function useSetDefaultNewsAlertRuleStatus() {
+    const { syncRules } = useNewsAlertRulesCacheSync()
+
+    return useMutation({
+        mutationFn: (enabled: boolean) =>
+            newsAlertRulesService.setDefaultRuleStatus(enabled),
+        onSuccess: (rules) => {
+            syncRules(rules)
+        },
+    })
+}
+
 export function useUpdateNewsAlertRule() {
     const { syncRules } = useNewsAlertRulesCacheSync()
 

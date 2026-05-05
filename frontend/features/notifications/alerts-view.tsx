@@ -1,14 +1,20 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
+  Activity,
   Bell,
+  Clock3,
   ExternalLink,
+  Info,
   Loader2,
+  MoreHorizontal,
   Pencil,
   Play,
   Plus,
+  RefreshCw,
+  Search,
   Trash2,
   Pause,
 } from 'lucide-react'
@@ -16,8 +22,25 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select-native'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   useAlertRules,
   useCreateAlertRule,
@@ -32,6 +55,7 @@ import {
   useSetNewsAlertRuleStatus,
   useUpdateNewsAlertRule,
 } from '@/hooks/use-news-alert-rules'
+import { useToast } from '@/hooks/use-toast'
 import { useUserWatchlist } from '@/hooks/use-user-watchlist'
 import {
   ALERT_RULE_MAX_FILTERS,
@@ -43,6 +67,7 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/use-auth-store'
 import type {
   AlertRule,
+  AlertRuleStatus,
   NewsAlertSentiment,
   WatchlistNewsAlertRule,
 } from '@/types'
@@ -56,6 +81,10 @@ import { SCREENER_TIMEFRAMES } from '@/types/screener'
 
 export interface AlertsViewProps {
   isWidget?: boolean
+}
+
+interface AlertRulesPanelProps {
+  embedded?: boolean
 }
 
 const NEWS_SENTIMENT_OPTIONS: Array<{
@@ -142,9 +171,17 @@ function formatSentiments(sentiments: NewsAlertSentiment[]): string {
     .join(', ')
 }
 
+function areSentimentsEqual(
+  left: NewsAlertSentiment[],
+  right: NewsAlertSentiment[]
+): boolean {
+  if (left.length !== right.length) return false
+  return left.every((sentiment, index) => sentiment === right[index])
+}
+
 function describeWatchlistCoverage(tickers: string[]): string {
   if (tickers.length === 0) {
-    return 'No watchlist tickers configured.'
+    return 'No watchlist tickers yet. This rule starts matching after you add symbols.'
   }
 
   if (tickers.length <= 4) {
@@ -154,136 +191,775 @@ function describeWatchlistCoverage(tickers: string[]): string {
   return `${tickers.slice(0, 4).join(', ')} +${tickers.length - 4} more`
 }
 
+type WidgetFilter = 'all' | 'active' | 'paused' | 'triggered'
+
+type DeleteTarget =
+  | {
+      type: 'market'
+      id: string
+      label: string
+    }
+  | {
+      type: 'news'
+      id: string
+      label: string
+    }
+
+const WIDGET_FILTERS: Array<{ value: WidgetFilter; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'paused', label: 'Paused' },
+  { value: 'triggered', label: 'Triggered 24h' },
+]
+
+const RECENT_TRIGGER_WINDOW_HOURS = 24
+
+function isWithinLastHours(value: string | null, hours: number): boolean {
+  if (!value) return false
+
+  const timestamp = new Date(value).getTime()
+  if (Number.isNaN(timestamp)) return false
+
+  return Date.now() - timestamp <= hours * 60 * 60 * 1000
+}
+
+function getStatusBadgeClass(status: AlertRuleStatus): string {
+  return status === 'active'
+    ? 'border-primary/30 text-primary'
+    : 'border-muted text-muted-foreground'
+}
+
+function getSentimentLabel(sentiment: NewsAlertSentiment): string {
+  return (
+    NEWS_SENTIMENT_OPTIONS.find((option) => option.value === sentiment)?.label ??
+    sentiment
+  )
+}
+
+function normalizeSearch(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+function ruleMatchesSearch(rule: AlertRule, query: string): boolean {
+  if (!query) return true
+
+  const cadence = getAlertRuleCadence(rule.filters, rule.timeframe)
+  const haystack = [
+    rule.ticker,
+    rule.status,
+    rule.timeframe,
+    cadence.label,
+    describeAlertRuleFilters(rule.filters, rule.logic),
+  ]
+    .join(' ')
+    .toLowerCase()
+
+  return haystack.includes(query)
+}
+
+function newsRuleMatchesSearch(
+  rule: WatchlistNewsAlertRule,
+  watchlistTickers: string[],
+  query: string
+): boolean {
+  if (!query) return true
+
+  const sentimentText = rule.sentiments
+    .flatMap((sentiment) => [sentiment, getSentimentLabel(sentiment)])
+    .join(' ')
+  const haystack = [
+    'watchlist news',
+    'smart batching',
+    rule.status,
+    sentimentText,
+    watchlistTickers.join(' '),
+  ]
+    .join(' ')
+    .toLowerCase()
+
+  return haystack.includes(query)
+}
+
+function ruleMatchesFilter(
+  rule: Pick<AlertRule | WatchlistNewsAlertRule, 'status' | 'lastTriggeredAt'>,
+  filter: WidgetFilter
+): boolean {
+  if (filter === 'all') return true
+  if (filter === 'triggered') {
+    return isWithinLastHours(
+      rule.lastTriggeredAt,
+      RECENT_TRIGGER_WINDOW_HOURS
+    )
+  }
+
+  return rule.status === filter
+}
+
+function getRuleUpdatedTime(rule: AlertRule): number {
+  const triggeredAt = rule.lastTriggeredAt
+    ? new Date(rule.lastTriggeredAt).getTime()
+    : 0
+  const updatedAt = new Date(rule.updatedAt).getTime()
+
+  return Math.max(
+    Number.isNaN(triggeredAt) ? 0 : triggeredAt,
+    Number.isNaN(updatedAt) ? 0 : updatedAt
+  )
+}
+
+function sortRulesForWidget(rules: AlertRule[]): AlertRule[] {
+  return [...rules].sort((left, right) => {
+    const leftRecent = isWithinLastHours(
+      left.lastTriggeredAt,
+      RECENT_TRIGGER_WINDOW_HOURS
+    )
+    const rightRecent = isWithinLastHours(
+      right.lastTriggeredAt,
+      RECENT_TRIGGER_WINDOW_HOURS
+    )
+
+    if (leftRecent !== rightRecent) {
+      return leftRecent ? -1 : 1
+    }
+
+    if (left.status !== right.status) {
+      return left.status === 'active' ? -1 : 1
+    }
+
+    return getRuleUpdatedTime(right) - getRuleUpdatedTime(left)
+  })
+}
+
 function AlertsPreview({
   rules,
   newsRule,
   watchlistTickers,
   isLoading,
   isError,
+  onRetry,
 }: {
   rules: AlertRule[]
   newsRule: WatchlistNewsAlertRule | null
   watchlistTickers: string[]
   isLoading: boolean
   isError: boolean
+  onRetry: () => void
 }) {
-  const previewRules = rules.slice(0, 4)
+  const { toast } = useToast()
+  const setRuleStatusMutation = useSetAlertRuleStatus()
+  const deleteRuleMutation = useDeleteAlertRule()
+  const setNewsRuleStatusMutation = useSetNewsAlertRuleStatus()
+  const deleteNewsRuleMutation = useDeleteNewsAlertRule()
+  const [filter, setFilter] = useState<WidgetFilter>('all')
+  const [search, setSearch] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
+  const [busyTarget, setBusyTarget] = useState<string | null>(null)
+
+  const normalizedSearch = normalizeSearch(search)
+  const sortedRules = useMemo(() => sortRulesForWidget(rules), [rules])
+  const activeMarketRules = rules.filter((rule) => rule.status === 'active')
+  const pausedMarketRules = rules.filter((rule) => rule.status === 'paused')
+  const activeNewsRule = newsRule?.status === 'active' ? newsRule : null
+  const pausedNewsRule = newsRule?.status === 'paused' ? newsRule : null
+  const activeCount = activeMarketRules.length + (activeNewsRule ? 1 : 0)
+  const pausedCount = pausedMarketRules.length + (pausedNewsRule ? 1 : 0)
+  const recentCount =
+    rules.filter((rule) =>
+      isWithinLastHours(rule.lastTriggeredAt, RECENT_TRIGGER_WINDOW_HOURS)
+    ).length +
+    (newsRule &&
+    isWithinLastHours(newsRule.lastTriggeredAt, RECENT_TRIGGER_WINDOW_HOURS)
+      ? 1
+      : 0)
+  const totalCount = rules.length + (newsRule ? 1 : 0)
+  const filteredRules = sortedRules.filter(
+    (rule) =>
+      ruleMatchesFilter(rule, filter) &&
+      ruleMatchesSearch(rule, normalizedSearch)
+  )
+  const visibleNewsRule =
+    newsRule &&
+    ruleMatchesFilter(newsRule, filter) &&
+    newsRuleMatchesSearch(newsRule, watchlistTickers, normalizedSearch)
+      ? newsRule
+      : null
+  const hasVisibleRules = filteredRules.length > 0 || Boolean(visibleNewsRule)
+  const isBusy =
+    Boolean(busyTarget) ||
+    setRuleStatusMutation.isPending ||
+    deleteRuleMutation.isPending ||
+    setNewsRuleStatusMutation.isPending ||
+    deleteNewsRuleMutation.isPending
+  const filterCounts: Record<WidgetFilter, number> = {
+    all: totalCount,
+    active: activeCount,
+    paused: pausedCount,
+    triggered: recentCount,
+  }
+
+  const handleSetMarketStatus = async (
+    rule: AlertRule,
+    status: AlertRuleStatus
+  ) => {
+    setBusyTarget(`market:${rule.id}`)
+
+    try {
+      await setRuleStatusMutation.mutateAsync({ ruleId: rule.id, status })
+      toast({
+        variant: 'success',
+        description: `${rule.ticker} rule ${status === 'active' ? 'resumed' : 'paused'}.`,
+      })
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Rule status could not be updated.',
+      })
+    } finally {
+      setBusyTarget(null)
+    }
+  }
+
+  const handleSetNewsStatus = async (
+    rule: WatchlistNewsAlertRule,
+    status: AlertRuleStatus
+  ) => {
+    setBusyTarget(`news:${rule.id}`)
+
+    try {
+      await setNewsRuleStatusMutation.mutateAsync({ ruleId: rule.id, status })
+      toast({
+        variant: 'success',
+        description: `Watchlist News rule ${status === 'active' ? 'resumed' : 'paused'}.`,
+      })
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'News rule status could not be updated.',
+      })
+    } finally {
+      setBusyTarget(null)
+    }
+  }
+
+  const handleBulkStatus = async (status: AlertRuleStatus) => {
+    const marketTargets = rules.filter((rule) => rule.status !== status)
+    const shouldUpdateNewsRule = newsRule && newsRule.status !== status
+    const targetCount = marketTargets.length + (shouldUpdateNewsRule ? 1 : 0)
+
+    if (targetCount === 0) return
+
+    setBusyTarget('bulk')
+
+    try {
+      for (const rule of marketTargets) {
+        await setRuleStatusMutation.mutateAsync({ ruleId: rule.id, status })
+      }
+
+      if (shouldUpdateNewsRule) {
+        await setNewsRuleStatusMutation.mutateAsync({
+          ruleId: newsRule.id,
+          status,
+        })
+      }
+
+      toast({
+        variant: 'success',
+        description: `${targetCount} rule${targetCount === 1 ? '' : 's'} ${
+          status === 'active' ? 'resumed' : 'paused'
+        }.`,
+      })
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Rule statuses could not be updated.',
+      })
+    } finally {
+      setBusyTarget(null)
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+
+    setBusyTarget(`delete:${deleteTarget.type}:${deleteTarget.id}`)
+
+    try {
+      if (deleteTarget.type === 'market') {
+        await deleteRuleMutation.mutateAsync(deleteTarget.id)
+      } else {
+        await deleteNewsRuleMutation.mutateAsync(deleteTarget.id)
+      }
+
+      toast({
+        variant: 'success',
+        description: `${deleteTarget.label} deleted.`,
+      })
+      setDeleteTarget(null)
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        description:
+          error instanceof Error ? error.message : 'Rule could not be deleted.',
+      })
+    } finally {
+      setBusyTarget(null)
+    }
+  }
 
   return (
-    <div className="bg-background flex h-full flex-col">
-      <div className="border-border bg-background sticky top-0 z-10 flex items-center justify-between border-b px-4 pt-4 pb-2">
-        <div>
-          <p className="flex items-center gap-2 text-sm font-semibold">
-            <Bell size={16} />
-            Alert Rules
-          </p>
-          <p className="text-muted-foreground text-[10px]">
-            {rules.filter((rule) => rule.status === 'active').length +
-              (newsRule?.status === 'active' ? 1 : 0)}{' '}
-            active
-          </p>
+    <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <div className="bg-background flex h-full flex-col">
+        <div className="border-border bg-background sticky top-0 z-10 border-b px-4 pt-4 pb-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <Bell size={16} aria-hidden="true" />
+                Alert Rules
+              </p>
+              <p className="text-muted-foreground text-[10px]">
+                {activeCount} active, {pausedCount} paused
+              </p>
+            </div>
+            <Button asChild variant="ghost" size="sm" className="gap-1 text-xs">
+              <Link href="/alerts">
+                Open
+                <ExternalLink size={12} aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="border-border bg-card rounded-lg border p-2">
+              <p className="text-muted-foreground text-[10px]">Active</p>
+              <p className="text-sm font-semibold">{activeCount}</p>
+            </div>
+            <div className="border-border bg-card rounded-lg border p-2">
+              <p className="text-muted-foreground text-[10px]">Paused</p>
+              <p className="text-sm font-semibold">{pausedCount}</p>
+            </div>
+            <div className="border-border bg-card rounded-lg border p-2">
+              <p className="text-muted-foreground text-[10px]">24h</p>
+              <p className="text-sm font-semibold">{recentCount}</p>
+            </div>
+          </div>
+
+          <div className="relative mt-3">
+            <Search
+              className="text-muted-foreground absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2"
+              aria-hidden="true"
+            />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search rules"
+              className="h-8 pl-8 text-xs"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {WIDGET_FILTERS.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setFilter(item.value)}
+                className={cn(
+                  'focus-visible:ring-primary rounded-md border px-2 py-1 text-[10px] transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                  filter === item.value
+                    ? 'border-primary/40 bg-primary/10 text-primary'
+                    : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {item.label} {filterCounts[item.value]}
+              </button>
+            ))}
+          </div>
+
+          {totalCount > 0 ? (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => handleBulkStatus('paused')}
+                disabled={isBusy || activeCount === 0}
+              >
+                {busyTarget === 'bulk' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Pause className="h-3.5 w-3.5" />
+                )}
+                Pause all
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => handleBulkStatus('active')}
+                disabled={isBusy || pausedCount === 0}
+              >
+                {busyTarget === 'bulk' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Play className="h-3.5 w-3.5" />
+                )}
+                Resume all
+              </Button>
+            </div>
+          ) : null}
         </div>
-        <Button asChild variant="ghost" size="sm" className="gap-1 text-xs">
-          <Link href="/alerts">
-            Open page
-            <ExternalLink size={12} />
-          </Link>
-        </Button>
-      </div>
 
-      <div className="flex-1 overflow-auto px-2 py-2">
-        {isLoading ? (
-          <div className="flex h-full items-center justify-center">
-            <Loader2 className="text-primary h-5 w-5 animate-spin" />
-          </div>
-        ) : isError ? (
-          <div className="border-destructive/30 bg-destructive/5 text-destructive rounded-xl border p-3 text-xs">
-            Alert rules could not be loaded.
-          </div>
-        ) : previewRules.length === 0 && !newsRule ? (
-          <div className="border-border text-muted-foreground rounded-xl border border-dashed p-4 text-center text-xs">
-            No rules yet. Open the full page to create your first alert rule.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {previewRules.map((rule) => {
-              const cadence = getAlertRuleCadence(rule.filters, rule.timeframe)
-
-              return (
+        <div className="flex-1 overflow-auto px-2 py-2">
+          {isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, index) => (
                 <div
-                  key={rule.id}
-                  className="border-border bg-card rounded-xl border p-3"
+                  key={index}
+                  className="border-border bg-card rounded-lg border p-3"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="truncate text-sm font-semibold">
-                        {rule.ticker}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'text-[10px]',
-                          rule.status === 'active'
-                            ? 'border-primary/30 text-primary'
-                            : 'border-muted text-muted-foreground'
-                        )}
-                      >
-                        {rule.status}
-                      </Badge>
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-6 w-16" />
+                  </div>
+                  <Skeleton className="mt-3 h-3 w-full" />
+                  <Skeleton className="mt-2 h-3 w-3/4" />
+                </div>
+              ))}
+            </div>
+          ) : isError ? (
+            <div className="border-destructive/30 bg-destructive/5 text-destructive rounded-xl border p-3 text-xs">
+              <p className="font-medium">Alert rules could not be loaded.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 h-8 text-xs"
+                onClick={onRetry}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Retry
+              </Button>
+            </div>
+          ) : totalCount === 0 ? (
+            <div className="border-border text-muted-foreground rounded-xl border border-dashed p-4 text-center text-xs">
+              <p className="font-medium text-foreground">No rules yet</p>
+              <p className="mt-1">
+                Create market rules on the full alerts page. Watchlist News can
+                be enabled from notification rules.
+              </p>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="mt-3 h-8 text-xs"
+              >
+                <Link href="/alerts">Create rule</Link>
+              </Button>
+            </div>
+          ) : !hasVisibleRules ? (
+            <div className="border-border text-muted-foreground rounded-xl border border-dashed p-4 text-center text-xs">
+              <p>No rules match this view.</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-2 h-8 text-xs"
+                onClick={() => {
+                  setFilter('all')
+                  setSearch('')
+                }}
+              >
+                Clear filters
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {visibleNewsRule ? (
+                <div className="border-border bg-card rounded-lg border p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-sm font-semibold">
+                          Watchlist News
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-[10px]',
+                            getStatusBadgeClass(visibleNewsRule.status)
+                          )}
+                        >
+                          {visibleNewsRule.status}
+                        </Badge>
+                        {isWithinLastHours(
+                          visibleNewsRule.lastTriggeredAt,
+                          RECENT_TRIGGER_WINDOW_HOURS
+                        ) ? (
+                          <Badge variant="secondary" className="text-[10px]">
+                            Triggered
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        Smart batching
+                      </p>
                     </div>
-                    <span className="text-muted-foreground text-[10px]">
-                      {rule.timeframe}
+
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        className="h-7 text-[10px]"
+                        onClick={() =>
+                          handleSetNewsStatus(
+                            visibleNewsRule,
+                            visibleNewsRule.status === 'active'
+                              ? 'paused'
+                              : 'active'
+                          )
+                        }
+                        disabled={isBusy}
+                      >
+                        {busyTarget === `news:${visibleNewsRule.id}` ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : visibleNewsRule.status === 'active' ? (
+                          <Pause className="h-3 w-3" />
+                        ) : (
+                          <Play className="h-3 w-3" />
+                        )}
+                        {visibleNewsRule.status === 'active'
+                          ? 'Pause'
+                          : 'Resume'}
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            disabled={isBusy}
+                            aria-label="Watchlist News actions"
+                          >
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem asChild>
+                            <Link href="/notifications?tab=rules">
+                              <ExternalLink className="h-4 w-4" />
+                              Manage
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onSelect={() =>
+                              setDeleteTarget({
+                                type: 'news',
+                                id: visibleNewsRule.id,
+                                label: 'Watchlist News rule',
+                              })
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {visibleNewsRule.sentiments.map((sentiment) => (
+                      <Badge
+                        key={sentiment}
+                        variant="secondary"
+                        className="text-[10px]"
+                        title={sentiment}
+                      >
+                        {getSentimentLabel(sentiment)}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  <p className="text-muted-foreground mt-3 line-clamp-2 text-xs">
+                    {describeWatchlistCoverage(watchlistTickers)}
+                  </p>
+
+                  <div className="text-muted-foreground mt-3 grid gap-1.5 text-[10px]">
+                    <span className="flex items-center gap-1.5">
+                      <Clock3 className="h-3 w-3" />
+                      Last check: {formatDateTime(visibleNewsRule.lastCheckedAt)}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Activity className="h-3 w-3" />
+                      Last trigger:{' '}
+                      {formatDateTime(visibleNewsRule.lastTriggeredAt)}
                     </span>
                   </div>
-                  <p className="text-muted-foreground mt-1 line-clamp-2 text-xs">
-                    {describeAlertRuleFilters(rule.filters, rule.logic)}
-                  </p>
-                  <p className="text-muted-foreground mt-2 text-[10px] tracking-wide uppercase">
-                    {cadence.label}
-                  </p>
                 </div>
-              )
-            })}
-            {newsRule ? (
-              <div className="border-border bg-card rounded-xl border p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="truncate text-sm font-semibold">
-                      Watchlist News
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'text-[10px]',
-                        newsRule.status === 'active'
-                          ? 'border-primary/30 text-primary'
-                          : 'border-muted text-muted-foreground'
-                      )}
-                    >
-                      {newsRule.status}
-                    </Badge>
+              ) : null}
+
+              {filteredRules.map((rule) => {
+                const cadence = getAlertRuleCadence(rule.filters, rule.timeframe)
+                const targetKey = `market:${rule.id}`
+
+                return (
+                  <div
+                    key={rule.id}
+                    className="border-border bg-card rounded-lg border p-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="truncate text-sm font-semibold">
+                            {rule.ticker}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={cn('text-[10px]', getStatusBadgeClass(rule.status))}
+                          >
+                            {rule.status}
+                          </Badge>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {rule.timeframe}
+                          </Badge>
+                          {isWithinLastHours(
+                            rule.lastTriggeredAt,
+                            RECENT_TRIGGER_WINDOW_HOURS
+                          ) ? (
+                            <Badge variant="secondary" className="text-[10px]">
+                              Triggered
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          className="h-7 text-[10px]"
+                          onClick={() =>
+                            handleSetMarketStatus(
+                              rule,
+                              rule.status === 'active' ? 'paused' : 'active'
+                            )
+                          }
+                          disabled={isBusy}
+                        >
+                          {busyTarget === targetKey ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : rule.status === 'active' ? (
+                            <Pause className="h-3 w-3" />
+                          ) : (
+                            <Play className="h-3 w-3" />
+                          )}
+                          {rule.status === 'active' ? 'Pause' : 'Resume'}
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              disabled={isBusy}
+                              aria-label={`${rule.ticker} rule actions`}
+                            >
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/alerts#rule-${rule.id}`}>
+                                <Pencil className="h-4 w-4" />
+                                Open/Edit
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onSelect={() =>
+                                setDeleteTarget({
+                                  type: 'market',
+                                  id: rule.id,
+                                  label: `${rule.ticker} rule`,
+                                })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+
+                    <p className="text-muted-foreground mt-2 line-clamp-2 text-xs">
+                      {describeAlertRuleFilters(rule.filters, rule.logic)}
+                    </p>
+
+                    <div className="text-muted-foreground mt-3 grid gap-1.5 text-[10px]">
+                      <span className="flex items-center gap-1.5">
+                        <Clock3 className="h-3 w-3" />
+                        Cadence: {cadence.label}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Activity className="h-3 w-3" />
+                        Last trigger: {formatDateTime(rule.lastTriggeredAt)}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Clock3 className="h-3 w-3" />
+                        Next evaluation: {formatDateTime(rule.nextEvaluationAt)}
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-muted-foreground text-[10px]">
-                    {newsRule.burstWindowMinutes}m burst
-                  </span>
-                </div>
-                <p className="text-muted-foreground mt-1 line-clamp-2 text-xs">
-                  {formatSentiments(newsRule.sentiments)}
-                </p>
-                <p className="text-muted-foreground mt-2 text-[10px] tracking-wide uppercase">
-                  {describeWatchlistCoverage(watchlistTickers)}
-                </p>
-              </div>
-            ) : null}
-          </div>
-        )}
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Delete alert rule</DialogTitle>
+          <DialogDescription>
+            {deleteTarget
+              ? `${deleteTarget.label} will be removed. This cannot be undone.`
+              : 'This rule will be removed. This cannot be undone.'}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="ghost" disabled={isBusy}>
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button
+            variant="destructive"
+            onClick={handleConfirmDelete}
+            disabled={isBusy}
+          >
+            {busyTarget?.startsWith('delete:') ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+            Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
-export function AlertsView({ isWidget = false }: AlertsViewProps) {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+export function AlertRulesPanel({ embedded = false }: AlertRulesPanelProps) {
   const { data: rules = [], isLoading, isError } = useAlertRules()
   const {
     data: newsRules = [],
@@ -324,6 +1000,9 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
     newsSentimentsDraft ??
     currentNewsRule?.sentiments ??
     DEFAULT_NEWS_SENTIMENTS
+  const hasNewsSentimentChanges = currentNewsRule
+    ? !areSentimentsEqual(newsSentiments, currentNewsRule.sentiments)
+    : true
 
   const activeRules = useMemo(
     () => rules.filter((rule) => rule.status === 'active'),
@@ -333,6 +1012,18 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
     () => newsRules.filter((rule) => rule.status === 'active'),
     [newsRules]
   )
+
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!hash.startsWith('#rule-')) return
+
+    window.requestAnimationFrame(() => {
+      document.getElementById(hash.slice(1))?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    })
+  }, [rules.length])
 
   const handleSaveRule = async () => {
     setFeedback(null)
@@ -405,9 +1096,17 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
     setNewsFeedback(null)
     setNewsSentimentsDraft((currentDraft) => {
       const current = currentDraft ?? newsSentiments
-      return current.includes(sentiment)
-        ? current.filter((item) => item !== sentiment)
-        : [...current, sentiment]
+
+      if (current.includes(sentiment)) {
+        if (current.length === 1) {
+          setNewsFeedback('Select at least one sentiment.')
+          return current
+        }
+
+        return current.filter((item) => item !== sentiment)
+      }
+
+      return [...current, sentiment]
     })
   }
 
@@ -417,6 +1116,11 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
 
   const handleSaveNewsRule = async () => {
     setNewsFeedback(null)
+
+    if (newsSentiments.length === 0) {
+      setNewsFeedback('Select at least one sentiment.')
+      return
+    }
 
     try {
       if (currentNewsRule) {
@@ -478,47 +1182,30 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
     }
   }
 
-  if (!isAuthenticated) {
-    return (
-      <div
-        className={cn(
-          'flex h-full items-center justify-center',
-          !isWidget && 'p-6'
-        )}
-      >
-        <Card className="border-border bg-card max-w-md p-6 text-center">
-          <h1 className="text-lg font-semibold">Sign in required</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            Alert rules are available after sign-in.
-          </p>
-        </Card>
-      </div>
-    )
-  }
-
-  if (isWidget) {
-    return (
-      <AlertsPreview
-        rules={rules}
-        newsRule={currentNewsRule}
-        watchlistTickers={watchlistTickers}
-        isLoading={isLoading || isLoadingNewsRules}
-        isError={isError || isNewsRulesError}
-      />
-    )
-  }
-
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Alert Rules</h1>
-      </div>
+    <div
+      className={cn(
+        'flex w-full flex-col gap-6',
+        embedded ? '' : 'mx-auto max-w-6xl p-6'
+      )}
+    >
+      {!embedded ? (
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-bold tracking-tight">Alert Rules</h1>
+          <p className="text-muted-foreground max-w-2xl text-sm">
+            Manage market rules and the single watchlist news rule.
+          </p>
+        </div>
+      ) : null}
 
       <Card className="border-border bg-card p-5">
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
             <div>
               <h2 className="text-lg font-semibold">Watchlist News Rule</h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Uses your current watchlist and the selected sentiment labels.
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="text-xs">
@@ -532,18 +1219,23 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
 
           <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
             <div className="border-border bg-background/40 rounded-lg border p-4">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="text-sm font-semibold">Sentiment Filters</h3>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Changes are saved only when you press Save.
+                  </p>
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  Fixed 10m burst
+                <Badge variant="outline" className="w-fit text-xs">
+                  Smart batching
                 </Badge>
               </div>
 
               <div className="mt-4 grid gap-3 md:grid-cols-3">
                 {NEWS_SENTIMENT_OPTIONS.map((option) => {
                   const isSelected = newsSentiments.includes(option.value)
+                  const isLastSelected =
+                    isSelected && newsSentiments.length === 1
 
                   return (
                     <button
@@ -552,6 +1244,11 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
                       onClick={() => handleToggleNewsSentiment(option.value)}
                       disabled={isNewsBusy}
                       aria-pressed={isSelected}
+                      title={
+                        isLastSelected
+                          ? 'At least one sentiment must stay selected'
+                          : option.label
+                      }
                       className={cn(
                         'focus-visible:ring-primary rounded-lg border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
                         isSelected
@@ -568,6 +1265,14 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
                 })}
               </div>
 
+              <div className="border-border bg-card text-muted-foreground mt-4 flex gap-2 rounded-lg border p-3 text-xs">
+                <Info className="text-primary mt-0.5 h-4 w-4 flex-shrink-0" />
+                <span>
+                  Watchlist news is grouped about every 10 minutes before a
+                  notification is delivered.
+                </span>
+              </div>
+
               {newsFeedback ? (
                 <div
                   role="alert"
@@ -580,12 +1285,12 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
 
               {watchlistTickers.length === 0 ? (
                 <div
-                  role="alert"
+                  role="status"
                   aria-live="polite"
                   className="border-chart-4/30 bg-chart-4/10 text-chart-4 mt-4 rounded-lg border p-3 text-sm"
                 >
-                  Add tickers to the watchlist before enabling watchlist news
-                  alerts.
+                  This rule can be active now, but it starts matching only after
+                  you add symbols to the watchlist.
                 </div>
               ) : null}
 
@@ -594,12 +1299,16 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
                   <Button
                     className="h-11 sm:h-9"
                     onClick={handleSaveNewsRule}
-                    disabled={isNewsBusy || watchlistTickers.length === 0}
+                    disabled={
+                      isNewsBusy ||
+                      newsSentiments.length === 0 ||
+                      (Boolean(currentNewsRule) && !hasNewsSentimentChanges)
+                    }
                   >
                     {isNewsBusy ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : currentNewsRule ? (
-                      'Update News Rule'
+                      'Save News Rule'
                     ) : (
                       <>
                         <Plus className="h-4 w-4" />
@@ -607,6 +1316,16 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
                       </>
                     )}
                   </Button>
+                  {newsSentimentsDraft ? (
+                    <Button
+                      variant="ghost"
+                      className="h-11 sm:h-9"
+                      onClick={resetNewsDraft}
+                      disabled={isNewsBusy}
+                    >
+                      Cancel
+                    </Button>
+                  ) : null}
                   {currentNewsRule ? (
                     <Button
                       variant="outline"
@@ -692,6 +1411,14 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
                   <div className="border-border bg-card text-muted-foreground rounded-lg border p-3 text-xs">
                     {describeWatchlistCoverage(watchlistTickers)}
                   </div>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="h-9 w-full"
+                  >
+                    <Link href="/watchlist">Manage watchlist</Link>
+                  </Button>
                 </div>
               ) : (
                 <div className="border-border text-muted-foreground mt-4 rounded-lg border border-dashed p-4 text-sm">
@@ -707,6 +1434,9 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
         <div className="flex flex-col gap-4">
           <div>
             <h2 className="text-lg font-semibold">Market Rules</h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Create price and indicator conditions for one ticker at a time.
+            </p>
           </div>
 
           <div className="flex flex-col gap-2 md:flex-row md:items-end">
@@ -867,7 +1597,7 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
                 <div
                   key={rule.id}
                   id={`rule-${rule.id}`}
-                  className="border-border bg-background/40 rounded-lg border p-4"
+                  className="border-border bg-background/40 scroll-mt-24 rounded-lg border p-4"
                 >
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0 flex-1">
@@ -956,4 +1686,52 @@ export function AlertsView({ isWidget = false }: AlertsViewProps) {
       </Card>
     </div>
   )
+}
+
+function AlertsWidgetPreview() {
+  const alertRulesQuery = useAlertRules()
+  const newsRulesQuery = useNewsAlertRules()
+  const { data: watchlist } = useUserWatchlist()
+
+  return (
+    <AlertsPreview
+      rules={alertRulesQuery.data ?? []}
+      newsRule={newsRulesQuery.data?.[0] ?? null}
+      watchlistTickers={watchlist?.tickers ?? []}
+      isLoading={alertRulesQuery.isLoading || newsRulesQuery.isLoading}
+      isError={alertRulesQuery.isError || newsRulesQuery.isError}
+      onRetry={() => {
+        void alertRulesQuery.refetch()
+        void newsRulesQuery.refetch()
+      }}
+    />
+  )
+}
+
+export function AlertsView({ isWidget = false }: AlertsViewProps) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+
+  if (!isAuthenticated) {
+    return (
+      <div
+        className={cn(
+          'flex h-full items-center justify-center',
+          !isWidget && 'p-6'
+        )}
+      >
+        <Card className="border-border bg-card max-w-md p-6 text-center">
+          <h1 className="text-lg font-semibold">Sign in required</h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Alert rules are available after sign-in.
+          </p>
+        </Card>
+      </div>
+    )
+  }
+
+  if (isWidget) {
+    return <AlertsWidgetPreview />
+  }
+
+  return <AlertRulesPanel />
 }

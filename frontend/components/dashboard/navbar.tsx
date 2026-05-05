@@ -37,6 +37,7 @@ import {
   useNotifications,
   useUnreadNotificationsCount,
 } from '@/hooks/use-notifications'
+import { getNotificationTarget } from '@/lib/notification-categories'
 import { cn } from '@/lib/utils'
 import { BIST_AVAILABLE, TICKER_NAMES } from '@/config/markets'
 import { resolveAvatarUrl } from '@/lib/avatar'
@@ -592,6 +593,7 @@ export function Navbar() {
                       {recentNotifications.map((notification) => {
                         const meta = getNotificationTrayMeta(notification)
                         const Icon = meta.Icon
+                        const target = getNotificationTarget(notification)
                         const isClearing = clearingNotificationIds.includes(
                           notification.id
                         )
@@ -608,29 +610,42 @@ export function Navbar() {
                                 : 'border-primary/15 bg-primary/5'
                             )}
                           >
-                            <div
-                              className={cn(
-                                'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border',
-                                meta.className
-                              )}
+                            <Link
+                              href={target}
+                              onClick={() => {
+                                if (!notification.isRead) {
+                                  markNotificationAsReadMutation.mutate(
+                                    notification.id
+                                  )
+                                }
+                                setActiveDropdown(null)
+                              }}
+                              className="focus-visible:ring-primary flex min-w-0 flex-1 items-start gap-3 rounded-lg focus-visible:ring-2 focus-visible:outline-none"
                             >
-                              <Icon className="h-4 w-4" aria-hidden="true" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="line-clamp-2 text-sm leading-5">
-                                {notification.title || notification.body}
-                              </p>
-                              {notification.title && notification.body ? (
-                                <p className="text-muted-foreground line-clamp-1 text-xs">
-                                  {notification.body}
-                                </p>
-                              ) : null}
-                              <p className="text-muted-foreground mt-1 text-[11px]">
-                                {formatRelativeNotificationTime(
-                                  notification.createdAt
+                              <div
+                                className={cn(
+                                  'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border',
+                                  meta.className
                                 )}
-                              </p>
-                            </div>
+                              >
+                                <Icon className="h-4 w-4" aria-hidden="true" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="line-clamp-2 text-sm leading-5">
+                                  {notification.title || notification.body}
+                                </p>
+                                {notification.title && notification.body ? (
+                                  <p className="text-muted-foreground line-clamp-1 text-xs">
+                                    {notification.body}
+                                  </p>
+                                ) : null}
+                                <p className="text-muted-foreground mt-1 text-[11px]">
+                                  {formatRelativeNotificationTime(
+                                    notification.createdAt
+                                  )}
+                                </p>
+                              </div>
+                            </Link>
                             <Button
                               type="button"
                               variant="ghost"
